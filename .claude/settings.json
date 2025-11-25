@@ -24,5 +24,29 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_CODE_HOOK_EVENT=Notification ./.claude/notify.sh",
+            "statusMessage": "Slack通知を送信中..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_CODE_HOOK_EVENT=Stop ./.claude/notify.sh",
+            "statusMessage": "完了通知を送信中..."
+          }
+        ]
+      }
+    ]
   }
 }
