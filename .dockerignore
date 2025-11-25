@@ -1,0 +1,45 @@
+# Git関連
+.git/
+.gitignore
+.gitattributes
+
+# Python関連
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# 仮想環境
+.venv/
+venv/
+ENV/
+env/
+
+# 環境変数ファイル（機密情報）
+.env
+.env.local
+.env.*.local
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ドキュメント
+README.md
+docs/
+specs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# その他
+node_modules/
+.DS_Store
+Thumbs.db

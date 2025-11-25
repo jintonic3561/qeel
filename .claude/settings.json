@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(.specify/scripts/bash/setup-plan.sh:*)",
+      "Bash(.specify/scripts/bash/update-agent-context.sh:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(mkdir:*)",
+      "Bash(make build:*)",
+      "Bash(docker run:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "Bash(docker images:*)",
+      "WebSearch",
+      "Bash(sed:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run python -m pytest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

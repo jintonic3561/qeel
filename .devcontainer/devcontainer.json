@@ -1,0 +1,65 @@
+{
+  "name": "qeel Development",
+  // Dockerfileを参照してイメージをビルド
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/app",
+  // ホストのワークスペースをコンテナにマウント
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
+  // .envファイルから環境変数を読み込む
+  "runArgs": [
+    "--env-file=${localWorkspaceFolder}/.env"
+  ],
+  // VSCode拡張機能と設定のカスタマイズ
+  "customizations": {
+    "vscode": {
+      // 開発支援拡張機能のインストール
+      "extensions": [
+        "esbenp.prettier-vscode",         // Prettierフォーマッター
+        "ms-python.python",                // Python言語サポート
+        "ms-toolsai.jupyter",              // Jupyter Notebookサポート
+        "github.copilot",                  // GitHub Copilot
+        "njpwerner.autodocstring",         // Python docstring自動生成
+        "KevinRose.vsc-python-indent",     // Pythonインデント改善
+        "charliermarsh.ruff",              // Ruff (フォーマッター+リンター)
+        "ryanluker.vscode-coverage-gutters" // テストカバレッジ表示
+      ],
+      // VSCode設定
+      "settings": {
+        // エディター設定
+        "editor.renderWhitespace": "all",  // 空白文字を常に表示
+        // Python設定
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "[python]": {
+          "editor.formatOnSave": true,     // 保存時に自動フォーマット
+          "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",   // 保存時に自動修正
+            "source.organizeImports": "explicit" // 保存時にimport整理
+          },
+          "editor.defaultFormatter": "charliermarsh.ruff" // Ruffをフォーマッターに指定
+        },
+        // Pythonテスト設定
+        "python.testing.pytestArgs": [
+          "tests",
+          "--capture=tee-sys",
+          "-vv"
+        ],
+        "python.testing.pytestEnabled": true,
+        // カバレッジ表示設定
+        "coverage-gutters.showLineCoverage": true,
+        "coverage-gutters.showRulerCoverage": true,
+        "coverage-gutters.coverageFileNames": [".pytest_cache/coverage.xml"],
+        // JSON/JSONCフォーマット設定
+        "[json][jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit"
+          }
+        }
+      }
+    }
+  }
+}
