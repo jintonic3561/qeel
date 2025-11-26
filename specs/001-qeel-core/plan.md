@@ -89,13 +89,14 @@
 **Branch**: `002-core-config-and-schemas`
 - **目的**: 設定管理とスキーマバリデーションの基盤
 - **成果物**:
-  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig）
+  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, TimingConfig, ContextStoreConfig）
   - `qeel/schemas/` - DataFrameスキーマバリデータ（MarketDataSchema, SignalSchema等）
-  - toml読み込み・バリデーション機能
+  - toml読み込み・バリデーション機能（research.mdの設定例を参照）
   - 型ヒント + mypy設定
 - **テスト**: 不正なtomlでValidationError、正常なtomlで正しくロード
 - **依存**: なし
 - **User Story**: N/A（基盤）
+- **責任範囲**: toml設定ファイルのスキーマ定義とバリデーションロジック。データソースの実装は003で行う
 
 ---
 
@@ -109,6 +110,7 @@
 - **テスト**: モックデータでfetch()が正しく動作、スキーマバリデーション
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: N/A（基盤、User Story 1で使用）
+- **責任範囲**: DataSourceConfigを受け取り、実際のデータ取得を実装。設定スキーマは002で定義済み
 
 ---
 
@@ -132,10 +134,12 @@
   - `qeel/models/context.py` - Context Pydanticモデル
   - `qeel/stores/base.py` - BaseContextStore ABC
   - `qeel/stores/local_json.py` - LocalJSONStore
+  - `qeel/stores/local_parquet.py` - LocalParquetStore
+  - `qeel/stores/s3.py` - S3Store（実運用必須対応）
   - `qeel/stores/in_memory.py` - InMemoryStore（テスト用）
-- **テスト**: save/loadが正しく動作、存在しない場合はNone
+- **テスト**: save/loadが正しく動作、存在しない場合はNone、S3ストアはモックboto3で動作確認
 - **依存**: `002-core-config-and-schemas`
-- **User Story**: User Story 1（コンテキスト永続化）
+- **User Story**: User Story 1（コンテキスト永続化）、User Story 2（実運用でS3使用）
 
 ---
 
@@ -154,13 +158,18 @@
 **Branch**: `007-backtest-engine`
 - **目的**: バックテストエンジン本体（P1完成）
 - **成果物**:
-  - `qeel/engines/base.py` - BaseEngine（共通フロー）
+  - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
   - `qeel/engines/backtest.py` - BacktestEngine
-  - iteration管理、取引日判定
-  - デフォルトの銘柄選定・注文生成ロジック
+  - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
+  - デフォルトの銘柄選定・注文生成ロジック（等ウェイトポートフォリオ、open-closeの成行注文）
 - **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
 - **依存**: `003`, `004`, `005`, `006`
 - **User Story**: **User Story 1（P1）完成**
+- **デフォルトロジック詳細**:
+  - 銘柄選定: シグナル上位N銘柄を選択（Nはユーザ指定、デフォルト10）
+  - ウェイト計算: 選択銘柄に等ウェイト割り当て（1/N）
+  - 注文生成: open価格での成行買い、close価格での成行売り（リバランス時）
+  - 注文タイミング: toml設定の`timing.submit_orders`で指定
 
 ---
 

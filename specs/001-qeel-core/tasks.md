@@ -141,14 +141,17 @@
   - src/qeel/models/context.py: Context Pydanticモデル
   - src/qeel/stores/base.py: BaseContextStore ABC
   - src/qeel/stores/local_json.py: LocalJSONStore
+  - src/qeel/stores/local_parquet.py: LocalParquetStore
+  - src/qeel/stores/s3.py: S3Store（boto3使用、実運用必須対応）
   - src/qeel/stores/in_memory.py: InMemoryStore（テスト用）
-  - tests/unit/test_stores.py
+  - tests/unit/test_stores.py（S3はモックboto3で動作確認）
   - tests/contract/test_context_store_contract.py
 - [ ] T027 PRを作成しマージ
 
 **完了条件**:
 - save/loadが正しく動作
 - 存在しない場合はNoneを返す
+- S3Storeがモックboto3で正常に動作（put_object/get_object呼び出し確認）
 
 ---
 
@@ -195,8 +198,9 @@
   - src/qeel/engines/base.py: BaseEngine（共通フロー、Template Methodパターン）
   - src/qeel/engines/backtest.py: BacktestEngine
   - iteration管理ロジック
-  - 取引日判定ロジック
-  - デフォルトの銘柄選定・注文生成ロジック
+  - 取引日判定ロジック（toml設定のtradingCalendarを使用）
+  - デフォルトの銘柄選定ロジック（シグナル上位N銘柄、等ウェイト割り当て）
+  - デフォルトの注文生成ロジック（open-closeの成行注文）
   - tests/unit/test_engines.py
   - tests/integration/test_backtest_e2e.py
 - [ ] T036 User Story 1のAcceptance Scenariosをすべて満たすことを確認

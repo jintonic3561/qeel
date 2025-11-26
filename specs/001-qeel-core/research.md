@@ -96,6 +96,65 @@ class Config(BaseModel):
 - **手動パース**: エラーメッセージの品質低下、保守困難
 - **dynaconf等の設定ライブラリ**: 過剰な機能、型安全性が弱い
 
+**Complete TOML Configuration Example**:
+
+```toml
+# config.toml - バックテスト設定ファイル例
+
+# ループ管理設定
+[loop]
+start_date = "2020-01-01"
+end_date = "2023-12-31"
+frequency = "1D"  # 日足（"1H"=時間足、"1W"=週足）
+
+# 取引日判定（オプション）
+[loop.trading_calendar]
+country = "JP"  # 日本の取引カレンダー
+skip_holidays = true
+
+# データソース定義（複数可）
+[[data_sources]]
+name = "ohlcv"
+datetime_column = "timestamp"
+offset_hours = 0  # データが利用可能になる時刻オフセット（UTC基準）
+window_days = 30  # 各iterationで取得する過去データの日数
+source_type = "parquet"
+source_path = "/data/ohlcv.parquet"
+
+[[data_sources]]
+name = "earnings"
+datetime_column = "announcement_date"
+offset_hours = 16  # 決算発表は16時以降に利用可能
+window_days = 90
+source_type = "csv"
+source_path = "/data/earnings.csv"
+
+# コスト設定
+[costs]
+commission_rate = 0.001  # 手数料率（0.1%）
+slippage_bps = 5  # スリッページ（5bps）
+market_impact_model = "sqrt"  # "fixed" または "sqrt"
+market_impact_coef = 0.0001
+
+# 各メソッドの実行タイミング（ループ日付からのオフセット）
+[timing]
+calculate_signals = "09:00:00"  # シグナル計算タイミング
+select_symbols = "09:05:00"
+create_orders = "09:10:00"
+submit_orders = "09:30:00"  # 執行タイミング
+
+# コンテキスト保存設定
+[context_store]
+type = "local_json"  # "local_json", "local_parquet", "s3"
+base_path = "/tmp/qeel_context"
+
+# 実運用時のS3設定例（オプション）
+# [context_store.s3]
+# bucket = "my-trading-bucket"
+# prefix = "qeel/context/"
+# region = "ap-northeast-1"
+```
+
 ---
 
 ### 4. iterationループの状態管理とコンテキスト永続化
