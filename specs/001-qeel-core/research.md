@@ -126,8 +126,8 @@ name = "earnings"
 datetime_column = "announcement_date"
 offset_hours = 16  # 決算発表は16時以降に利用可能
 window_days = 90
-source_type = "csv"
-source_path = "/data/earnings.csv"
+source_type = "parquet"
+source_path = "/data/earnings.parquet"
 
 # コスト設定
 [costs]
@@ -161,7 +161,7 @@ base_path = "/tmp/qeel_context"
 
 **Decision**:
 - `Context` をPydanticモデルで定義
-- iteration終了時にJSON/Parquet/CSVで保存
+- iteration終了時にJSON/Parquetで保存
 - 次iteration開始時にロード
 
 **Rationale**:
@@ -179,8 +179,8 @@ class Context(BaseModel):
 ```
 
 **Storage Abstraction**:
-- `LocalFileStore(BaseContextStore)`: `Path` ベース
-- `S3Store(BaseContextStore)`: boto3使用（ユーザ実装例として提供）
+- `LocalStore(BaseContextStore)`: `Path` ベース、JSON/Parquet両対応（バックテスト用）
+- `S3Store(BaseContextStore)`: boto3使用、JSON/Parquet両対応（**実運用必須対応、標準実装として提供**）
 
 **Alternatives Considered**:
 - **pickle**: セキュリティリスク、バージョン依存性

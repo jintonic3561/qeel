@@ -104,13 +104,13 @@
 - **目的**: データソースABCと標準実装
 - **成果物**:
   - `qeel/data_sources/base.py` - BaseDataSource ABC
-  - `qeel/data_sources/csv.py` - CSVDataSource
-  - `qeel/data_sources/parquet.py` - ParquetDataSource
+  - `qeel/data_sources/parquet.py` - ParquetDataSource（標準実装）
   - `qeel/data_sources/mock.py` - MockDataSource（テスト用）
 - **テスト**: モックデータでfetch()が正しく動作、スキーマバリデーション
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: N/A（基盤、User Story 1で使用）
 - **責任範囲**: DataSourceConfigを受け取り、実際のデータ取得を実装。設定スキーマは002で定義済み
+- **備考**: ParquetはCSVより高速・型保持・圧縮効率が良いため、標準実装として提供。CSVは不要
 
 ---
 
@@ -133,11 +133,10 @@
 - **成果物**:
   - `qeel/models/context.py` - Context Pydanticモデル
   - `qeel/stores/base.py` - BaseContextStore ABC
-  - `qeel/stores/local_json.py` - LocalJSONStore
-  - `qeel/stores/local_parquet.py` - LocalParquetStore
-  - `qeel/stores/s3.py` - S3Store（実運用必須対応）
+  - `qeel/stores/local.py` - LocalStore（JSON/Parquet両対応）
+  - `qeel/stores/s3.py` - S3Store（JSON/Parquet両対応、実運用必須）
   - `qeel/stores/in_memory.py` - InMemoryStore（テスト用）
-- **テスト**: save/loadが正しく動作、存在しない場合はNone、S3ストアはモックboto3で動作確認
+- **テスト**: save/loadが正しく動作（JSON/Parquet両方）、存在しない場合はNone、S3ストアはモックboto3で動作確認
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 1（コンテキスト永続化）、User Story 2（実運用でS3使用）
 
@@ -209,7 +208,7 @@
 
 ---
 
-#### Phase 4: Signal Evaluation（P3対応）
+#### Phase 4: Signal Analysis（P3対応）
 
 **Branch**: `011-return-calculator-abc`
 - **目的**: リターン計算ABCとサンプル実装
@@ -222,11 +221,11 @@
 
 ---
 
-**Branch**: `012-signal-evaluation`
-- **目的**: シグナル評価機能（P3完成）
+**Branch**: `012-signal-analysis`
+- **目的**: シグナル分析機能（P3完成）
 - **成果物**:
-  - `qeel/evaluation/rank_correlation.py` - 順位相関係数計算
-  - `qeel/evaluation/visualizer.py` - 分布可視化
+  - `qeel/analysis/rank_correlation.py` - 順位相関係数計算
+  - `qeel/analysis/visualizer.py` - 分布可視化
   - パラメータグリッド評価機能
 - **テスト**: シグナルとリターンから順位相関が計算される
 - **依存**: `004-calculator-abc`, `011-return-calculator-abc`
@@ -234,15 +233,15 @@
 
 ---
 
-#### Phase 5: Divergence Analysis（P3対応）
+#### Phase 5: Backtest-Live Divergence（P3対応）
 
-**Branch**: `013-divergence-analysis`
-- **目的**: バックテストと実運用の乖離検証（P3完成）
+**Branch**: `013-backtest-live-divergence`
+- **目的**: バックテストと実運用の差異検証（P3完成）
 - **成果物**:
-  - `qeel/analysis/divergence.py` - 乖離計算ロジック
-  - `qeel/analysis/visualizer.py` - 乖離可視化
+  - `qeel/divergence/comparison.py` - バックテストと実運用の差異計算ロジック
+  - `qeel/divergence/visualizer.py` - 差異可視化
   - 詳細ログ出力
-- **テスト**: バックテストと実運用の約定データから乖離が可視化される
+- **テスト**: バックテストと実運用の約定データから差異が可視化される
 - **依存**: `008-metrics-calculation`, `009-live-engine`
 - **User Story**: **User Story 4（P3）完成**
 
@@ -322,8 +321,7 @@ src/qeel/
 ├── data_sources/
 │   ├── __init__.py
 │   ├── base.py            # BaseDataSource ABC
-│   ├── csv.py             # CSVDataSource
-│   ├── parquet.py         # ParquetDataSource
+│   ├── parquet.py         # ParquetDataSource（標準実装）
 │   └── mock.py            # MockDataSource（テスト用）
 ├── calculators/
 │   ├── __init__.py
@@ -343,8 +341,8 @@ src/qeel/
 ├── stores/
 │   ├── __init__.py
 │   ├── base.py            # BaseContextStore ABC
-│   ├── local_json.py      # LocalJSONStore
-│   ├── local_parquet.py   # LocalParquetStore
+│   ├── local.py           # LocalStore（JSON/Parquet対応）
+│   ├── s3.py              # S3Store（JSON/Parquet対応、実運用必須）
 │   └── in_memory.py       # InMemoryStore（テスト用）
 ├── models/
 │   ├── __init__.py
@@ -357,14 +355,14 @@ src/qeel/
 ├── metrics/
 │   ├── __init__.py
 │   └── calculator.py      # パフォーマンス指標計算
-├── evaluation/
+├── analysis/
 │   ├── __init__.py
 │   ├── rank_correlation.py    # 順位相関係数計算
 │   └── visualizer.py          # 分布可視化
-└── analysis/
+└── divergence/
     ├── __init__.py
-    ├── divergence.py      # 乖離計算
-    └── visualizer.py      # 乖離可視化
+    ├── comparison.py      # バックテストと実運用の差異計算
+    └── visualizer.py      # 差異可視化
 
 tests/
 ├── conftest.py            # pytest共通設定、フィクスチャ
@@ -377,11 +375,13 @@ tests/
 │   ├── test_stores.py
 │   ├── test_engines.py
 │   ├── test_metrics.py
-│   └── test_evaluation.py
+│   ├── test_analysis.py
+│   └── test_divergence.py
 ├── integration/
 │   ├── test_backtest_e2e.py
 │   ├── test_live_e2e.py
-│   └── test_signal_evaluation_e2e.py
+│   ├── test_signal_analysis_e2e.py
+│   └── test_backtest_live_divergence_e2e.py
 └── contract/              # ABC契約テスト
     ├── test_signal_calculator_contract.py
     ├── test_return_calculator_contract.py

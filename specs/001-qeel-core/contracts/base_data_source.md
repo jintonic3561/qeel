@@ -2,7 +2,7 @@
 
 ## 概要
 
-ユーザがデータソース（CSV、Parquet、API等）からMarketDataを取得するロジックを実装するための抽象基底クラス。
+ユーザがデータソース（Parquet、API、データベース等）からMarketDataを取得するロジックを実装するための抽象基底クラス。
 
 ## インターフェース定義
 
@@ -48,26 +48,37 @@ class BaseDataSource(ABC):
 
 ## 実装例
 
-### CSVファイルからの読み込み
+### Parquetファイルからの読み込み（標準実装）
 
 ```python
 import polars as pl
 from qeel.data_sources import BaseDataSource
 from qeel.schemas import MarketDataSchema
 
-class CSVDataSource(BaseDataSource):
-    """CSVファイルからMarketDataを読み込む"""
+class ParquetDataSource(BaseDataSource):
+    """Parquetファイルから MarketDataを読み込む（標準実装）
+
+    ParquetはCSVと比較して以下の利点があります：
+    - 型情報を保持（datetime, float等が自動認識）
+    - カラムナーフォーマットで高速読み込み
+    - 圧縮効率が良い（ファイルサイズ削減）
+    - ゼロコピー読み込み（メモリ効率）
+    """
 
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
-        # CSVファイルを読み込み
-        df = pl.read_csv(self.config.source_path)
+        # Parquetファイルを読み込み（型情報が保持される）
+        df = pl.read_parquet(self.config.source_path)
 
-        # datetime列を変換
-        df = df.with_columns([
-            pl.col(self.config.datetime_column).str.to_datetime().alias("datetime")
-        ])
+        # datetime列の正規化
+        if self.config.datetime_column != "datetime":
+            if df[self.config.datetime_column].dtype != pl.Datetime:
+                df = df.with_columns([
+                    pl.col(self.config.datetime_column).cast(pl.Datetime).alias("datetime")
+                ])
+            else:
+                df = df.rename({self.config.datetime_column: "datetime"})
 
-        # フィルタリング
+        # フィルタリング（Polarsのlazyクエリで最適化）
         df = df.filter(
             (pl.col("datetime") >= start) &
             (pl.col("datetime") <= end) &
@@ -75,41 +86,10 @@ class CSVDataSource(BaseDataSource):
         )
 
         # オフセット適用（データ利用可能時刻を調整）
-        df = df.with_columns([
-            (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
-        ])
-
-        return MarketDataSchema.validate(df)
-```
-
-### Parquetファイルからの読み込み
-
-```python
-class ParquetDataSource(BaseDataSource):
-    """Parquetファイルから MarketDataを読み込む"""
-
-    def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
-        df = pl.read_parquet(self.config.source_path)
-
-        # datetime列の変換（必要に応じて）
-        if df[self.config.datetime_column].dtype != pl.Datetime:
+        if self.config.offset_hours != 0:
             df = df.with_columns([
-                pl.col(self.config.datetime_column).cast(pl.Datetime).alias("datetime")
+                (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
             ])
-        else:
-            df = df.rename({self.config.datetime_column: "datetime"})
-
-        # フィルタリング
-        df = df.filter(
-            (pl.col("datetime") >= start) &
-            (pl.col("datetime") <= end) &
-            (pl.col("symbol").is_in(symbols))
-        )
-
-        # オフセット適用
-        df = df.with_columns([
-            (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
-        ])
 
         return MarketDataSchema.validate(df)
 ```
@@ -139,10 +119,11 @@ class ParquetDataSource(BaseDataSource):
 
 ## 標準実装
 
-Qeelは以下の標準実装を提供する予定：
+Qeelは以下の標準実装を提供する：
 
-- `CSVDataSource`: CSVファイル読み込み
-- `ParquetDataSource`: Parquetファイル読み込み
+- `ParquetDataSource`: Parquetファイル読み込み（**推奨標準実装**）
+  - 型情報保持、高速、圧縮効率が良い
+  - CSVより優れているため、Parquetのみを標準実装として提供
 - `MockDataSource`: テスト用モックデータ
 
 ユーザは独自のデータソース（API、データベース等）を自由に実装可能。

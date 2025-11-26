@@ -16,7 +16,7 @@
 my_backtest/
 ├── config.toml          # 設定ファイル
 ├── data/
-│   └── ohlcv.csv        # 市場データ（OHLCV）
+│   └── ohlcv.parquet    # 市場データ（OHLCV、Parquet形式）
 ├── my_signal.py         # ユーザ定義シグナル計算クラス
 └── run_backtest.py      # バックテスト実行スクリプト
 ```
@@ -34,8 +34,8 @@ name = "ohlcv"
 datetime_column = "datetime"
 offset_hours = 0
 window_days = 30
-source_type = "csv"
-source_path = "data/ohlcv.csv"
+source_type = "parquet"
+source_path = "data/ohlcv.parquet"
 
 [costs]
 commission_rate = 0.001  # 0.1%
@@ -44,15 +44,34 @@ market_impact_model = "fixed"
 market_impact_param = 0.0
 ```
 
-### 3. データファイル（data/ohlcv.csv）
+### 3. データファイル（data/ohlcv.parquet）
 
-```csv
-datetime,symbol,open,high,low,close,volume
-2023-01-01 00:00:00,AAPL,150.0,152.0,149.0,151.0,1000000
-2023-01-01 00:00:00,MSFT,250.0,252.0,249.0,251.0,800000
-2023-01-02 00:00:00,AAPL,151.0,153.0,150.0,152.0,1100000
-2023-01-02 00:00:00,MSFT,251.0,253.0,250.0,252.0,850000
-...
+Parquet形式のファイルを用意します。Parquetは型情報を保持し、高速・圧縮効率が良いフォーマットです。
+
+PythonでParquetファイルを作成する例：
+
+```python
+import polars as pl
+from datetime import datetime
+
+# サンプルデータ
+data = {
+    "datetime": [
+        datetime(2023, 1, 1, 0, 0, 0),
+        datetime(2023, 1, 1, 0, 0, 0),
+        datetime(2023, 1, 2, 0, 0, 0),
+        datetime(2023, 1, 2, 0, 0, 0),
+    ],
+    "symbol": ["AAPL", "MSFT", "AAPL", "MSFT"],
+    "open": [150.0, 250.0, 151.0, 251.0],
+    "high": [152.0, 252.0, 153.0, 253.0],
+    "low": [149.0, 249.0, 150.0, 250.0],
+    "close": [151.0, 251.0, 152.0, 252.0],
+    "volume": [1000000, 800000, 1100000, 850000],
+}
+
+df = pl.DataFrame(data)
+df.write_parquet("data/ohlcv.parquet")
 ```
 
 ### 4. シグナル計算クラス（my_signal.py）
@@ -107,9 +126,9 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
 ```python
 from pathlib import Path
 from qeel.config import Config
-from qeel.data_sources import CSVDataSource
+from qeel.data_sources import ParquetDataSource
 from qeel.executors import MockExecutor
-from qeel.stores import LocalJSONStore
+from qeel.stores import LocalStore
 from qeel.engines import BacktestEngine
 from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
 
@@ -124,15 +143,15 @@ def main():
     # データソースのセットアップ
     data_sources = {}
     for ds_config in config.data_sources:
-        if ds_config.source_type == "csv":
-            data_sources[ds_config.name] = CSVDataSource(ds_config)
-        # 他のソースタイプも同様に追加可能
+        if ds_config.source_type == "parquet":
+            data_sources[ds_config.name] = ParquetDataSource(ds_config)
+        # カスタムソースタイプも追加可能
 
     # 執行クラス（バックテストではモック）
     executor = MockExecutor(config.costs)
 
-    # コンテキストストア
-    context_store = LocalJSONStore(Path("context.json"))
+    # コンテキストストア（JSON形式）
+    context_store = LocalStore(Path("context.json"), format="json")
 
     # バックテストエンジン構築
     engine = BacktestEngine(
@@ -270,13 +289,13 @@ engine = BacktestEngine(
 ```python
 from qeel.engines import LiveEngine
 from qeel.executors import ExchangeAPIExecutor  # ユーザ実装
-from qeel.stores import S3Store  # ユーザ実装
+from qeel.stores import S3Store
 
 # 実運用用の執行クラス
 executor = ExchangeAPIExecutor(api_client=my_api_client)
 
-# 実運用用のコンテキストストア
-context_store = S3Store(bucket="my-bucket", key_prefix="qeel/context")
+# 実運用用のコンテキストストア（JSON形式）
+context_store = S3Store(bucket="my-bucket", key_prefix="qeel/context", format="json")
 
 # 実運用エンジン
 live_engine = LiveEngine(

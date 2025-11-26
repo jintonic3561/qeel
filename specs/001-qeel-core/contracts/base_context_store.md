@@ -52,77 +52,57 @@ class BaseContextStore(ABC):
 
 ## 実装例
 
-### ローカルファイル保存（JSON）
+### ローカルファイル保存（JSON/Parquet対応）
 
 ```python
 from pathlib import Path
 import json
-from qeel.stores import BaseContextStore
-from qeel.models import Context
-
-class LocalJSONStore(BaseContextStore):
-    """ローカルファイルにJSON形式でコンテキストを保存"""
-
-    def __init__(self, file_path: Path):
-        self.file_path = file_path
-
-    def save(self, context: Context) -> None:
-        try:
-            # Pydanticモデル → dict → JSON
-            data = context.model_dump(mode='json')
-            self.file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.file_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            raise RuntimeError(f"コンテキスト保存エラー: {e}")
-
-    def load(self) -> Context | None:
-        if not self.exists():
-            return None
-
-        try:
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return Context(**data)
-        except Exception as e:
-            raise RuntimeError(f"コンテキスト読み込みエラー: {e}")
-
-    def exists(self) -> bool:
-        return self.file_path.exists()
-```
-
-### ローカルファイル保存（Parquet）
-
-```python
 import polars as pl
-from pathlib import Path
+from typing import Literal
 from qeel.stores import BaseContextStore
 from qeel.models import Context
 
-class LocalParquetStore(BaseContextStore):
-    """Positions DataFrameをParquetで保存、その他はJSON"""
+class LocalStore(BaseContextStore):
+    """ローカルファイルにコンテキストを保存（JSON/Parquet両対応）"""
 
-    def __init__(self, base_dir: Path):
-        self.base_dir = base_dir
-        self.meta_path = base_dir / "context_meta.json"
-        self.positions_path = base_dir / "positions.parquet"
+    def __init__(self, path: Path, format: Literal["json", "parquet"] = "json"):
+        """
+        Args:
+            path: 保存先パス（JSONの場合はファイルパス、Parquetの場合はディレクトリパス）
+            format: 保存フォーマット（"json" または "parquet"）
+        """
+        self.path = path
+        self.format = format
+
+        if format == "parquet":
+            self.meta_path = path / "context_meta.json"
+            self.positions_path = path / "positions.parquet"
 
     def save(self, context: Context) -> None:
         try:
-            self.base_dir.mkdir(parents=True, exist_ok=True)
+            if self.format == "json":
+                # JSON形式で保存
+                data = context.model_dump(mode='json')
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
 
-            # Positions DataFrameをParquetで保存
-            positions_df = context.get_positions_df()
-            positions_df.write_parquet(self.positions_path)
+            elif self.format == "parquet":
+                # Parquet + JSON形式で保存
+                self.path.mkdir(parents=True, exist_ok=True)
 
-            # その他のメタデータをJSONで保存
-            meta = {
-                "current_date": context.current_date.isoformat(),
-                "selected_symbols": context.selected_symbols,
-                "model_params": context.model_params,
-            }
-            with open(self.meta_path, 'w', encoding='utf-8') as f:
-                json.dump(meta, f, ensure_ascii=False, indent=2)
+                # Positions DataFrameをParquetで保存
+                positions_df = context.get_positions_df()
+                positions_df.write_parquet(self.positions_path)
+
+                # その他のメタデータをJSONで保存
+                meta = {
+                    "current_date": context.current_date.isoformat(),
+                    "selected_symbols": context.selected_symbols,
+                    "model_params": context.model_params,
+                }
+                with open(self.meta_path, 'w', encoding='utf-8') as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
 
         except Exception as e:
             raise RuntimeError(f"コンテキスト保存エラー: {e}")
@@ -132,61 +112,132 @@ class LocalParquetStore(BaseContextStore):
             return None
 
         try:
-            # メタデータ読み込み
-            with open(self.meta_path, 'r', encoding='utf-8') as f:
-                meta = json.load(f)
+            if self.format == "json":
+                # JSON形式から読み込み
+                with open(self.path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return Context(**data)
 
-            # Positions読み込み
-            positions_df = pl.read_parquet(self.positions_path)
+            elif self.format == "parquet":
+                # Parquet + JSON形式から読み込み
+                with open(self.meta_path, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
 
-            return Context.from_dataframe(
-                current_date=datetime.fromisoformat(meta["current_date"]),
-                positions_df=positions_df,
-                selected_symbols=meta["selected_symbols"],
-                model_params=meta["model_params"],
-            )
+                positions_df = pl.read_parquet(self.positions_path)
+
+                return Context.from_dataframe(
+                    current_date=datetime.fromisoformat(meta["current_date"]),
+                    positions_df=positions_df,
+                    selected_symbols=meta["selected_symbols"],
+                    model_params=meta["model_params"],
+                )
 
         except Exception as e:
             raise RuntimeError(f"コンテキスト読み込みエラー: {e}")
 
     def exists(self) -> bool:
-        return self.meta_path.exists() and self.positions_path.exists()
+        if self.format == "json":
+            return self.path.exists()
+        elif self.format == "parquet":
+            return self.meta_path.exists() and self.positions_path.exists()
+        return False
 ```
 
-### S3保存（実運用用、ユーザ実装例）
+### S3保存（実運用必須対応、JSON/Parquet対応）
 
 ```python
 import boto3
 import json
+import polars as pl
+from io import BytesIO
+from typing import Literal
 from qeel.stores import BaseContextStore
 from qeel.models import Context
 
 class S3Store(BaseContextStore):
-    """S3にコンテキストを保存（実運用用）"""
+    """S3にコンテキストを保存（JSON/Parquet両対応、実運用必須）"""
 
-    def __init__(self, bucket: str, key_prefix: str):
+    def __init__(self, bucket: str, key_prefix: str, format: Literal["json", "parquet"] = "json"):
+        """
+        Args:
+            bucket: S3バケット名
+            key_prefix: S3キーのプレフィックス
+            format: 保存フォーマット（"json" または "parquet"）
+        """
         self.bucket = bucket
         self.key_prefix = key_prefix
+        self.format = format
         self.s3_client = boto3.client('s3')
 
     def save(self, context: Context) -> None:
         try:
-            data = context.model_dump(mode='json')
-            key = f"{self.key_prefix}/context.json"
-            self.s3_client.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=json.dumps(data, ensure_ascii=False),
-            )
+            if self.format == "json":
+                # JSON形式で保存
+                data = context.model_dump(mode='json')
+                key = f"{self.key_prefix}/context.json"
+                self.s3_client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    Body=json.dumps(data, ensure_ascii=False),
+                )
+
+            elif self.format == "parquet":
+                # Parquet + JSON形式で保存
+                # Positions DataFrameをParquetで保存
+                positions_df = context.get_positions_df()
+                buffer = BytesIO()
+                positions_df.write_parquet(buffer)
+                buffer.seek(0)
+
+                positions_key = f"{self.key_prefix}/positions.parquet"
+                self.s3_client.put_object(
+                    Bucket=self.bucket,
+                    Key=positions_key,
+                    Body=buffer.getvalue(),
+                )
+
+                # その他のメタデータをJSONで保存
+                meta = {
+                    "current_date": context.current_date.isoformat(),
+                    "selected_symbols": context.selected_symbols,
+                    "model_params": context.model_params,
+                }
+                meta_key = f"{self.key_prefix}/context_meta.json"
+                self.s3_client.put_object(
+                    Bucket=self.bucket,
+                    Key=meta_key,
+                    Body=json.dumps(meta, ensure_ascii=False),
+                )
+
         except Exception as e:
             raise RuntimeError(f"S3保存エラー: {e}")
 
     def load(self) -> Context | None:
         try:
-            key = f"{self.key_prefix}/context.json"
-            response = self.s3_client.get_object(Bucket=self.bucket, Key=key)
-            data = json.loads(response['Body'].read().decode('utf-8'))
-            return Context(**data)
+            if self.format == "json":
+                # JSON形式から読み込み
+                key = f"{self.key_prefix}/context.json"
+                response = self.s3_client.get_object(Bucket=self.bucket, Key=key)
+                data = json.loads(response['Body'].read().decode('utf-8'))
+                return Context(**data)
+
+            elif self.format == "parquet":
+                # Parquet + JSON形式から読み込み
+                meta_key = f"{self.key_prefix}/context_meta.json"
+                meta_response = self.s3_client.get_object(Bucket=self.bucket, Key=meta_key)
+                meta = json.loads(meta_response['Body'].read().decode('utf-8'))
+
+                positions_key = f"{self.key_prefix}/positions.parquet"
+                positions_response = self.s3_client.get_object(Bucket=self.bucket, Key=positions_key)
+                positions_df = pl.read_parquet(BytesIO(positions_response['Body'].read()))
+
+                return Context.from_dataframe(
+                    current_date=datetime.fromisoformat(meta["current_date"]),
+                    positions_df=positions_df,
+                    selected_symbols=meta["selected_symbols"],
+                    model_params=meta["model_params"],
+                )
+
         except self.s3_client.exceptions.NoSuchKey:
             return None
         except Exception as e:
@@ -194,9 +245,18 @@ class S3Store(BaseContextStore):
 
     def exists(self) -> bool:
         try:
-            key = f"{self.key_prefix}/context.json"
-            self.s3_client.head_object(Bucket=self.bucket, Key=key)
-            return True
+            if self.format == "json":
+                key = f"{self.key_prefix}/context.json"
+                self.s3_client.head_object(Bucket=self.bucket, Key=key)
+                return True
+
+            elif self.format == "parquet":
+                meta_key = f"{self.key_prefix}/context_meta.json"
+                positions_key = f"{self.key_prefix}/positions.parquet"
+                self.s3_client.head_object(Bucket=self.bucket, Key=meta_key)
+                self.s3_client.head_object(Bucket=self.bucket, Key=positions_key)
+                return True
+
         except self.s3_client.exceptions.NoSuchKey:
             return False
 ```
@@ -241,10 +301,14 @@ class InMemoryStore(BaseContextStore):
 
 ## 標準実装
 
-Qeelは以下の標準実装を提供する予定：
+Qeelは以下の標準実装を提供する：
 
-- `LocalJSONStore`: ローカルJSON保存
-- `LocalParquetStore`: ローカルParquet + JSON保存
+- `LocalStore`: ローカルファイル保存（JSON/Parquet両対応、バックテスト用）
+  - `LocalStore(path, format="json")`: JSON形式
+  - `LocalStore(path, format="parquet")`: Parquet + JSON形式
+- `S3Store`: S3保存（JSON/Parquet両対応、**実運用必須対応**、Branch 005で実装）
+  - `S3Store(bucket, key_prefix, format="json")`: JSON形式
+  - `S3Store(bucket, key_prefix, format="parquet")`: Parquet + JSON形式
 - `InMemoryStore`: テスト用インメモリ保存
 
-ユーザは独自実装（S3、データベース等）を自由に追加可能。
+ユーザは独自実装（データベース、他のクラウドストレージ等）を自由に追加可能。

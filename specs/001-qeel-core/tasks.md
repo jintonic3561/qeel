@@ -88,8 +88,7 @@
 - [ ] T017 このブランチ専用のtasks.md生成
 - [ ] T018 TDD実装（以下を含む）
   - src/qeel/data_sources/base.py: BaseDataSource ABC
-  - src/qeel/data_sources/csv.py: CSVDataSource
-  - src/qeel/data_sources/parquet.py: ParquetDataSource
+  - src/qeel/data_sources/parquet.py: ParquetDataSource（標準実装）
   - src/qeel/data_sources/mock.py: MockDataSource（テスト用）
   - tests/unit/test_data_sources.py
   - tests/contract/test_data_source_contract.py
@@ -97,8 +96,9 @@
 
 **完了条件**:
 - モックデータでfetch()が正しく動作
-- CSV/Parquetから正しくデータ読み込み
+- Parquetから正しくデータ読み込み（型保持、高速、圧縮効率）
 - スキーマバリデーションが動作
+- CSVは不要（Parquetのみで十分）
 
 ---
 
@@ -140,18 +140,17 @@
 - [ ] T026 TDD実装（以下を含む）
   - src/qeel/models/context.py: Context Pydanticモデル
   - src/qeel/stores/base.py: BaseContextStore ABC
-  - src/qeel/stores/local_json.py: LocalJSONStore
-  - src/qeel/stores/local_parquet.py: LocalParquetStore
-  - src/qeel/stores/s3.py: S3Store（boto3使用、実運用必須対応）
+  - src/qeel/stores/local.py: LocalStore（JSON/Parquet両対応、フォーマット指定可能）
+  - src/qeel/stores/s3.py: S3Store（JSON/Parquet両対応、boto3使用、実運用必須）
   - src/qeel/stores/in_memory.py: InMemoryStore（テスト用）
-  - tests/unit/test_stores.py（S3はモックboto3で動作確認）
+  - tests/unit/test_stores.py（LocalStoreはJSON/Parquet両方テスト、S3はモックboto3で動作確認）
   - tests/contract/test_context_store_contract.py
 - [ ] T027 PRを作成しマージ
 
 **完了条件**:
-- save/loadが正しく動作
+- LocalStore: save/loadがJSON/Parquet両方で正しく動作
+- S3Store: save/loadがJSON/Parquet両方で正しく動作、モックboto3で動作確認（put_object/get_object呼び出し確認）
 - 存在しない場合はNoneを返す
-- S3Storeがモックboto3で正常に動作（put_object/get_object呼び出し確認）
 
 ---
 
@@ -287,7 +286,7 @@
 
 ---
 
-### Phase 2.4: User Story 3（P3-1）- シグナル評価の分布評価
+### Phase 2.4: User Story 3（P3-1）- シグナル分析の分布評価
 
 #### Branch 011: リターン計算ABC
 
@@ -312,24 +311,24 @@
 
 ---
 
-#### Branch 012: シグナル評価機能
+#### Branch 012: シグナル分析機能
 
-**Branch Name**: `012-signal-evaluation`
-**目的**: シグナル評価機能実装（P3-1完成）
+**Branch Name**: `012-signal-analysis`
+**目的**: シグナル分析機能実装（P3-1完成）
 **依存**: `004-calculator-abc`, `011-return-calculator-abc`
 **User Story**: **User Story 3（P3）**
 
 **このブランチで実施する作業**:
 
-- [ ] T056 ブランチ作成: `git checkout -b 012-signal-evaluation`
+- [ ] T056 ブランチ作成: `git checkout -b 012-signal-analysis`
 - [ ] T057 このブランチ専用のspec作成（User Story 3の詳細化）
 - [ ] T058 このブランチ専用のtasks.md生成
 - [ ] T059 TDD実装（以下を含む）
-  - src/qeel/evaluation/rank_correlation.py: 順位相関係数計算
-  - src/qeel/evaluation/visualizer.py: 分布可視化
+  - src/qeel/analysis/rank_correlation.py: 順位相関係数計算
+  - src/qeel/analysis/visualizer.py: 分布可視化
   - パラメータグリッド評価機能
-  - tests/unit/test_evaluation.py
-  - tests/integration/test_signal_evaluation_e2e.py
+  - tests/unit/test_analysis.py
+  - tests/integration/test_signal_analysis_e2e.py
 - [ ] T060 User Story 3のAcceptance Scenarios 1-3がすべてパス
 - [ ] T061 PRを作成しマージ
 
@@ -339,32 +338,32 @@
 
 ---
 
-### Phase 2.5: User Story 4（P3-2）- バックテストと実運用の乖離検証
+### Phase 2.5: User Story 4（P3-2）- バックテストと実運用の差異検証
 
-#### Branch 013: 乖離分析機能
+#### Branch 013: バックテストと実運用の差異分析
 
-**Branch Name**: `013-divergence-analysis`
-**目的**: 乖離検証機能実装（P3-2完成）
+**Branch Name**: `013-backtest-live-divergence`
+**目的**: バックテストと実運用の差異検証機能実装（P3-2完成）
 **依存**: `008-metrics-calculation`, `009-live-engine`
 **User Story**: **User Story 4（P3）**
 
 **このブランチで実施する作業**:
 
-- [ ] T062 ブランチ作成: `git checkout -b 013-divergence-analysis`
+- [ ] T062 ブランチ作成: `git checkout -b 013-backtest-live-divergence`
 - [ ] T063 このブランチ専用のspec作成（User Story 4の詳細化）
 - [ ] T064 このブランチ専用のtasks.md生成
 - [ ] T065 TDD実装（以下を含む）
-  - src/qeel/analysis/divergence.py: 乖離計算ロジック
-  - src/qeel/analysis/visualizer.py: 乖離可視化
+  - src/qeel/divergence/comparison.py: バックテストと実運用の差異計算ロジック
+  - src/qeel/divergence/visualizer.py: 差異可視化
   - 詳細ログ出力機能
-  - tests/unit/test_analysis.py
-  - tests/integration/test_divergence_e2e.py
+  - tests/unit/test_divergence.py
+  - tests/integration/test_backtest_live_divergence_e2e.py
 - [ ] T066 User Story 4のAcceptance Scenarios 1-2がすべてパス
 - [ ] T067 PRを作成しマージ
 
 **完了条件**:
-- バックテストと実運用の約定データから乖離が可視化される
-- 乖離の原因が特定できる情報が提供される
+- バックテストと実運用の約定データから差異が可視化される
+- 差異の原因が特定できる情報が提供される
 
 ---
 
@@ -409,12 +408,12 @@ Phase 2: P1完成（バックテスト）
 Phase 3: P2完成（実運用）
   007 → 009 (Live Engine) → 010 (Executor Examples)
 
-Phase 4: P3-1完成（シグナル評価）
+Phase 4: P3-1完成（シグナル分析）
   002 → 011 (Return Calculator ABC)
-  004, 011 → 012 (Signal Evaluation)
+  004, 011 → 012 (Signal Analysis)
 
-Phase 5: P3-2完成（乖離検証）
-  008, 009 → 013 (Divergence Analysis)
+Phase 5: P3-2完成（差異検証）
+  008, 009 → 013 (Backtest-Live Divergence)
 
 Phase 6: ポリッシュ
   全機能完了 → 014 (Documentation & Packaging)

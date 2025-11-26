@@ -25,7 +25,7 @@ class DataSourceConfig(BaseModel):
         datetime_column: datetime列の列名
         offset_hours: データ利用可能時刻のオフセット（時間）
         window_days: 取得するデータのwindow（日数）
-        source_type: ソースタイプ（"csv", "parquet", "custom"）
+        source_type: ソースタイプ（"parquet", "custom"）
         source_path: データソースのパス（ローカルファイルまたはURI）
     """
     name: str = Field(..., description="データソース識別子")
@@ -38,7 +38,7 @@ class DataSourceConfig(BaseModel):
     @field_validator('source_type')
     @classmethod
     def validate_source_type(cls, v: str) -> str:
-        allowed = {"csv", "parquet", "custom"}
+        allowed = {"parquet", "custom"}
         if v not in allowed:
             raise ValueError(f"source_typeは{allowed}のいずれかである必要があります: {v}")
         return v
