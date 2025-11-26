@@ -1,0 +1,148 @@
+# Contract: BaseDataSource
+
+## 概要
+
+ユーザがデータソース（CSV、Parquet、API等）からMarketDataを取得するロジックを実装するための抽象基底クラス。
+
+## インターフェース定義
+
+```python
+from abc import ABC, abstractmethod
+from datetime import datetime
+import polars as pl
+from qeel.config import DataSourceConfig
+
+class BaseDataSource(ABC):
+    """データソース抽象基底クラス
+
+    ユーザはこのクラスを継承し、fetch()メソッドを実装する。
+
+    Attributes:
+        config: DataSourceConfig（toml設定から生成）
+    """
+
+    def __init__(self, config: DataSourceConfig):
+        """
+        Args:
+            config: データソース設定
+        """
+        self.config = config
+
+    @abstractmethod
+    def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
+        """指定期間・銘柄のデータを取得する
+
+        Args:
+            start: 開始日時
+            end: 終了日時
+            symbols: 銘柄コードリスト
+
+        Returns:
+            MarketDataSchemaに準拠したPolars DataFrame
+
+        Raises:
+            ValueError: データ取得失敗またはスキーマ不正の場合
+        """
+        ...
+```
+
+## 実装例
+
+### CSVファイルからの読み込み
+
+```python
+import polars as pl
+from qeel.data_sources import BaseDataSource
+from qeel.schemas import MarketDataSchema
+
+class CSVDataSource(BaseDataSource):
+    """CSVファイルからMarketDataを読み込む"""
+
+    def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
+        # CSVファイルを読み込み
+        df = pl.read_csv(self.config.source_path)
+
+        # datetime列を変換
+        df = df.with_columns([
+            pl.col(self.config.datetime_column).str.to_datetime().alias("datetime")
+        ])
+
+        # フィルタリング
+        df = df.filter(
+            (pl.col("datetime") >= start) &
+            (pl.col("datetime") <= end) &
+            (pl.col("symbol").is_in(symbols))
+        )
+
+        # オフセット適用（データ利用可能時刻を調整）
+        df = df.with_columns([
+            (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
+        ])
+
+        return MarketDataSchema.validate(df)
+```
+
+### Parquetファイルからの読み込み
+
+```python
+class ParquetDataSource(BaseDataSource):
+    """Parquetファイルから MarketDataを読み込む"""
+
+    def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
+        df = pl.read_parquet(self.config.source_path)
+
+        # datetime列の変換（必要に応じて）
+        if df[self.config.datetime_column].dtype != pl.Datetime:
+            df = df.with_columns([
+                pl.col(self.config.datetime_column).cast(pl.Datetime).alias("datetime")
+            ])
+        else:
+            df = df.rename({self.config.datetime_column: "datetime"})
+
+        # フィルタリング
+        df = df.filter(
+            (pl.col("datetime") >= start) &
+            (pl.col("datetime") <= end) &
+            (pl.col("symbol").is_in(symbols))
+        )
+
+        # オフセット適用
+        df = df.with_columns([
+            (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
+        ])
+
+        return MarketDataSchema.validate(df)
+```
+
+## 契約事項
+
+### 入力
+
+- `start`, `end`: 取得するデータの範囲（iteration日時 + window）
+- `symbols`: 対象銘柄リスト
+
+### 出力
+
+- 必ず `MarketDataSchema` に準拠したDataFrameを返す
+- 必須列: `datetime`, `symbol`, `close`
+- データが存在しない場合は空のDataFrameを返す（エラーにしない）
+
+### データ欠損処理
+
+- データソース内にNaN/nullが含まれる場合、そのまま返す
+- 欠損処理はシグナル計算ロジック内でユーザが実施
+
+### テスタビリティ
+
+- モックデータを返すテスト用DataSourceを簡単に実装可能
+- `config` はPydanticモデルなのでテスト時に設定変更が型安全
+
+## 標準実装
+
+Qeelは以下の標準実装を提供する予定：
+
+- `CSVDataSource`: CSVファイル読み込み
+- `ParquetDataSource`: Parquetファイル読み込み
+- `MockDataSource`: テスト用モックデータ
+
+ユーザは独自のデータソース（API、データベース等）を自由に実装可能。
