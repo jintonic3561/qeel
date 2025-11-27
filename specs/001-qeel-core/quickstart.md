@@ -214,49 +214,52 @@ shape: (365, 6)
 
 ## カスタマイズポイント
 
-### 銘柄選定ロジックのカスタマイズ
+### ポートフォリオ構築ロジックのカスタマイズ
 
-`BaseSymbolSelector` を継承してカスタム銘柄選定ロジックを実装できます：
+`BasePortfolioConstructor` を継承してカスタムポートフォリオ構築ロジックを実装できます：
 
 ```python
 from pydantic import BaseModel, Field
 import polars as pl
-from qeel.selectors import BaseSymbolSelector
+from qeel.portfolio_constructors import BasePortfolioConstructor
 
-class CustomSelectorParams(BaseModel):
-    """カスタム銘柄選定のパラメータ"""
+class CustomConstructorParams(BaseModel):
+    """カスタムポートフォリオ構築のパラメータ"""
     top_n: int = Field(default=10, gt=0, description="選定する銘柄数")
     min_signal_threshold: float = Field(default=0.0, description="最小シグナル閾値")
 
-class CustomSymbolSelector(BaseSymbolSelector):
-    """シグナル上位N銘柄かつ閾値以上のものを選定"""
+class CustomPortfolioConstructor(BasePortfolioConstructor):
+    """シグナル上位N銘柄かつ閾値以上のものでポートフォリオを構築し、メタデータ付きで返す"""
 
-    def select(self, signals: pl.DataFrame, positions: pl.DataFrame) -> list[str]:
+    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
             positions: 現在のポジション（PositionSchema準拠）
 
         Returns:
-            選定された銘柄リスト
+            構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
         """
-        from qeel.schemas import SignalSchema, PositionSchema
+        from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
 
         SignalSchema.validate(signals)
         PositionSchema.validate(positions)
 
-        return (
+        # 閾値フィルタ + 上位N選定 + メタデータ付与
+        portfolio = (
             signals
             .filter(pl.col("signal") >= self.params.min_signal_threshold)
             .sort("signal", descending=True)
             .head(self.params.top_n)
-            ["symbol"]
-            .to_list()
+            .select(["datetime", "symbol", "signal"])
+            .rename({"signal": "signal_strength"})
         )
 
+        return PortfolioSchema.validate(portfolio)
+
 # 使用例
-selector_params = CustomSelectorParams(top_n=10, min_signal_threshold=0.5)
-symbol_selector = CustomSymbolSelector(params=selector_params)
+constructor_params = CustomConstructorParams(top_n=10, min_signal_threshold=0.5)
+portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 
 engine = BacktestEngine(
     calculator=calculator,
@@ -264,7 +267,7 @@ engine = BacktestEngine(
     executor=executor,
     context_store=context_store,
     config=config,
-    symbol_selector=symbol_selector,  # カスタムセレクタ
+    portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
 )
 ```
 
@@ -285,30 +288,38 @@ class RiskParityOrderCreator(BaseOrderCreator):
     def create(
         self,
         signals: pl.DataFrame,
-        selected_symbols: list[str],
+        portfolio_df: pl.DataFrame,
         positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame
-            selected_symbols: 選定された銘柄リスト
+            portfolio_df: 構築済みポートフォリオDataFrame（メタデータ含む）
             positions: 現在のポジション
             market_data: 市場データ（価格情報）
 
         Returns:
             注文DataFrame（OrderSchema準拠）
         """
+        from qeel.schemas import PortfolioSchema
+
+        PortfolioSchema.validate(portfolio_df)
+
         orders = []
         max_value_per_symbol = self.params.capital * self.params.max_position_pct
 
-        for symbol in selected_symbols:
-            signal_row = signals.filter(pl.col("symbol") == symbol).row(0, named=True)
-            signal_value = signal_row["signal"]
+        for row in portfolio_df.iter_rows(named=True):
+            symbol = row["symbol"]
+
+            # メタデータからシグナル強度を取得
+            signal_value = row.get("signal_strength", 0.0)
 
             # 現在価格取得
-            price_row = market_data.filter(pl.col("symbol") == symbol).row(0, named=True)
-            current_price = price_row["close"]
+            price_row = market_data.filter(pl.col("symbol") == symbol)
+            if price_row.height == 0:
+                continue
+            current_price = price_row["close"][0]
 
             # シグナルの強さに応じて数量計算
             target_value = max_value_per_symbol * abs(signal_value)

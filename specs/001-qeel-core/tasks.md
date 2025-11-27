@@ -194,19 +194,20 @@
 - [ ] T033 このブランチ専用のspec作成（User Story 1の詳細化）
 - [ ] T034 このブランチ専用のtasks.md生成
 - [ ] T035 TDD実装（以下を含む）
+  - src/qeel/schemas/validators.py: PortfolioSchema追加（必須列: datetime, symbol; オプション列は検証スキップ）
   - src/qeel/engines/base.py: BaseEngine（共通フロー、Template Methodパターン）
   - src/qeel/engines/backtest.py: BacktestEngine
   - iteration管理ロジック
   - 取引日判定ロジック（toml設定のtradingCalendarを使用）
-  - src/qeel/selectors/base.py: BaseSymbolSelector ABC
-  - src/qeel/selectors/top_n.py: TopNSymbolSelector（デフォルト実装）
-  - src/qeel/order_creators/base.py: BaseOrderCreator ABC
-  - src/qeel/order_creators/equal_weight.py: EqualWeightOrderCreator（デフォルト実装）
+  - src/qeel/portfolio_constructors/base.py: BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`）
+  - src/qeel/portfolio_constructors/top_n.py: TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
+  - src/qeel/order_creators/base.py: BaseOrderCreator ABC（引数`portfolio_df: pl.DataFrame`に変更）
+  - src/qeel/order_creators/equal_weight.py: EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
   - tests/unit/test_engines.py
-  - tests/unit/test_selectors.py
-  - tests/unit/test_order_creators.py
-  - tests/contract/test_symbol_selector_contract.py
-  - tests/contract/test_order_creator_contract.py
+  - tests/unit/test_portfolio_constructors.py（新インターフェースに対応）
+  - tests/unit/test_order_creators.py（新インターフェースに対応）
+  - tests/contract/test_portfolio_constructor_contract.py（戻り値がDataFrameであることを検証）
+  - tests/contract/test_order_creator_contract.py（引数がDataFrameであることを検証）
   - tests/integration/test_backtest_e2e.py
 - [ ] T036 User Story 1のAcceptance Scenariosをすべて満たすことを確認
 - [ ] T037 PRを作成しマージ
@@ -359,10 +360,10 @@
 - [ ] T063 このブランチ専用のspec作成（User Story 4の詳細化）
 - [ ] T064 このブランチ専用のtasks.md生成
 - [ ] T065 TDD実装（以下を含む）
-  - src/qeel/divergence/comparison.py: バックテストと実運用の差異計算ロジック
-  - src/qeel/divergence/visualizer.py: 差異可視化
+  - src/qeel/diagnostics/comparison.py: バックテストと実運用の差異計算ロジック
+  - src/qeel/diagnostics/visualizer.py: 差異可視化
   - 詳細ログ出力機能
-  - tests/unit/test_divergence.py
+  - tests/unit/test_diagnostics.py
   - tests/integration/test_backtest_live_divergence_e2e.py
 - [ ] T066 User Story 4のAcceptance Scenarios 1-2がすべてパス
 - [ ] T067 PRを作成しマージ

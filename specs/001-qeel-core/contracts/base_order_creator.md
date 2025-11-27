@@ -39,7 +39,7 @@ class BaseOrderCreator(ABC):
     def create(
         self,
         signals: pl.DataFrame,
-        selected_symbols: list[str],
+        portfolio_df: pl.DataFrame,
         positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
@@ -47,7 +47,7 @@ class BaseOrderCreator(ABC):
 
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
-            selected_symbols: 選定された銘柄リスト
+            portfolio_df: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
             positions: 現在のポジション（PositionSchema準拠）
             market_data: 市場データ（MarketDataSchema準拠、価格情報取得用）
 
@@ -81,25 +81,28 @@ class EqualWeightOrderCreator(BaseOrderCreator):
     def create(
         self,
         signals: pl.DataFrame,
-        selected_symbols: list[str],
+        portfolio_df: pl.DataFrame,
         positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PositionSchema, MarketDataSchema, OrderSchema
+        from qeel.schemas import SignalSchema, PortfolioSchema, PositionSchema, MarketDataSchema, OrderSchema
 
         # スキーマバリデーション
         SignalSchema.validate(signals)
+        PortfolioSchema.validate(portfolio_df)
         PositionSchema.validate(positions)
         MarketDataSchema.validate(market_data)
 
-        n_symbols = len(selected_symbols)
-        if n_symbols == 0:
+        if portfolio_df.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
 
+        n_symbols = portfolio_df.height
         target_value_per_symbol = self.params.capital / n_symbols
 
         orders = []
-        for symbol in selected_symbols:
+        for row in portfolio_df.iter_rows(named=True):
+            symbol = row["symbol"]
+
             # 現在価格取得（open価格）
             price_row = market_data.filter(pl.col("symbol") == symbol)
             if price_row.height == 0:
@@ -108,9 +111,12 @@ class EqualWeightOrderCreator(BaseOrderCreator):
             current_price = price_row["open"][0]
             target_quantity = target_value_per_symbol / current_price
 
-            # シグナル取得
-            signal_row = signals.filter(pl.col("symbol") == symbol)
-            signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
+            # シグナル取得（portfolio_dfにsignal_strengthが含まれている場合はそれを使用）
+            if "signal_strength" in portfolio_df.columns:
+                signal_value = row["signal_strength"]
+            else:
+                signal_row = signals.filter(pl.col("symbol") == symbol)
+                signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
 
             # シグナルが正なら買い、負なら売り
             side = "buy" if signal_value > 0 else "sell"
@@ -145,34 +151,41 @@ class RiskParityOrderCreator(BaseOrderCreator):
     def create(
         self,
         signals: pl.DataFrame,
-        selected_symbols: list[str],
+        portfolio_df: pl.DataFrame,
         positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PositionSchema, MarketDataSchema, OrderSchema
+        from qeel.schemas import SignalSchema, PortfolioSchema, PositionSchema, MarketDataSchema, OrderSchema
 
         SignalSchema.validate(signals)
+        PortfolioSchema.validate(portfolio_df)
         PositionSchema.validate(positions)
         MarketDataSchema.validate(market_data)
 
-        if len(selected_symbols) == 0:
+        if portfolio_df.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
 
         orders = []
         max_value_per_symbol = self.params.capital * self.params.max_position_pct
 
-        for symbol in selected_symbols:
+        for row in portfolio_df.iter_rows(named=True):
+            symbol = row["symbol"]
+
             price_row = market_data.filter(pl.col("symbol") == symbol)
             if price_row.height == 0:
                 continue
 
             current_price = price_row["close"][0]
 
-            # シグナルの強さに応じて数量計算
-            signal_row = signals.filter(pl.col("symbol") == symbol)
-            signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
+            # シグナルの強さをportfolio_dfから取得（メタデータとして含まれている）
+            if "signal_strength" in portfolio_df.columns:
+                signal_value = row["signal_strength"]
+            else:
+                # フォールバック: signalsから取得
+                signal_row = signals.filter(pl.col("symbol") == symbol)
+                signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
 
-            # リスクに応じた配分（ここでは簡略化してシグナルの強さで代用）
+            # リスクに応じた配分（シグナルの強さに応じて数量を調整）
             target_value = max_value_per_symbol * abs(signal_value)
             quantity = target_value / current_price
 
@@ -194,7 +207,9 @@ class RiskParityOrderCreator(BaseOrderCreator):
 ### 入力
 
 - `signals`: SignalSchemaに準拠したPolars DataFrame
-- `selected_symbols`: 選定された銘柄リスト
+- `portfolio_df`: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
+  - 必須列: `datetime`, `symbol`
+  - オプション列: `signal_strength`, `priority`, `tags` 等（`PortfolioConstructor`から渡される）
 - `positions`: PositionSchemaに準拠したPolars DataFrame
 - `market_data`: MarketDataSchemaに準拠したPolars DataFrame（価格情報取得用）
 

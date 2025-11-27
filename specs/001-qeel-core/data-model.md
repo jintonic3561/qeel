@@ -203,7 +203,38 @@ class SignalSchema:
         return df
 ```
 
-### 2.3 Position
+### 2.3 Portfolio (構築済みポートフォリオ)
+
+```python
+class PortfolioSchema:
+    """Portfolioの Polarsスキーマ定義
+
+    必須列:
+        datetime: pl.Datetime - 構築日時
+        symbol: pl.Utf8 - 銘柄コード
+
+    オプション列（ユーザが任意に追加可能）:
+        signal_strength: pl.Float64 - シグナル強度
+        priority: pl.Int64 - 優先度
+        tags: pl.Utf8 - タグ（カスタムメタデータ）
+    """
+    REQUIRED_COLUMNS = {
+        "datetime": pl.Datetime,
+        "symbol": pl.Utf8,
+    }
+
+    @staticmethod
+    def validate(df: pl.DataFrame) -> pl.DataFrame:
+        """必須列のみを検証し、オプション列は自由"""
+        for col, dtype in PortfolioSchema.REQUIRED_COLUMNS.items():
+            if col not in df.columns:
+                raise ValueError(f"必須列が不足しています: {col}")
+            if df[col].dtype != dtype:
+                raise ValueError(f"列'{col}'の型が不正です。期待: {dtype}, 実際: {df[col].dtype}")
+        return df
+```
+
+### 2.4 Position
 
 ```python
 class PositionSchema:
@@ -230,7 +261,7 @@ class PositionSchema:
         return df
 ```
 
-### 2.4 Order
+### 2.5 Order
 
 ```python
 class OrderSchema:
@@ -275,7 +306,7 @@ class OrderSchema:
         return df
 ```
 
-### 2.5 FillReport
+### 2.6 FillReport
 
 ```python
 class FillReportSchema:
@@ -310,7 +341,7 @@ class FillReportSchema:
         return df
 ```
 
-### 2.6 Context
+### 2.7 Context
 
 ```python
 from typing import Any
@@ -346,7 +377,7 @@ class Context(BaseModel):
         return pl.DataFrame(self.positions)
 ```
 
-### 2.7 Metrics
+### 2.8 Metrics
 
 ```python
 class MetricsSchema:
@@ -399,16 +430,16 @@ class SignalCalculatorParams(BaseModel):
     pass  # ユーザが拡張
 ```
 
-### 3.2 SymbolSelectorParams
+### 3.2 PortfolioConstructorParams
 
 ```python
-class SymbolSelectorParams(BaseModel):
-    """銘柄選定クラスのパラメータ基底クラス
+class PortfolioConstructorParams(BaseModel):
+    """ポートフォリオ構築クラスのパラメータ基底クラス
 
     ユーザはこれを継承して独自パラメータを定義する。
 
     Example:
-        class TopNSelectorParams(SymbolSelectorParams):
+        class TopNConstructorParams(PortfolioConstructorParams):
             top_n: int = Field(default=10, gt=0, description="選定する銘柄数")
             min_signal_threshold: float = Field(default=0.0, description="最小シグナル閾値")
     """
@@ -463,7 +494,7 @@ Context
 BacktestEngine
  ├─ config: Config
  ├─ calculator: BaseSignalCalculator (params: SignalCalculatorParams)
- ├─ symbol_selector: BaseSymbolSelector (params: SymbolSelectorParams)
+ ├─ portfolio_constructor: BasePortfolioConstructor (params: PortfolioConstructorParams)
  ├─ order_creator: BaseOrderCreator (params: OrderCreatorParams)
  ├─ data_sources: dict[str, BaseDataSource]
  └─ context_store: BaseContextStore
@@ -471,8 +502,8 @@ BacktestEngine
 Iteration Flow:
   MarketData (DataSource)
     → Signal (SignalCalculator)
-    → Selected Symbols (SymbolSelector)
-    → Order (OrderCreator)
+    → Portfolio DataFrame (PortfolioConstructor: 銘柄選定+メタデータ付与)
+    → Order (OrderCreator: メタデータ活用)
     → FillReport (Executor)
     → Metrics (calculate_metrics)
 ```

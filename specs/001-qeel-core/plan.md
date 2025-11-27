@@ -160,17 +160,18 @@
   - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
   - `qeel/engines/backtest.py` - BacktestEngine
   - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
-  - `qeel/selectors/base.py` - BaseSymbolSelector ABC
-  - `qeel/selectors/top_n.py` - TopNSymbolSelector（デフォルト実装）
-  - `qeel/order_creators/base.py` - BaseOrderCreator ABC
-  - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装）
+  - `qeel/portfolio_constructors/base.py` - BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`、メタデータ付与可能）
+  - `qeel/portfolio_constructors/top_n.py` - TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
+  - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_df: pl.DataFrame`に変更）
+  - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
 - **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
 - **依存**: `003`, `004`, `005`, `006`
 - **User Story**: **User Story 1（P1）完成**
 - **デフォルト実装詳細**:
-  - `TopNSymbolSelector`: シグナル上位N銘柄を選択（Nはパラメータで指定、デフォルト10）
-  - `EqualWeightOrderCreator`: 選択銘柄に等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）
+  - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
+  - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_df`のメタデータ（`signal_strength`等）を参照して注文生成
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
+- **設計変更（2025-11-27）**: `BaseSymbolSelector`を`BasePortfolioConstructor`に改名。`select()`メソッドを`construct()`に変更。戻り値は`pl.DataFrame`（必須列: datetime, symbol; オプション列: 任意のメタデータ）。`BaseOrderCreator.create()`の引数を`portfolio_df: pl.DataFrame`に変更。責務分離を保ちつつ、命名でポートフォリオ構築（銘柄選定+メタデータ付与）の意図を明確にする
 
 ---
 
@@ -240,8 +241,8 @@
 **Branch**: `013-backtest-live-divergence`
 - **目的**: バックテストと実運用の差異検証（P3完成）
 - **成果物**:
-  - `qeel/divergence/comparison.py` - バックテストと実運用の差異計算ロジック
-  - `qeel/divergence/visualizer.py` - 差異可視化
+  - `qeel/diagnostics/comparison.py` - バックテストと実運用の差異計算ロジック
+  - `qeel/diagnostics/visualizer.py` - 差異可視化
   - 詳細ログ出力
 - **テスト**: バックテストと実運用の約定データから差異が可視化される
 - **依存**: `008-metrics-calculation`, `009-live-engine`
@@ -333,10 +334,10 @@ src/qeel/
 │       ├── __init__.py
 │       ├── moving_average.py  # 移動平均クロス実装例
 │       └── log_return.py      # 対数リターン実装例
-├── selectors/
+├── portfolio_constructors/
 │   ├── __init__.py
-│   ├── base.py            # BaseSymbolSelector ABC
-│   └── top_n.py           # TopNSymbolSelector（デフォルト実装）
+│   ├── base.py            # BasePortfolioConstructor ABC
+│   └── top_n.py           # TopNPortfolioConstructor（デフォルト実装）
 ├── order_creators/
 │   ├── __init__.py
 │   ├── base.py            # BaseOrderCreator ABC
@@ -369,7 +370,7 @@ src/qeel/
 │   ├── __init__.py
 │   ├── rank_correlation.py    # 順位相関係数計算
 │   └── visualizer.py          # 分布可視化
-└── divergence/
+└── diagnostics/
     ├── __init__.py
     ├── comparison.py      # バックテストと実運用の差異計算
     └── visualizer.py      # 差異可視化
@@ -388,7 +389,7 @@ tests/
 │   ├── test_engines.py
 │   ├── test_metrics.py
 │   ├── test_analysis.py
-│   └── test_divergence.py
+│   └── test_diagnostics.py
 ├── integration/
 │   ├── test_backtest_e2e.py
 │   ├── test_live_e2e.py
