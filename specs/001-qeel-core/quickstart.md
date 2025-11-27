@@ -32,8 +32,8 @@ end_date = "2023-12-31T23:59:59"
 [[data_sources]]
 name = "ohlcv"
 datetime_column = "datetime"
-offset_hours = 0
-window_days = 30
+offset_seconds = 0
+window_seconds = 2592000  # 30日 = 30 * 24 * 3600秒
 source_type = "parquet"
 source_path = "data/ohlcv.parquet"
 
@@ -214,20 +214,44 @@ shape: (365, 6)
 
 ## カスタマイズポイント
 
-### 銘柄選定ロジックの追加
+### 銘柄選定ロジックのカスタマイズ
 
-`BacktestEngine` にカスタム銘柄選定関数を渡すことで、シグナルから銘柄を選定できます：
+`BaseSymbolSelector` を継承してカスタム銘柄選定ロジックを実装できます：
 
 ```python
-def select_top_symbols(signals: pl.DataFrame, top_n: int = 10) -> list[str]:
-    """シグナルが大きい上位N銘柄を選定"""
-    return (
-        signals
-        .sort("signal", descending=True)
-        .head(top_n)
-        ["symbol"]
-        .to_list()
-    )
+from pydantic import BaseModel, Field
+import polars as pl
+from qeel.selectors import BaseSymbolSelector
+
+class CustomSelectorParams(BaseModel):
+    """カスタム銘柄選定のパラメータ"""
+    top_n: int = Field(default=10, gt=0, description="選定する銘柄数")
+    min_signal_threshold: float = Field(default=0.0, description="最小シグナル閾値")
+
+class CustomSymbolSelector(BaseSymbolSelector):
+    """シグナル上位N銘柄かつ閾値以上のものを選定"""
+
+    def select(self, signals: pl.DataFrame, context: dict) -> list[str]:
+        """
+        Args:
+            signals: シグナルDataFrame（SignalSchema準拠）
+            context: コンテキスト情報（ポジション等）
+
+        Returns:
+            選定された銘柄リスト
+        """
+        return (
+            signals
+            .filter(pl.col("signal") >= self.params.min_signal_threshold)
+            .sort("signal", descending=True)
+            .head(self.params.top_n)
+            ["symbol"]
+            .to_list()
+        )
+
+# 使用例
+selector_params = CustomSelectorParams(top_n=10, min_signal_threshold=0.5)
+symbol_selector = CustomSymbolSelector(params=selector_params)
 
 engine = BacktestEngine(
     calculator=calculator,
@@ -235,42 +259,71 @@ engine = BacktestEngine(
     executor=executor,
     context_store=context_store,
     config=config,
-    symbol_selector=select_top_symbols,  # カスタム選定関数
+    symbol_selector=symbol_selector,  # カスタムセレクタ
 )
 ```
 
-### 注文生成ロジックの追加
+### 注文生成ロジックのカスタマイズ
 
 ```python
-def create_equal_weight_orders(
-    signals: pl.DataFrame,
-    selected_symbols: list[str],
-    positions: pl.DataFrame,
-    capital: float = 1_000_000.0,
-) -> pl.DataFrame:
-    """均等ウェイトで注文を生成"""
-    n_symbols = len(selected_symbols)
-    target_value_per_symbol = capital / n_symbols
+from qeel.order_creators import BaseOrderCreator
+from qeel.schemas import OrderSchema
 
-    orders = []
-    for symbol in selected_symbols:
-        signal_row = signals.filter(pl.col("symbol") == symbol).row(0, named=True)
-        signal_value = signal_row["signal"]
+class CustomOrderCreatorParams(BaseModel):
+    """カスタム注文生成のパラメータ"""
+    capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
+    max_position_pct: float = Field(default=0.2, gt=0.0, le=1.0, description="1銘柄の最大ポジション比率")
 
-        # シグナルが正なら買い、負なら売り
-        side = "buy" if signal_value > 0 else "sell"
-        # 現在価格で数量計算（簡略化）
-        quantity = abs(target_value_per_symbol / signal_row.get("close", 100.0))
+class RiskParityOrderCreator(BaseOrderCreator):
+    """リスクパリティに基づいて注文を生成"""
 
-        orders.append({
-            "symbol": symbol,
-            "side": side,
-            "quantity": quantity,
-            "price": None,  # 成行
-            "order_type": "market",
-        })
+    def create(
+        self,
+        signals: pl.DataFrame,
+        selected_symbols: list[str],
+        positions: pl.DataFrame,
+        market_data: pl.DataFrame,
+    ) -> pl.DataFrame:
+        """
+        Args:
+            signals: シグナルDataFrame
+            selected_symbols: 選定された銘柄リスト
+            positions: 現在のポジション
+            market_data: 市場データ（価格情報）
 
-    return pl.DataFrame(orders)
+        Returns:
+            注文DataFrame（OrderSchema準拠）
+        """
+        orders = []
+        max_value_per_symbol = self.params.capital * self.params.max_position_pct
+
+        for symbol in selected_symbols:
+            signal_row = signals.filter(pl.col("symbol") == symbol).row(0, named=True)
+            signal_value = signal_row["signal"]
+
+            # 現在価格取得
+            price_row = market_data.filter(pl.col("symbol") == symbol).row(0, named=True)
+            current_price = price_row["close"]
+
+            # シグナルの強さに応じて数量計算
+            target_value = max_value_per_symbol * abs(signal_value)
+            quantity = target_value / current_price
+
+            side = "buy" if signal_value > 0 else "sell"
+
+            orders.append({
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "price": None,  # 成行
+                "order_type": "market",
+            })
+
+        return OrderSchema.validate(pl.DataFrame(orders))
+
+# 使用例
+order_creator_params = CustomOrderCreatorParams(capital=1_000_000.0, max_position_pct=0.15)
+order_creator = RiskParityOrderCreator(params=order_creator_params)
 
 engine = BacktestEngine(
     calculator=calculator,
@@ -278,7 +331,7 @@ engine = BacktestEngine(
     executor=executor,
     context_store=context_store,
     config=config,
-    order_creator=create_equal_weight_orders,  # カスタム注文生成関数
+    order_creator=order_creator,  # カスタム注文生成
 )
 ```
 

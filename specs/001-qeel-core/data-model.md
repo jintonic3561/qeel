@@ -23,15 +23,15 @@ class DataSourceConfig(BaseModel):
     Attributes:
         name: データソース名（例: "ohlcv", "earnings"）
         datetime_column: datetime列の列名
-        offset_hours: データ利用可能時刻のオフセット（時間）
-        window_days: 取得するデータのwindow（日数）
+        offset_seconds: データ利用可能時刻のオフセット（秒）
+        window_seconds: 取得するデータのwindow（秒）
         source_type: ソースタイプ（"parquet", "custom"）
         source_path: データソースのパス（ローカルファイルまたはURI）
     """
     name: str = Field(..., description="データソース識別子")
     datetime_column: str = Field(..., description="datetime列名")
-    offset_hours: int = Field(default=0, description="利用可能時刻オフセット（時間）")
-    window_days: int = Field(..., gt=0, description="取得window（日数）")
+    offset_seconds: int = Field(default=0, description="利用可能時刻オフセット（秒）")
+    window_seconds: int = Field(..., gt=0, description="取得window（秒）")
     source_type: str = Field(..., description="ソースタイプ")
     source_path: Path = Field(..., description="ソースパス")
 
@@ -399,7 +399,39 @@ class SignalCalculatorParams(BaseModel):
     pass  # ユーザが拡張
 ```
 
-### 3.2 ReturnCalculatorParams
+### 3.2 SymbolSelectorParams
+
+```python
+class SymbolSelectorParams(BaseModel):
+    """銘柄選定クラスのパラメータ基底クラス
+
+    ユーザはこれを継承して独自パラメータを定義する。
+
+    Example:
+        class TopNSelectorParams(SymbolSelectorParams):
+            top_n: int = Field(default=10, gt=0, description="選定する銘柄数")
+            min_signal_threshold: float = Field(default=0.0, description="最小シグナル閾値")
+    """
+    pass  # ユーザが拡張
+```
+
+### 3.3 OrderCreatorParams
+
+```python
+class OrderCreatorParams(BaseModel):
+    """注文生成クラスのパラメータ基底クラス
+
+    ユーザはこれを継承して独自パラメータを定義する。
+
+    Example:
+        class EqualWeightParams(OrderCreatorParams):
+            capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
+            max_position_pct: float = Field(default=0.2, gt=0.0, le=1.0, description="1銘柄の最大ポジション比率")
+    """
+    pass  # ユーザが拡張
+```
+
+### 3.4 ReturnCalculatorParams
 
 ```python
 class ReturnCalculatorParams(BaseModel):
@@ -431,14 +463,16 @@ Context
 BacktestEngine
  ├─ config: Config
  ├─ calculator: BaseSignalCalculator (params: SignalCalculatorParams)
+ ├─ symbol_selector: BaseSymbolSelector (params: SymbolSelectorParams)
+ ├─ order_creator: BaseOrderCreator (params: OrderCreatorParams)
  ├─ data_sources: dict[str, BaseDataSource]
  └─ context_store: BaseContextStore
 
 Iteration Flow:
   MarketData (DataSource)
     → Signal (SignalCalculator)
-    → Selected Symbols (select_symbols)
-    → Order (create_orders)
+    → Selected Symbols (SymbolSelector)
+    → Order (OrderCreator)
     → FillReport (Executor)
     → Metrics (calculate_metrics)
 ```

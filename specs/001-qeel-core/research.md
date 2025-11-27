@@ -71,8 +71,8 @@ from pathlib import Path
 class DataSourceConfig(BaseModel):
     name: str
     datetime_column: str
-    offset_hours: int = 0
-    window_days: int
+    offset_seconds: int = 0
+    window_seconds: int
     source_path: Path
 
     @field_validator('source_path')
@@ -116,16 +116,16 @@ skip_holidays = true
 [[data_sources]]
 name = "ohlcv"
 datetime_column = "timestamp"
-offset_hours = 0  # データが利用可能になる時刻オフセット（UTC基準）
-window_days = 30  # 各iterationで取得する過去データの日数
+offset_seconds = 0  # データが利用可能になる時刻オフセット（UTC基準、秒）
+window_seconds = 2592000  # 各iterationで取得する過去データ（秒）、30日 = 30*24*3600
 source_type = "parquet"
 source_path = "/data/ohlcv.parquet"
 
 [[data_sources]]
 name = "earnings"
 datetime_column = "announcement_date"
-offset_hours = 16  # 決算発表は16時以降に利用可能
-window_days = 90
+offset_seconds = 57600  # 決算発表は16時以降に利用可能（16時間 = 16*3600秒）
+window_seconds = 7776000  # 90日 = 90*24*3600秒
 source_type = "parquet"
 source_path = "/data/earnings.parquet"
 

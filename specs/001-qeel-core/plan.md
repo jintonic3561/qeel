@@ -160,14 +160,16 @@
   - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
   - `qeel/engines/backtest.py` - BacktestEngine
   - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
-  - デフォルトの銘柄選定・注文生成ロジック（等ウェイトポートフォリオ、open-closeの成行注文）
+  - `qeel/selectors/base.py` - BaseSymbolSelector ABC
+  - `qeel/selectors/top_n.py` - TopNSymbolSelector（デフォルト実装）
+  - `qeel/order_creators/base.py` - BaseOrderCreator ABC
+  - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装）
 - **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
 - **依存**: `003`, `004`, `005`, `006`
 - **User Story**: **User Story 1（P1）完成**
-- **デフォルトロジック詳細**:
-  - 銘柄選定: シグナル上位N銘柄を選択（Nはユーザ指定、デフォルト10）
-  - ウェイト計算: 選択銘柄に等ウェイト割り当て（1/N）
-  - 注文生成: open価格での成行買い、close価格での成行売り（リバランス時）
+- **デフォルト実装詳細**:
+  - `TopNSymbolSelector`: シグナル上位N銘柄を選択（Nはパラメータで指定、デフォルト10）
+  - `EqualWeightOrderCreator`: 選択銘柄に等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
 
 ---
@@ -331,6 +333,14 @@ src/qeel/
 │       ├── __init__.py
 │       ├── moving_average.py  # 移動平均クロス実装例
 │       └── log_return.py      # 対数リターン実装例
+├── selectors/
+│   ├── __init__.py
+│   ├── base.py            # BaseSymbolSelector ABC
+│   └── top_n.py           # TopNSymbolSelector（デフォルト実装）
+├── order_creators/
+│   ├── __init__.py
+│   ├── base.py            # BaseOrderCreator ABC
+│   └── equal_weight.py    # EqualWeightOrderCreator（デフォルト実装）
 ├── executors/
 │   ├── __init__.py
 │   ├── base.py            # BaseExecutor ABC
@@ -371,6 +381,8 @@ tests/
 │   ├── test_schemas.py
 │   ├── test_data_sources.py
 │   ├── test_calculators.py
+│   ├── test_selectors.py
+│   ├── test_order_creators.py
 │   ├── test_executors.py
 │   ├── test_stores.py
 │   ├── test_engines.py
@@ -385,6 +397,8 @@ tests/
 └── contract/              # ABC契約テスト
     ├── test_signal_calculator_contract.py
     ├── test_return_calculator_contract.py
+    ├── test_symbol_selector_contract.py
+    ├── test_order_creator_contract.py
     ├── test_data_source_contract.py
     ├── test_executor_contract.py
     └── test_context_store_contract.py

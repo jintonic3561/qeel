@@ -86,9 +86,9 @@ class ParquetDataSource(BaseDataSource):
         )
 
         # オフセット適用（データ利用可能時刻を調整）
-        if self.config.offset_hours != 0:
+        if self.config.offset_seconds != 0:
             df = df.with_columns([
-                (pl.col("datetime") + pl.duration(hours=self.config.offset_hours)).alias("datetime")
+                (pl.col("datetime") + pl.duration(seconds=self.config.offset_seconds)).alias("datetime")
             ])
 
         return MarketDataSchema.validate(df)
