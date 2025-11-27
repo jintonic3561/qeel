@@ -114,8 +114,8 @@
 - [ ] T020 ブランチ作成: `git checkout -b 004-calculator-abc`
 - [ ] T021 このブランチ専用のtasks.md生成
 - [ ] T022 TDD実装（以下を含む）
-  - src/qeel/calculators/base_signal.py: BaseSignalCalculator ABC
-  - src/qeel/calculators/examples/moving_average.py: 移動平均クロス実装例
+  - src/qeel/calculators/signals/base.py: BaseSignalCalculator ABC
+  - src/qeel/calculators/signals/examples/moving_average.py: 移動平均クロス実装例
   - tests/unit/test_calculators.py
   - tests/contract/test_signal_calculator_contract.py
 - [ ] T023 PRを作成しマージ
@@ -307,8 +307,8 @@
 - [ ] T052 ブランチ作成: `git checkout -b 011-return-calculator-abc`
 - [ ] T053 このブランチ専用のtasks.md生成
 - [ ] T054 TDD実装（以下を含む）
-  - src/qeel/calculators/base_return.py: BaseReturnCalculator ABC
-  - src/qeel/calculators/examples/log_return.py: 対数リターン実装例
+  - src/qeel/calculators/returns/base.py: BaseReturnCalculator ABC
+  - src/qeel/calculators/returns/examples/log_return.py: 対数リターン実装例
   - tests/unit/test_return_calculator.py
   - tests/contract/test_return_calculator_contract.py
 - [ ] T055 PRを作成しマージ

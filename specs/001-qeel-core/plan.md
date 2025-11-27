@@ -117,8 +117,8 @@
 **Branch**: `004-calculator-abc`
 - **目的**: シグナル計算ABCとサンプル実装
 - **成果物**:
-  - `qeel/calculators/base_signal.py` - BaseSignalCalculator ABC
-  - `qeel/calculators/examples/moving_average.py` - 移動平均クロス実装例
+  - `qeel/calculators/signals/base.py` - BaseSignalCalculator ABC
+  - `qeel/calculators/signals/examples/moving_average.py` - 移動平均クロス実装例
   - Pydanticパラメータモデル
 - **テスト**: モックデータでcalculate()が正しく動作
 - **依存**: `002-core-config-and-schemas`
@@ -216,8 +216,8 @@
 **Branch**: `011-return-calculator-abc`
 - **目的**: リターン計算ABCとサンプル実装
 - **成果物**:
-  - `qeel/calculators/base_return.py` - BaseReturnCalculator ABC
-  - `qeel/calculators/examples/log_return.py` - 対数リターン実装例
+  - `qeel/calculators/returns/base.py` - BaseReturnCalculator ABC
+  - `qeel/calculators/returns/examples/log_return.py` - 対数リターン実装例
 - **テスト**: モックデータでリターン計算が正しく動作
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 3（リターン計算）
@@ -328,12 +328,18 @@ src/qeel/
 │   └── mock.py            # MockDataSource（テスト用）
 ├── calculators/
 │   ├── __init__.py
-│   ├── base_signal.py     # BaseSignalCalculator ABC
-│   ├── base_return.py     # BaseReturnCalculator ABC
-│   └── examples/
+│   ├── signals/
+│   │   ├── __init__.py
+│   │   ├── base.py        # BaseSignalCalculator ABC
+│   │   └── examples/
+│   │       ├── __init__.py
+│   │       └── moving_average.py  # 移動平均クロス実装例
+│   └── returns/
 │       ├── __init__.py
-│       ├── moving_average.py  # 移動平均クロス実装例
-│       └── log_return.py      # 対数リターン実装例
+│       ├── base.py        # BaseReturnCalculator ABC
+│       └── examples/
+│           ├── __init__.py
+│           └── log_return.py      # 対数リターン実装例
 ├── portfolio_constructors/
 │   ├── __init__.py
 │   ├── base.py            # BasePortfolioConstructor ABC

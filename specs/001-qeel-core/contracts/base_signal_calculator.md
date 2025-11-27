@@ -50,7 +50,7 @@ class BaseSignalCalculator(ABC):
 ```python
 from pydantic import BaseModel, Field
 import polars as pl
-from qeel.calculators import BaseSignalCalculator
+from qeel.calculators.signals.base import BaseSignalCalculator
 
 class MovingAverageCrossParams(BaseModel):
     short_window: int = Field(..., gt=0, description="短期移動平均のwindow")

@@ -49,7 +49,7 @@ class BaseReturnCalculator(ABC):
 ```python
 from pydantic import BaseModel, Field
 import polars as pl
-from qeel.calculators import BaseReturnCalculator
+from qeel.calculators.returns.base import BaseReturnCalculator
 
 class LogReturnParams(BaseModel):
     period: int = Field(default=1, gt=0, description="リターン計算期間（日数）")
