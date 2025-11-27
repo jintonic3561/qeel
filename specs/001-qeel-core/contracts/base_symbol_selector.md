@@ -36,12 +36,12 @@ class BaseSymbolSelector(ABC):
         self.params = params
 
     @abstractmethod
-    def select(self, signals: pl.DataFrame, context: dict) -> list[str]:
+    def select(self, signals: pl.DataFrame, positions: pl.DataFrame) -> list[str]:
         """シグナルから銘柄を選定する
 
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
-            context: コンテキスト情報（ポジション、選定履歴等）
+            positions: 現在のポジション（PositionSchema準拠）
 
         Returns:
             選定された銘柄コードのリスト
@@ -69,11 +69,12 @@ class TopNSymbolSelector(BaseSymbolSelector):
     シグナル値でソートし、上位N銘柄を選定する。
     """
 
-    def select(self, signals: pl.DataFrame, context: dict) -> list[str]:
-        from qeel.schemas import SignalSchema
+    def select(self, signals: pl.DataFrame, positions: pl.DataFrame) -> list[str]:
+        from qeel.schemas import SignalSchema, PositionSchema
 
         # スキーマバリデーション
         SignalSchema.validate(signals)
+        PositionSchema.validate(positions)
 
         # シグナルでソートして上位N銘柄を選定
         return (
@@ -97,10 +98,11 @@ class ThresholdSelectorParams(SymbolSelectorParams):
 class ThresholdSymbolSelector(BaseSymbolSelector):
     """シグナルが閾値以上の銘柄から上位N銘柄を選定"""
 
-    def select(self, signals: pl.DataFrame, context: dict) -> list[str]:
-        from qeel.schemas import SignalSchema
+    def select(self, signals: pl.DataFrame, positions: pl.DataFrame) -> list[str]:
+        from qeel.schemas import SignalSchema, PositionSchema
 
         SignalSchema.validate(signals)
+        PositionSchema.validate(positions)
 
         # 閾値フィルタ + 上位N選定
         return (
@@ -118,7 +120,7 @@ class ThresholdSymbolSelector(BaseSymbolSelector):
 ### 入力
 
 - `signals`: SignalSchemaに準拠したPolars DataFrame（必須列: datetime, symbol, signal）
-- `context`: コンテキスト情報（ポジション、選定履歴等）、dict形式
+- `positions`: PositionSchemaに準拠したPolars DataFrame（現在のポジション情報）
 
 ### 出力
 

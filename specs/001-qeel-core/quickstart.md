@@ -231,15 +231,20 @@ class CustomSelectorParams(BaseModel):
 class CustomSymbolSelector(BaseSymbolSelector):
     """シグナル上位N銘柄かつ閾値以上のものを選定"""
 
-    def select(self, signals: pl.DataFrame, context: dict) -> list[str]:
+    def select(self, signals: pl.DataFrame, positions: pl.DataFrame) -> list[str]:
         """
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
-            context: コンテキスト情報（ポジション等）
+            positions: 現在のポジション（PositionSchema準拠）
 
         Returns:
             選定された銘柄リスト
         """
+        from qeel.schemas import SignalSchema, PositionSchema
+
+        SignalSchema.validate(signals)
+        PositionSchema.validate(positions)
+
         return (
             signals
             .filter(pl.col("signal") >= self.params.min_signal_threshold)
