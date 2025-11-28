@@ -58,6 +58,5 @@ Generate a **concise** report using the following structure. Avoid long narrativ
 - **Details**: (If YES, 1 sentence describing the spec update).
 
 ### 3. Confirmation
-*End with this line:*
-> **Shall I execute these modifications?**
-
+End by explicitly asking the user to confirm execution.
+(e.g., "Shall I execute these modifications?")
