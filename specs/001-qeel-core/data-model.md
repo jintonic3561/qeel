@@ -97,11 +97,13 @@ class LoopConfig(BaseModel):
         frequency: iteration頻度（"1d", "1w", "1h"等）
         start_date: 開始日
         end_date: 終了日
+        universe: 対象銘柄リスト（Noneなら全銘柄を対象）
         method_timings: 各メソッドの実行タイミング
     """
     frequency: str = Field(..., description="iteration頻度")
     start_date: datetime = Field(..., description="開始日")
     end_date: datetime = Field(..., description="終了日")
+    universe: list[str] | None = Field(default=None, description="対象銘柄リスト（Noneなら全銘柄）")
     method_timings: MethodTimingConfig = Field(default_factory=MethodTimingConfig)
 
     @field_validator('end_date')

@@ -100,6 +100,10 @@ class ParquetDataSource(BaseDataSource):
 
 - `start`, `end`: 取得するデータの範囲（iteration日時 + window）
 - `symbols`: 対象銘柄リスト
+  - エンジンがiteration時に自動決定し、引数として渡される
+  - `LoopConfig.universe`が指定されている場合、そのリストと当日データが存在する銘柄の積集合
+  - `LoopConfig.universe`が`None`の場合、データソース内で当日データが存在するすべての銘柄
+  - ユーザはこの引数を受け取り、データソースから該当銘柄のみを取得する
 
 ### 出力
 

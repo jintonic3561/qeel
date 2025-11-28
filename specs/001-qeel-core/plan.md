@@ -160,6 +160,7 @@
   - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
   - `qeel/engines/backtest.py` - BacktestEngine
   - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
+  - ユニバース管理ロジック（`LoopConfig.universe`と当日データ存在銘柄の積集合を計算し、`BaseDataSource.fetch()`の`symbols`引数として渡す）
   - `qeel/portfolio_constructors/base.py` - BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`、メタデータ付与可能）
   - `qeel/portfolio_constructors/top_n.py` - TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
   - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_df: pl.DataFrame`に変更）
@@ -172,6 +173,7 @@
   - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_df`のメタデータ（`signal_strength`等）を参照して注文生成
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
 - **設計変更（2025-11-27）**: `BaseSymbolSelector`を`BasePortfolioConstructor`に改名。`select()`メソッドを`construct()`に変更。戻り値は`pl.DataFrame`（必須列: datetime, symbol; オプション列: 任意のメタデータ）。`BaseOrderCreator.create()`の引数を`portfolio_df: pl.DataFrame`に変更。責務分離を保ちつつ、命名でポートフォリオ構築（銘柄選定+メタデータ付与）の意図を明確にする
+- **設計追加（2025-11-28）**: ユニバース管理ロジックを追加。`LoopConfig.universe`が指定されている場合はそのリストと当日データ存在銘柄の積集合、`None`なら全銘柄を対象とする。決定されたユニバースは`BaseDataSource.fetch()`の`symbols`引数として渡される
 
 ---
 
