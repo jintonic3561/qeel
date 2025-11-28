@@ -81,8 +81,14 @@ class LocalStore(BaseContextStore):
     def save(self, context: Context) -> None:
         try:
             if self.format == "json":
-                # JSON形式で保存
-                data = context.model_dump(mode='json')
+                # JSON形式で保存（DataFrameをdictに変換）
+                data = {
+                    "current_datetime": context.current_datetime.isoformat(),
+                    "signals": context.signals.to_dict(as_series=False) if context.signals is not None else None,
+                    "portfolio_plan": context.portfolio_plan.to_dict(as_series=False) if context.portfolio_plan is not None else None,
+                    "orders": context.orders.to_dict(as_series=False) if context.orders is not None else None,
+                    "positions": context.positions.to_dict(as_series=False) if context.positions is not None else None,
+                }
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with open(self.path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
@@ -91,15 +97,23 @@ class LocalStore(BaseContextStore):
                 # Parquet + JSON形式で保存
                 self.path.mkdir(parents=True, exist_ok=True)
 
-                # Positions DataFrameをParquetで保存
-                positions_df = context.get_positions_df()
-                positions_df.write_parquet(self.positions_path)
+                # DataFrameをParquetで保存
+                if context.signals is not None:
+                    context.signals.write_parquet(self.path / "signals.parquet")
+                if context.portfolio_plan is not None:
+                    context.portfolio_plan.write_parquet(self.path / "portfolio_plan.parquet")
+                if context.orders is not None:
+                    context.orders.write_parquet(self.path / "orders.parquet")
+                if context.positions is not None:
+                    context.positions.write_parquet(self.path / "positions.parquet")
 
                 # その他のメタデータをJSONで保存
                 meta = {
-                    "current_date": context.current_date.isoformat(),
-                    "selected_symbols": context.selected_symbols,
-                    "model_params": context.model_params,
+                    "current_datetime": context.current_datetime.isoformat(),
+                    "has_signals": context.signals is not None,
+                    "has_portfolio_plan": context.portfolio_plan is not None,
+                    "has_orders": context.orders is not None,
+                    "has_positions": context.positions is not None,
                 }
                 with open(self.meta_path, 'w', encoding='utf-8') as f:
                     json.dump(meta, f, ensure_ascii=False, indent=2)
@@ -113,23 +127,34 @@ class LocalStore(BaseContextStore):
 
         try:
             if self.format == "json":
-                # JSON形式から読み込み
+                # JSON形式から読み込み（dictをDataFrameに変換）
                 with open(self.path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                return Context(**data)
+
+                return Context(
+                    current_datetime=datetime.fromisoformat(data["current_datetime"]),
+                    signals=pl.DataFrame(data["signals"]) if data.get("signals") else None,
+                    portfolio_plan=pl.DataFrame(data["portfolio_plan"]) if data.get("portfolio_plan") else None,
+                    orders=pl.DataFrame(data["orders"]) if data.get("orders") else None,
+                    positions=pl.DataFrame(data["positions"]) if data.get("positions") else None,
+                )
 
             elif self.format == "parquet":
                 # Parquet + JSON形式から読み込み
                 with open(self.meta_path, 'r', encoding='utf-8') as f:
                     meta = json.load(f)
 
-                positions_df = pl.read_parquet(self.positions_path)
+                signals_df = pl.read_parquet(self.path / "signals.parquet") if meta.get("has_signals") else None
+                portfolio_plan_df = pl.read_parquet(self.path / "portfolio_plan.parquet") if meta.get("has_portfolio_plan") else None
+                orders_df = pl.read_parquet(self.path / "orders.parquet") if meta.get("has_orders") else None
+                positions_df = pl.read_parquet(self.path / "positions.parquet") if meta.get("has_positions") else None
 
-                return Context.from_dataframe(
-                    current_date=datetime.fromisoformat(meta["current_date"]),
-                    positions_df=positions_df,
-                    selected_symbols=meta["selected_symbols"],
-                    model_params=meta["model_params"],
+                return Context(
+                    current_datetime=datetime.fromisoformat(meta["current_datetime"]),
+                    signals=signals_df,
+                    portfolio_plan=portfolio_plan_df,
+                    orders=orders_df,
+                    positions=positions_df,
                 )
 
         except Exception as e:
@@ -139,7 +164,8 @@ class LocalStore(BaseContextStore):
         if self.format == "json":
             return self.path.exists()
         elif self.format == "parquet":
-            return self.meta_path.exists() and self.positions_path.exists()
+            # メタデータファイルの存在のみチェック（個別のParquetファイルはオプション）
+            return self.meta_path.exists()
         return False
 ```
 
@@ -172,8 +198,14 @@ class S3Store(BaseContextStore):
     def save(self, context: Context) -> None:
         try:
             if self.format == "json":
-                # JSON形式で保存
-                data = context.model_dump(mode='json')
+                # JSON形式で保存（DataFrameをdictに変換）
+                data = {
+                    "current_datetime": context.current_datetime.isoformat(),
+                    "signals": context.signals.to_dict(as_series=False) if context.signals is not None else None,
+                    "portfolio_plan": context.portfolio_plan.to_dict(as_series=False) if context.portfolio_plan is not None else None,
+                    "orders": context.orders.to_dict(as_series=False) if context.orders is not None else None,
+                    "positions": context.positions.to_dict(as_series=False) if context.positions is not None else None,
+                }
                 key = f"{self.key_prefix}/context.json"
                 self.s3_client.put_object(
                     Bucket=self.bucket,
@@ -183,24 +215,54 @@ class S3Store(BaseContextStore):
 
             elif self.format == "parquet":
                 # Parquet + JSON形式で保存
-                # Positions DataFrameをParquetで保存
-                positions_df = context.get_positions_df()
-                buffer = BytesIO()
-                positions_df.write_parquet(buffer)
-                buffer.seek(0)
+                # DataFrameをParquetで保存
+                if context.signals is not None:
+                    buffer = BytesIO()
+                    context.signals.write_parquet(buffer)
+                    buffer.seek(0)
+                    self.s3_client.put_object(
+                        Bucket=self.bucket,
+                        Key=f"{self.key_prefix}/signals.parquet",
+                        Body=buffer.getvalue(),
+                    )
 
-                positions_key = f"{self.key_prefix}/positions.parquet"
-                self.s3_client.put_object(
-                    Bucket=self.bucket,
-                    Key=positions_key,
-                    Body=buffer.getvalue(),
-                )
+                if context.portfolio_plan is not None:
+                    buffer = BytesIO()
+                    context.portfolio_plan.write_parquet(buffer)
+                    buffer.seek(0)
+                    self.s3_client.put_object(
+                        Bucket=self.bucket,
+                        Key=f"{self.key_prefix}/portfolio_plan.parquet",
+                        Body=buffer.getvalue(),
+                    )
+
+                if context.orders is not None:
+                    buffer = BytesIO()
+                    context.orders.write_parquet(buffer)
+                    buffer.seek(0)
+                    self.s3_client.put_object(
+                        Bucket=self.bucket,
+                        Key=f"{self.key_prefix}/orders.parquet",
+                        Body=buffer.getvalue(),
+                    )
+
+                if context.positions is not None:
+                    buffer = BytesIO()
+                    context.positions.write_parquet(buffer)
+                    buffer.seek(0)
+                    self.s3_client.put_object(
+                        Bucket=self.bucket,
+                        Key=f"{self.key_prefix}/positions.parquet",
+                        Body=buffer.getvalue(),
+                    )
 
                 # その他のメタデータをJSONで保存
                 meta = {
-                    "current_date": context.current_date.isoformat(),
-                    "selected_symbols": context.selected_symbols,
-                    "model_params": context.model_params,
+                    "current_datetime": context.current_datetime.isoformat(),
+                    "has_signals": context.signals is not None,
+                    "has_portfolio_plan": context.portfolio_plan is not None,
+                    "has_orders": context.orders is not None,
+                    "has_positions": context.positions is not None,
                 }
                 meta_key = f"{self.key_prefix}/context_meta.json"
                 self.s3_client.put_object(
@@ -215,11 +277,18 @@ class S3Store(BaseContextStore):
     def load(self) -> Context | None:
         try:
             if self.format == "json":
-                # JSON形式から読み込み
+                # JSON形式から読み込み（dictをDataFrameに変換）
                 key = f"{self.key_prefix}/context.json"
                 response = self.s3_client.get_object(Bucket=self.bucket, Key=key)
                 data = json.loads(response['Body'].read().decode('utf-8'))
-                return Context(**data)
+
+                return Context(
+                    current_datetime=datetime.fromisoformat(data["current_datetime"]),
+                    signals=pl.DataFrame(data["signals"]) if data.get("signals") else None,
+                    portfolio_plan=pl.DataFrame(data["portfolio_plan"]) if data.get("portfolio_plan") else None,
+                    orders=pl.DataFrame(data["orders"]) if data.get("orders") else None,
+                    positions=pl.DataFrame(data["positions"]) if data.get("positions") else None,
+                )
 
             elif self.format == "parquet":
                 # Parquet + JSON形式から読み込み
@@ -227,15 +296,32 @@ class S3Store(BaseContextStore):
                 meta_response = self.s3_client.get_object(Bucket=self.bucket, Key=meta_key)
                 meta = json.loads(meta_response['Body'].read().decode('utf-8'))
 
-                positions_key = f"{self.key_prefix}/positions.parquet"
-                positions_response = self.s3_client.get_object(Bucket=self.bucket, Key=positions_key)
-                positions_df = pl.read_parquet(BytesIO(positions_response['Body'].read()))
+                signals_df = None
+                if meta.get("has_signals"):
+                    signals_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/signals.parquet")
+                    signals_df = pl.read_parquet(BytesIO(signals_response['Body'].read()))
 
-                return Context.from_dataframe(
-                    current_date=datetime.fromisoformat(meta["current_date"]),
-                    positions_df=positions_df,
-                    selected_symbols=meta["selected_symbols"],
-                    model_params=meta["model_params"],
+                portfolio_plan_df = None
+                if meta.get("has_portfolio_plan"):
+                    portfolio_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/portfolio_plan.parquet")
+                    portfolio_plan_df = pl.read_parquet(BytesIO(portfolio_response['Body'].read()))
+
+                orders_df = None
+                if meta.get("has_orders"):
+                    orders_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/orders.parquet")
+                    orders_df = pl.read_parquet(BytesIO(orders_response['Body'].read()))
+
+                positions_df = None
+                if meta.get("has_positions"):
+                    positions_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/positions.parquet")
+                    positions_df = pl.read_parquet(BytesIO(positions_response['Body'].read()))
+
+                return Context(
+                    current_datetime=datetime.fromisoformat(meta["current_datetime"]),
+                    signals=signals_df,
+                    portfolio_plan=portfolio_plan_df,
+                    orders=orders_df,
+                    positions=positions_df,
                 )
 
         except self.s3_client.exceptions.NoSuchKey:
@@ -251,10 +337,9 @@ class S3Store(BaseContextStore):
                 return True
 
             elif self.format == "parquet":
+                # メタデータファイルの存在のみチェック（個別のParquetファイルはオプション）
                 meta_key = f"{self.key_prefix}/context_meta.json"
-                positions_key = f"{self.key_prefix}/positions.parquet"
                 self.s3_client.head_object(Bucket=self.bucket, Key=meta_key)
-                self.s3_client.head_object(Bucket=self.bucket, Key=positions_key)
                 return True
 
         except self.s3_client.exceptions.NoSuchKey:

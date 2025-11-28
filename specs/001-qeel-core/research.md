@@ -172,10 +172,11 @@ base_path = "/tmp/qeel_context"
 **Context Structure**:
 ```python
 class Context(BaseModel):
-    current_date: datetime
-    positions: pl.DataFrame  # symbol, quantity, avg_price
-    selected_symbols: list[str]
-    model_params: dict[str, Any]  # ユーザ定義パラメータ
+    current_datetime: datetime  # 必須、iteration開始時に設定
+    signals: pl.DataFrame | None  # SignalSchema準拠
+    portfolio_plan: pl.DataFrame | None  # PortfolioSchema準拠
+    orders: pl.DataFrame | None  # OrderSchema準拠
+    positions: pl.DataFrame | None  # PositionSchema準拠
 ```
 
 **Storage Abstraction**:

@@ -122,11 +122,58 @@ class ThresholdPortfolioConstructor(BasePortfolioConstructor):
         return PortfolioSchema.validate(portfolio)
 ```
 
+## 複数シグナル対応の実装例
+
+```python
+class MultiSignalConstructorParams(PortfolioConstructorParams):
+    """複数シグナルを組み合わせた構築のパラメータ"""
+    top_n: int = Field(default=10, gt=0)
+    momentum_weight: float = Field(default=0.5, ge=0.0, le=1.0)
+    value_weight: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
+    """複数シグナルを組み合わせてポートフォリオを構築
+
+    signal_momentum と signal_value を重み付けして合成シグナルを作成し、
+    上位N銘柄を選定する。
+    """
+
+    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+        from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
+
+        SignalSchema.validate(signals)
+        PositionSchema.validate(positions)
+
+        # 複数シグナルの重み付け合成
+        portfolio = (
+            signals
+            .with_columns([
+                (
+                    pl.col("signal_momentum") * self.params.momentum_weight +
+                    pl.col("signal_value") * self.params.value_weight
+                ).alias("composite_signal")
+            ])
+            .sort("composite_signal", descending=True)
+            .head(self.params.top_n)
+            .select([
+                "datetime",
+                "symbol",
+                "composite_signal",
+                "signal_momentum",  # メタデータとして保持
+                "signal_value"      # メタデータとして保持
+            ])
+            .rename({"composite_signal": "signal_strength"})
+        )
+
+        return PortfolioSchema.validate(portfolio)
+```
+
 ## 契約事項
 
 ### 入力
 
-- `signals`: SignalSchemaに準拠したPolars DataFrame（必須列: datetime, symbol, signal）
+- `signals`: SignalSchemaに準拠したPolars DataFrame（必須列: datetime, symbol; オプション列: signal, signal_momentum等の任意のシグナル列）
 - `positions`: PositionSchemaに準拠したPolars DataFrame（現在のポジション情報）
 
 ### 出力

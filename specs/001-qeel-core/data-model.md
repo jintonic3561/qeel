@@ -185,12 +185,16 @@ class SignalSchema:
     必須列:
         datetime: pl.Datetime - シグナル生成日時
         symbol: pl.Utf8 - 銘柄コード
-        signal: pl.Float64 - シグナル値
+
+    オプション列例（ユーザが任意に追加可能）:
+        signal: pl.Float64 - シグナル値（単一シグナルの場合）
+        signal_momentum: pl.Float64 - モメンタムシグナル（複数シグナルの例）
+        signal_value: pl.Float64 - バリューシグナル（複数シグナルの例）
+        その他、ユーザが定義する任意のシグナル列
     """
     REQUIRED_COLUMNS = {
         "datetime": pl.Datetime,
         "symbol": pl.Utf8,
-        "signal": pl.Float64,
     }
 
     @staticmethod
@@ -345,36 +349,30 @@ class FillReportSchema:
 
 ```python
 from typing import Any
+from pydantic import ConfigDict
 
 class Context(BaseModel):
     """iterationをまたいで保持されるコンテキスト
 
+    current_datetimeはiterationの開始時に設定され、iteration全体を通じて不変。
+    signals, portfolio_plan, ordersはiteration内で段階的に構築される。
+    positionsは前iterationから引き継がれる。
+    Polars DataFrameを直接保持することで、変換コストを排除し、型安全性を確保する。
+
     Attributes:
-        current_date: 現在のiteration日時
-        positions: 現在のポジション（Polars DataFrame, PositionSchema）
-        selected_symbols: 選定された銘柄リスト
-        model_params: ユーザ定義のモデルパラメータ（任意）
+        current_datetime: 現在のiteration日時（必須、iteration開始時に設定）
+        signals: シグナルDataFrame（SignalSchema準拠、SignalCalculatorの出力）
+        portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、PortfolioConstructorの出力）
+        orders: 注文DataFrame（OrderSchema準拠、OrderCreatorの出力）
+        positions: 現在のポジションDataFrame（PositionSchema準拠）
     """
-    current_date: datetime
-    positions: dict[str, Any]  # positions DataFrameをdictに変換して保存
-    selected_symbols: list[str]
-    model_params: dict[str, Any] = Field(default_factory=dict)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    @classmethod
-    def from_dataframe(cls, current_date: datetime, positions_df: pl.DataFrame, selected_symbols: list[str], model_params: dict[str, Any]) -> "Context":
-        """Polars DataFrameからContextを生成"""
-        return cls(
-            current_date=current_date,
-            positions=positions_df.to_dict(as_series=False),
-            selected_symbols=selected_symbols,
-            model_params=model_params,
-        )
-
-    def get_positions_df(self) -> pl.DataFrame:
-        """PositionsをPolars DataFrameとして取得"""
-        if not self.positions:
-            return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
-        return pl.DataFrame(self.positions)
+    current_datetime: datetime
+    signals: pl.DataFrame | None = None
+    portfolio_plan: pl.DataFrame | None = None
+    orders: pl.DataFrame | None = None
+    positions: pl.DataFrame | None = None
 ```
 
 ### 2.8 Metrics
@@ -486,10 +484,11 @@ Config
  └─ LoopConfig
 
 Context
- ├─ current_date: datetime
- ├─ positions: DataFrame (PositionSchema)
- ├─ selected_symbols: list[str]
- └─ model_params: dict
+ ├─ current_datetime: datetime
+ ├─ signals: DataFrame (SignalSchema) | None
+ ├─ portfolio_plan: DataFrame (PortfolioSchema) | None
+ ├─ orders: DataFrame (OrderSchema) | None
+ └─ positions: DataFrame (PositionSchema) | None
 
 BacktestEngine
  ├─ config: Config

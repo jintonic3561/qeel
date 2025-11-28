@@ -37,7 +37,8 @@ class BaseSignalCalculator(ABC):
 
         Returns:
             シグナルDataFrame（SignalSchemaに準拠）
-            必須列: datetime (pl.Datetime), symbol (pl.Utf8), signal (pl.Float64)
+            必須列: datetime (pl.Datetime), symbol (pl.Utf8)
+            オプション列: signal (pl.Float64) または任意のシグナル列（例: signal_momentum, signal_value等）
 
         Raises:
             ValueError: データソースが不足している、またはスキーマ不正の場合
@@ -90,6 +91,43 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
         return SignalSchema.validate(signals)
 ```
 
+### 複数シグナルの実装例
+
+```python
+class MultiSignalParams(BaseModel):
+    momentum_window: int = Field(default=20, gt=0)
+    value_threshold: float = Field(default=0.5, gt=0.0)
+
+class MultiSignalCalculator(BaseSignalCalculator):
+    """複数のシグナルを同時に計算する例"""
+
+    def calculate(self, data_sources: dict[str, pl.DataFrame]) -> pl.DataFrame:
+        if "ohlcv" not in data_sources:
+            raise ValueError("ohlcvデータソースが必要です")
+
+        ohlcv = data_sources["ohlcv"]
+
+        # 複数のシグナルを計算
+        signals = (
+            ohlcv
+            .sort(["symbol", "datetime"])
+            .group_by("symbol")
+            .agg([
+                pl.col("datetime"),
+                # モメンタムシグナル
+                (pl.col("close").pct_change(self.params.momentum_window))
+                  .alias("signal_momentum"),
+                # バリューシグナル（例: PER的な指標）
+                (pl.col("close") / pl.col("volume").rolling_mean(window_size=20))
+                  .alias("signal_value"),
+            ])
+            .explode(["datetime", "signal_momentum", "signal_value"])
+            .select(["datetime", "symbol", "signal_momentum", "signal_value"])
+        )
+
+        return SignalSchema.validate(signals)
+```
+
 ## 契約事項
 
 ### 入力
@@ -101,8 +139,8 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
 ### 出力
 
 - 必ず `SignalSchema` に準拠したDataFrameを返す
-- 必須列: `datetime`, `symbol`, `signal`
-- `signal` はFloat64型（NaN許容）
+- 必須列: `datetime`, `symbol`
+- オプション列: `signal` または任意のシグナル列（例: `signal_momentum`, `signal_value`等、Float64型、NaN許容）
 
 ### バリデーション
 
