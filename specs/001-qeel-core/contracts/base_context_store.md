@@ -8,20 +8,29 @@
 
 ```python
 from abc import ABC, abstractmethod
-from qeel.models import Context
+from datetime import datetime
+import polars as pl
 
 class BaseContextStore(ABC):
     """コンテキスト永続化抽象基底クラス
 
-    iteration間でコンテキストを保存・復元する。
+    iteration間でコンテキストの各要素を保存・復元する。
+    日付ごとにパーティショニングされ、トレーサビリティを確保する。
+    各ステップの出力（signals, portfolio_plan, orders, positions）を
+    個別に保存することで、iteration内の段階的な状態を記録できる。
     """
 
     @abstractmethod
-    def save(self, context: Context) -> None:
-        """コンテキストを保存する
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        """シグナルを日付ごとにパーティショニングして保存する
+
+        target_datetimeを元に年月でディレクトリ分割し、
+        ファイル名に日付を含めて保存する
+        （例: 2025/01/signals_2025-01-15.parquet）
 
         Args:
-            context: 保存するコンテキスト
+            target_datetime: 保存する日付
+            signals: SignalSchemaに準拠したDataFrame
 
         Raises:
             RuntimeError: 保存失敗時
@@ -29,11 +38,56 @@ class BaseContextStore(ABC):
         ...
 
     @abstractmethod
-    def load(self) -> Context | None:
-        """コンテキストを読み込む
+    def save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None:
+        """ポートフォリオ計画を日付ごとにパーティショニングして保存する
+
+        Args:
+            target_datetime: 保存する日付
+            portfolio_plan: PortfolioSchemaに準拠したDataFrame
+
+        Raises:
+            RuntimeError: 保存失敗時
+        """
+        ...
+
+    @abstractmethod
+    def save_orders(self, target_datetime: datetime, orders: pl.DataFrame) -> None:
+        """注文を日付ごとにパーティショニングして保存する
+
+        Args:
+            target_datetime: 保存する日付
+            orders: OrderSchemaに準拠したDataFrame
+
+        Raises:
+            RuntimeError: 保存失敗時
+        """
+        ...
+
+    @abstractmethod
+    def save_positions(self, target_datetime: datetime, positions: pl.DataFrame) -> None:
+        """ポジションを日付ごとにパーティショニングして保存する
+
+        Args:
+            target_datetime: 保存する日付
+            positions: PositionSchemaに準拠したDataFrame
+
+        Raises:
+            RuntimeError: 保存失敗時
+        """
+        ...
+
+    @abstractmethod
+    def load(self, target_datetime: datetime) -> Context | None:
+        """指定日付のコンテキストを読み込む
+
+        Args:
+            target_datetime: 読み込む日付
 
         Returns:
-            保存されたコンテキスト。存在しない場合はNone
+            保存されたコンテキスト。指定日付で利用可能な要素（signals, portfolio_plan,
+            orders, positions）を読み込み、存在しない要素はNoneとしてContextに格納。
+            いずれかの要素が存在する場合のみContextを構築して返す。
+            すべて存在しない場合はNone。
 
         Raises:
             RuntimeError: 読み込み失敗時（破損など）
@@ -41,8 +95,23 @@ class BaseContextStore(ABC):
         ...
 
     @abstractmethod
-    def exists(self) -> bool:
-        """コンテキストが存在するか確認
+    def load_latest(self) -> Context | None:
+        """最新日付のコンテキストを読み込む
+
+        Returns:
+            最新のコンテキスト。存在しない場合はNone
+
+        Raises:
+            RuntimeError: 読み込み失敗時（破損など）
+        """
+        ...
+
+    @abstractmethod
+    def exists(self, target_datetime: datetime) -> bool:
+        """指定日付のコンテキストが存在するか確認
+
+        Args:
+            target_datetime: 確認する日付
 
         Returns:
             コンテキストが保存されている場合True
@@ -52,348 +121,356 @@ class BaseContextStore(ABC):
 
 ## 実装例
 
-### ローカルファイル保存（JSON/Parquet対応）
+### ローカルファイル保存（実装イメージ）
 
 ```python
 from pathlib import Path
 import json
 import polars as pl
-from typing import Literal
+from datetime import datetime
 from qeel.stores import BaseContextStore
 from qeel.models import Context
 
 class LocalStore(BaseContextStore):
-    """ローカルファイルにコンテキストを保存（JSON/Parquet両対応）"""
+    """ローカルファイルにコンテキストを保存
 
-    def __init__(self, path: Path, format: Literal["json", "parquet"] = "json"):
-        """
-        Args:
-            path: 保存先パス（JSONの場合はファイルパス、Parquetの場合はディレクトリパス）
-            format: 保存フォーマット（"json" または "parquet"）
-        """
-        self.path = path
-        self.format = format
+    パーティション構造: base_path/YYYY/MM/
+    ファイル例:
+      - signals_2025-01-15.parquet
+      - portfolio_plan_2025-01-15.parquet
+      - orders_2025-01-15.parquet
+      - positions_2025-01-15.parquet
+    """
 
-        if format == "parquet":
-            self.meta_path = path / "context_meta.json"
-            self.positions_path = path / "positions.parquet"
+    def __init__(self, base_path: Path):
+        self.base_path = base_path
 
-    def save(self, context: Context) -> None:
-        try:
-            if self.format == "json":
-                # JSON形式で保存（DataFrameをdictに変換）
-                data = {
-                    "current_datetime": context.current_datetime.isoformat(),
-                    "signals": context.signals.to_dict(as_series=False) if context.signals is not None else None,
-                    "portfolio_plan": context.portfolio_plan.to_dict(as_series=False) if context.portfolio_plan is not None else None,
-                    "orders": context.orders.to_dict(as_series=False) if context.orders is not None else None,
-                    "positions": context.positions.to_dict(as_series=False) if context.positions is not None else None,
-                }
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
+    def _get_partition_dir(self, target_datetime: datetime) -> Path:
+        """年月パーティションディレクトリを取得する"""
+        partition_dir = self.base_path / target_datetime.strftime("%Y") / target_datetime.strftime("%m")
+        partition_dir.mkdir(parents=True, exist_ok=True)
+        return partition_dir
 
-            elif self.format == "parquet":
-                # Parquet + JSON形式で保存
-                self.path.mkdir(parents=True, exist_ok=True)
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        """シグナルをParquetで保存する"""
+        partition_dir = self._get_partition_dir(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        signals.write_parquet(partition_dir / f"signals_{date_str}.parquet")
 
-                # DataFrameをParquetで保存
-                if context.signals is not None:
-                    context.signals.write_parquet(self.path / "signals.parquet")
-                if context.portfolio_plan is not None:
-                    context.portfolio_plan.write_parquet(self.path / "portfolio_plan.parquet")
-                if context.orders is not None:
-                    context.orders.write_parquet(self.path / "orders.parquet")
-                if context.positions is not None:
-                    context.positions.write_parquet(self.path / "positions.parquet")
+    def save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None:
+        """ポートフォリオ計画をParquetで保存する"""
+        partition_dir = self._get_partition_dir(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        portfolio_plan.write_parquet(partition_dir / f"portfolio_plan_{date_str}.parquet")
 
-                # その他のメタデータをJSONで保存
-                meta = {
-                    "current_datetime": context.current_datetime.isoformat(),
-                    "has_signals": context.signals is not None,
-                    "has_portfolio_plan": context.portfolio_plan is not None,
-                    "has_orders": context.orders is not None,
-                    "has_positions": context.positions is not None,
-                }
-                with open(self.meta_path, 'w', encoding='utf-8') as f:
-                    json.dump(meta, f, ensure_ascii=False, indent=2)
+    def save_orders(self, target_datetime: datetime, orders: pl.DataFrame) -> None:
+        """注文をParquetで保存する"""
+        partition_dir = self._get_partition_dir(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        orders.write_parquet(partition_dir / f"orders_{date_str}.parquet")
 
-        except Exception as e:
-            raise RuntimeError(f"コンテキスト保存エラー: {e}")
+    def save_positions(self, target_datetime: datetime, positions: pl.DataFrame) -> None:
+        """ポジションをParquetで保存する"""
+        partition_dir = self._get_partition_dir(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        positions.write_parquet(partition_dir / f"positions_{date_str}.parquet")
 
-    def load(self) -> Context | None:
-        if not self.exists():
+    def load(self, target_datetime: datetime) -> Context | None:
+        """指定日付のコンテキストを読み込む"""
+        partition_dir = self.base_path / target_datetime.strftime("%Y") / target_datetime.strftime("%m")
+        date_str = target_datetime.strftime("%Y-%m-%d")
+
+        # 各要素をParquetから読み込み（存在しない場合はNone）
+        signals = None
+        signals_path = partition_dir / f"signals_{date_str}.parquet"
+        if signals_path.exists():
+            signals = pl.read_parquet(signals_path)
+
+        portfolio_plan = None
+        portfolio_path = partition_dir / f"portfolio_plan_{date_str}.parquet"
+        if portfolio_path.exists():
+            portfolio_plan = pl.read_parquet(portfolio_path)
+
+        orders = None
+        orders_path = partition_dir / f"orders_{date_str}.parquet"
+        if orders_path.exists():
+            orders = pl.read_parquet(orders_path)
+
+        positions = None
+        positions_path = partition_dir / f"positions_{date_str}.parquet"
+        if positions_path.exists():
+            positions = pl.read_parquet(positions_path)
+
+        # いずれかの要素が存在する場合のみContextを構築
+        if any([signals is not None, portfolio_plan is not None,
+                orders is not None, positions is not None]):
+            return Context(
+                current_datetime=target_datetime,
+                signals=signals,
+                portfolio_plan=portfolio_plan,
+                orders=orders,
+                positions=positions,
+            )
+        return None
+
+    def load_latest(self) -> Context | None:
+        """最新日付のコンテキストを読み込む"""
+        target_datetime = self._find_latest_datetime()
+        if target_datetime is None:
             return None
+        return self.load(target_datetime)
 
-        try:
-            if self.format == "json":
-                # JSON形式から読み込み（dictをDataFrameに変換）
-                with open(self.path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
+    def exists(self, target_datetime: datetime) -> bool:
+        """コンテキストの存在確認"""
+        partition_dir = self.base_path / target_datetime.strftime("%Y") / target_datetime.strftime("%m")
+        date_str = target_datetime.strftime("%Y-%m-%d")
 
-                return Context(
-                    current_datetime=datetime.fromisoformat(data["current_datetime"]),
-                    signals=pl.DataFrame(data["signals"]) if data.get("signals") else None,
-                    portfolio_plan=pl.DataFrame(data["portfolio_plan"]) if data.get("portfolio_plan") else None,
-                    orders=pl.DataFrame(data["orders"]) if data.get("orders") else None,
-                    positions=pl.DataFrame(data["positions"]) if data.get("positions") else None,
-                )
+        # いずれかのファイルが存在すればTrue
+        return any([
+            (partition_dir / f"signals_{date_str}.parquet").exists(),
+            (partition_dir / f"portfolio_plan_{date_str}.parquet").exists(),
+            (partition_dir / f"orders_{date_str}.parquet").exists(),
+            (partition_dir / f"positions_{date_str}.parquet").exists(),
+        ])
 
-            elif self.format == "parquet":
-                # Parquet + JSON形式から読み込み
-                with open(self.meta_path, 'r', encoding='utf-8') as f:
-                    meta = json.load(f)
-
-                signals_df = pl.read_parquet(self.path / "signals.parquet") if meta.get("has_signals") else None
-                portfolio_plan_df = pl.read_parquet(self.path / "portfolio_plan.parquet") if meta.get("has_portfolio_plan") else None
-                orders_df = pl.read_parquet(self.path / "orders.parquet") if meta.get("has_orders") else None
-                positions_df = pl.read_parquet(self.path / "positions.parquet") if meta.get("has_positions") else None
-
-                return Context(
-                    current_datetime=datetime.fromisoformat(meta["current_datetime"]),
-                    signals=signals_df,
-                    portfolio_plan=portfolio_plan_df,
-                    orders=orders_df,
-                    positions=positions_df,
-                )
-
-        except Exception as e:
-            raise RuntimeError(f"コンテキスト読み込みエラー: {e}")
-
-    def exists(self) -> bool:
-        if self.format == "json":
-            return self.path.exists()
-        elif self.format == "parquet":
-            # メタデータファイルの存在のみチェック（個別のParquetファイルはオプション）
-            return self.meta_path.exists()
-        return False
+    def _find_latest_datetime(self) -> datetime | None:
+        """YYYY/MM/配下のファイル名から最新日付を探索"""
+        # 実装省略
+        ...
 ```
 
-### S3保存（実運用必須対応、JSON/Parquet対応）
+### S3保存（実装イメージ、実運用必須）
 
 ```python
 import boto3
-import json
-import polars as pl
 from io import BytesIO
-from typing import Literal
+from datetime import datetime
+import polars as pl
 from qeel.stores import BaseContextStore
 from qeel.models import Context
 
 class S3Store(BaseContextStore):
-    """S3にコンテキストを保存（JSON/Parquet両対応、実運用必須）"""
+    """S3にコンテキストを保存（実運用必須）
 
-    def __init__(self, bucket: str, key_prefix: str, format: Literal["json", "parquet"] = "json"):
-        """
-        Args:
-            bucket: S3バケット名
-            key_prefix: S3キーのプレフィックス
-            format: 保存フォーマット（"json" または "parquet"）
-        """
+    パーティション構造: s3://bucket/key_prefix/YYYY/MM/
+    ファイル例:
+      - signals_2025-01-15.parquet
+      - portfolio_plan_2025-01-15.parquet
+      - orders_2025-01-15.parquet
+      - positions_2025-01-15.parquet
+    """
+
+    def __init__(self, bucket: str, key_prefix: str):
         self.bucket = bucket
-        self.key_prefix = key_prefix
-        self.format = format
+        self.key_prefix = key_prefix.rstrip('/')
         self.s3_client = boto3.client('s3')
 
-    def save(self, context: Context) -> None:
+    def _get_partition_prefix(self, target_datetime: datetime) -> str:
+        """年月パーティションプレフィックスを取得する"""
+        return f"{self.key_prefix}/{target_datetime.strftime('%Y')}/{target_datetime.strftime('%m')}"
+
+    def _save_dataframe(self, target_datetime: datetime, df: pl.DataFrame, name: str) -> None:
+        """DataFrameをS3にParquetで保存する共通メソッド"""
+        partition_prefix = self._get_partition_prefix(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        buffer = BytesIO()
+        df.write_parquet(buffer)
+        buffer.seek(0)
+        self.s3_client.put_object(
+            Bucket=self.bucket,
+            Key=f"{partition_prefix}/{name}_{date_str}.parquet",
+            Body=buffer.getvalue(),
+        )
+
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        """シグナルをS3にParquetで保存する"""
+        self._save_dataframe(target_datetime, signals, "signals")
+
+    def save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None:
+        """ポートフォリオ計画をS3にParquetで保存する"""
+        self._save_dataframe(target_datetime, portfolio_plan, "portfolio_plan")
+
+    def save_orders(self, target_datetime: datetime, orders: pl.DataFrame) -> None:
+        """注文をS3にParquetで保存する"""
+        self._save_dataframe(target_datetime, orders, "orders")
+
+    def save_positions(self, target_datetime: datetime, positions: pl.DataFrame) -> None:
+        """ポジションをS3にParquetで保存する"""
+        self._save_dataframe(target_datetime, positions, "positions")
+
+    def load(self, target_datetime: datetime) -> Context | None:
+        """指定日付のコンテキストを読み込む"""
+        partition_prefix = self._get_partition_prefix(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+
+        # 各要素をS3から読み込み（存在しない場合はNone）
+        signals = self._load_dataframe(partition_prefix, f"signals_{date_str}.parquet")
+        portfolio_plan = self._load_dataframe(partition_prefix, f"portfolio_plan_{date_str}.parquet")
+        orders = self._load_dataframe(partition_prefix, f"orders_{date_str}.parquet")
+        positions = self._load_dataframe(partition_prefix, f"positions_{date_str}.parquet")
+
+        # いずれかの要素が存在する場合のみContextを構築
+        if any([signals is not None, portfolio_plan is not None,
+                orders is not None, positions is not None]):
+            return Context(
+                current_datetime=target_datetime,
+                signals=signals,
+                portfolio_plan=portfolio_plan,
+                orders=orders,
+                positions=positions,
+            )
+        return None
+
+    def load_latest(self) -> Context | None:
+        """最新日付のコンテキストを読み込む"""
+        target_datetime = self._find_latest_datetime()
+        if target_datetime is None:
+            return None
+        return self.load(target_datetime)
+
+    def _load_dataframe(self, partition_prefix: str, filename: str) -> pl.DataFrame | None:
+        """S3からDataFrameを読み込む共通メソッド"""
         try:
-            if self.format == "json":
-                # JSON形式で保存（DataFrameをdictに変換）
-                data = {
-                    "current_datetime": context.current_datetime.isoformat(),
-                    "signals": context.signals.to_dict(as_series=False) if context.signals is not None else None,
-                    "portfolio_plan": context.portfolio_plan.to_dict(as_series=False) if context.portfolio_plan is not None else None,
-                    "orders": context.orders.to_dict(as_series=False) if context.orders is not None else None,
-                    "positions": context.positions.to_dict(as_series=False) if context.positions is not None else None,
-                }
-                key = f"{self.key_prefix}/context.json"
-                self.s3_client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    Body=json.dumps(data, ensure_ascii=False),
-                )
-
-            elif self.format == "parquet":
-                # Parquet + JSON形式で保存
-                # DataFrameをParquetで保存
-                if context.signals is not None:
-                    buffer = BytesIO()
-                    context.signals.write_parquet(buffer)
-                    buffer.seek(0)
-                    self.s3_client.put_object(
-                        Bucket=self.bucket,
-                        Key=f"{self.key_prefix}/signals.parquet",
-                        Body=buffer.getvalue(),
-                    )
-
-                if context.portfolio_plan is not None:
-                    buffer = BytesIO()
-                    context.portfolio_plan.write_parquet(buffer)
-                    buffer.seek(0)
-                    self.s3_client.put_object(
-                        Bucket=self.bucket,
-                        Key=f"{self.key_prefix}/portfolio_plan.parquet",
-                        Body=buffer.getvalue(),
-                    )
-
-                if context.orders is not None:
-                    buffer = BytesIO()
-                    context.orders.write_parquet(buffer)
-                    buffer.seek(0)
-                    self.s3_client.put_object(
-                        Bucket=self.bucket,
-                        Key=f"{self.key_prefix}/orders.parquet",
-                        Body=buffer.getvalue(),
-                    )
-
-                if context.positions is not None:
-                    buffer = BytesIO()
-                    context.positions.write_parquet(buffer)
-                    buffer.seek(0)
-                    self.s3_client.put_object(
-                        Bucket=self.bucket,
-                        Key=f"{self.key_prefix}/positions.parquet",
-                        Body=buffer.getvalue(),
-                    )
-
-                # その他のメタデータをJSONで保存
-                meta = {
-                    "current_datetime": context.current_datetime.isoformat(),
-                    "has_signals": context.signals is not None,
-                    "has_portfolio_plan": context.portfolio_plan is not None,
-                    "has_orders": context.orders is not None,
-                    "has_positions": context.positions is not None,
-                }
-                meta_key = f"{self.key_prefix}/context_meta.json"
-                self.s3_client.put_object(
-                    Bucket=self.bucket,
-                    Key=meta_key,
-                    Body=json.dumps(meta, ensure_ascii=False),
-                )
-
-        except Exception as e:
-            raise RuntimeError(f"S3保存エラー: {e}")
-
-    def load(self) -> Context | None:
-        try:
-            if self.format == "json":
-                # JSON形式から読み込み（dictをDataFrameに変換）
-                key = f"{self.key_prefix}/context.json"
-                response = self.s3_client.get_object(Bucket=self.bucket, Key=key)
-                data = json.loads(response['Body'].read().decode('utf-8'))
-
-                return Context(
-                    current_datetime=datetime.fromisoformat(data["current_datetime"]),
-                    signals=pl.DataFrame(data["signals"]) if data.get("signals") else None,
-                    portfolio_plan=pl.DataFrame(data["portfolio_plan"]) if data.get("portfolio_plan") else None,
-                    orders=pl.DataFrame(data["orders"]) if data.get("orders") else None,
-                    positions=pl.DataFrame(data["positions"]) if data.get("positions") else None,
-                )
-
-            elif self.format == "parquet":
-                # Parquet + JSON形式から読み込み
-                meta_key = f"{self.key_prefix}/context_meta.json"
-                meta_response = self.s3_client.get_object(Bucket=self.bucket, Key=meta_key)
-                meta = json.loads(meta_response['Body'].read().decode('utf-8'))
-
-                signals_df = None
-                if meta.get("has_signals"):
-                    signals_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/signals.parquet")
-                    signals_df = pl.read_parquet(BytesIO(signals_response['Body'].read()))
-
-                portfolio_plan_df = None
-                if meta.get("has_portfolio_plan"):
-                    portfolio_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/portfolio_plan.parquet")
-                    portfolio_plan_df = pl.read_parquet(BytesIO(portfolio_response['Body'].read()))
-
-                orders_df = None
-                if meta.get("has_orders"):
-                    orders_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/orders.parquet")
-                    orders_df = pl.read_parquet(BytesIO(orders_response['Body'].read()))
-
-                positions_df = None
-                if meta.get("has_positions"):
-                    positions_response = self.s3_client.get_object(Bucket=self.bucket, Key=f"{self.key_prefix}/positions.parquet")
-                    positions_df = pl.read_parquet(BytesIO(positions_response['Body'].read()))
-
-                return Context(
-                    current_datetime=datetime.fromisoformat(meta["current_datetime"]),
-                    signals=signals_df,
-                    portfolio_plan=portfolio_plan_df,
-                    orders=orders_df,
-                    positions=positions_df,
-                )
-
+            response = self.s3_client.get_object(
+                Bucket=self.bucket,
+                Key=f"{partition_prefix}/{filename}"
+            )
+            buffer = BytesIO(response['Body'].read())
+            return pl.read_parquet(buffer)
         except self.s3_client.exceptions.NoSuchKey:
             return None
-        except Exception as e:
-            raise RuntimeError(f"S3読み込みエラー: {e}")
 
-    def exists(self) -> bool:
-        try:
-            if self.format == "json":
-                key = f"{self.key_prefix}/context.json"
-                self.s3_client.head_object(Bucket=self.bucket, Key=key)
+    def exists(self, target_datetime: datetime) -> bool:
+        """コンテキストの存在確認"""
+        partition_prefix = self._get_partition_prefix(target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+
+        # いずれかのファイルが存在すればTrue
+        for name in ["signals", "portfolio_plan", "orders", "positions"]:
+            try:
+                self.s3_client.head_object(
+                    Bucket=self.bucket,
+                    Key=f"{partition_prefix}/{name}_{date_str}.parquet"
+                )
                 return True
+            except self.s3_client.exceptions.ClientError:
+                continue
+        return False
 
-            elif self.format == "parquet":
-                # メタデータファイルの存在のみチェック（個別のParquetファイルはオプション）
-                meta_key = f"{self.key_prefix}/context_meta.json"
-                self.s3_client.head_object(Bucket=self.bucket, Key=meta_key)
-                return True
-
-        except self.s3_client.exceptions.NoSuchKey:
-            return False
+    def _find_latest_datetime(self) -> datetime | None:
+        """S3キー一覧からファイル名を解析して最新日付を探索"""
+        # list_objects_v2で*.parquetを探索
+        # 実装省略
+        ...
 ```
 
 ## 契約事項
 
-### save
+### save_signals / save_portfolio_plan / save_orders / save_positions
 
-- 入力: `Context` Pydanticモデル
-- 既存のコンテキストは上書き
+- 入力: `target_datetime: datetime`, `DataFrame` (対応するスキーマに準拠)
+- `target_datetime`を元に年月でディレクトリパーティショニング（YYYY/MM/）
+- 同一日付のデータは上書き、異なる日付は別ファイルとして保存（トレーサビリティ確保）
+- DataFrameはParquet形式で保存される
 - 保存失敗時はRuntimeErrorをraise
+- 各ステップで独立して呼び出し可能（iteration内で段階的に保存できる）
 
 ### load
 
+- 入力: `target_datetime: datetime`
 - 出力: 保存された `Context` またはNone
-- コンテキストが存在しない場合はNoneを返す
+- 指定日付で利用可能な要素（signals, portfolio_plan, orders, positions）を個別に読み込み、存在しない要素はNoneとしてContextに格納
+- いずれかの要素が存在する場合のみContextを構築して返す（すべて存在しない場合はNone）
+- 破損している場合はRuntimeErrorをraise
+
+### load_latest
+
+- 入力: なし
+- 出力: 最新の `Context` またはNone
+- 内部で`_find_latest_datetime()`を呼び出して最新日付を取得し、`load(target_datetime)`に委譲する
+- コンテキストが存在しない場合はNone
 - 破損している場合はRuntimeErrorをraise
 
 ### exists
 
-- コンテキストの存在チェック
+- 入力: `target_datetime: datetime`
+- コンテキストの存在チェック（いずれかのファイルが存在すればTrue）
 - 高速に動作すること（実際の読み込みは行わない）
 
 ## テスタビリティ
 
-- `InMemoryStore` をテスト用に実装可能:
+- `InMemoryStore` をテスト用に実装可能（日付パーティショニングなし、最新のみ保持）:
 
 ```python
 class InMemoryStore(BaseContextStore):
     def __init__(self):
-        self._context: Context | None = None
+        self._signals: pl.DataFrame | None = None
+        self._portfolio_plan: pl.DataFrame | None = None
+        self._orders: pl.DataFrame | None = None
+        self._positions: pl.DataFrame | None = None
+        self._current_datetime: datetime | None = None
 
-    def save(self, context: Context) -> None:
-        self._context = context
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        """最新のシグナルのみ保持（上書き）"""
+        self._signals = signals
+        self._current_datetime = target_datetime
 
-    def load(self) -> Context | None:
-        return self._context
+    def save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None:
+        """最新のポートフォリオ計画のみ保持（上書き）"""
+        self._portfolio_plan = portfolio_plan
+        self._current_datetime = target_datetime
 
-    def exists(self) -> bool:
-        return self._context is not None
+    def save_orders(self, target_datetime: datetime, orders: pl.DataFrame) -> None:
+        """最新の注文のみ保持（上書き）"""
+        self._orders = orders
+        self._current_datetime = target_datetime
+
+    def save_positions(self, target_datetime: datetime, positions: pl.DataFrame) -> None:
+        """最新のポジションのみ保持（上書き）"""
+        self._positions = positions
+        self._current_datetime = target_datetime
+
+    def load(self, target_datetime: datetime) -> Context | None:
+        """target_datetimeは無視し、最新のコンテキストを返す"""
+        if self._current_datetime is None:
+            return None
+        return Context(
+            current_datetime=self._current_datetime,
+            signals=self._signals,
+            portfolio_plan=self._portfolio_plan,
+            orders=self._orders,
+            positions=self._positions,
+        )
+
+    def load_latest(self) -> Context | None:
+        """最新のコンテキストを返す（load()と同じ動作）"""
+        if self._current_datetime is None:
+            return None
+        return Context(
+            current_datetime=self._current_datetime,
+            signals=self._signals,
+            portfolio_plan=self._portfolio_plan,
+            orders=self._orders,
+            positions=self._positions,
+        )
+
+    def exists(self, target_datetime: datetime) -> bool:
+        """target_datetimeは無視し、コンテキストが存在するか確認"""
+        return self._current_datetime is not None
 ```
 
 ## 標準実装
 
 Qeelは以下の標準実装を提供する：
 
-- `LocalStore`: ローカルファイル保存（JSON/Parquet両対応、バックテスト用）
-  - `LocalStore(path, format="json")`: JSON形式
-  - `LocalStore(path, format="parquet")`: Parquet + JSON形式
-- `S3Store`: S3保存（JSON/Parquet両対応、**実運用必須対応**、Branch 005で実装）
-  - `S3Store(bucket, key_prefix, format="json")`: JSON形式
-  - `S3Store(bucket, key_prefix, format="parquet")`: Parquet + JSON形式
-- `InMemoryStore`: テスト用インメモリ保存
+- `LocalStore(base_path)`: ローカルファイル保存（DataFrameは自動でParquet、日付パーティショニング、バックテスト用）
+- `S3Store(bucket, key_prefix)`: S3保存（DataFrameは自動でParquet、日付パーティショニング、**実運用必須対応**、Branch 005で実装）
+- `InMemoryStore()`: テスト用インメモリ保存（日付パーティショニングなし、最新のみ保持）
+
+各実装は以下のメソッドを提供する：
+- `save_signals()`, `save_portfolio_plan()`, `save_orders()`, `save_positions()`: iteration内の各ステップ出力を個別に保存
+- `load(target_datetime)`: 指定日付のコンテキストを読み込み
+- `load_latest()`: 最新日付のコンテキストを読み込み
+- `exists(target_datetime)`: 指定日付のコンテキストが存在するか確認
 
 ユーザは独自実装（データベース、他のクラウドストレージ等）を自由に追加可能。

@@ -133,12 +133,12 @@
 - **成果物**:
   - `qeel/models/context.py` - Context Pydanticモデル
   - `qeel/stores/base.py` - BaseContextStore ABC
-  - `qeel/stores/local.py` - LocalStore（JSON/Parquet両対応）
-  - `qeel/stores/s3.py` - S3Store（JSON/Parquet両対応、実運用必須）
+  - `qeel/stores/local.py` - LocalStore
+  - `qeel/stores/s3.py` - S3Store
   - `qeel/stores/in_memory.py` - InMemoryStore（テスト用）
-- **テスト**: save/loadが正しく動作（JSON/Parquet両方）、存在しない場合はNone、S3ストアはモックboto3で動作確認
+- **テスト**: save_*メソッドが各要素を個別に保存、load()が指定日付のコンテキストを復元、load_latest()が最新日付のコンテキストを復元、存在しない要素はNone、S3ストアはモックboto3で動作確認
 - **依存**: `002-core-config-and-schemas`
-- **User Story**: User Story 1（コンテキスト永続化）、User Story 2（実運用でS3使用）
+- **User Story**: User Story 1（コンテキスト永続化、トレーサビリティ確保）、User Story 2（実運用でS3使用）
 
 ---
 

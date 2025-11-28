@@ -148,8 +148,9 @@
 - [ ] T027 PRを作成しマージ
 
 **完了条件**:
-- LocalStore: save/loadがJSON/Parquet両方で正しく動作
-- S3Store: save/loadがJSON/Parquet両方で正しく動作、モックboto3で動作確認（put_object/get_object呼び出し確認）
+- LocalStore: save/load/load_latestがJSON/Parquet両方で正しく動作
+- S3Store: save/load/load_latestがJSON/Parquet両方で正しく動作、モックboto3で動作確認（put_object/get_object呼び出し確認）
+- load()は指定日付のコンテキストを返す、load_latest()は最新日付のコンテキストを返す
 - 存在しない場合はNoneを返す
 
 ---
