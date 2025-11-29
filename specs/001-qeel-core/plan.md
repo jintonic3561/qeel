@@ -101,16 +101,18 @@
 ---
 
 **Branch**: `003-data-source-abc`
-- **目的**: データソースABCと標準実装
+- **目的**: データソースABCと共通ヘルパーメソッド、テスト用実装
 - **成果物**:
   - `qeel/data_sources/base.py` - BaseDataSource ABC
-  - `qeel/data_sources/parquet.py` - ParquetDataSource（標準実装）
+    - `_normalize_datetime_column()`: datetime列の正規化
+    - `_adjust_window_for_offset()`: offset_secondsによるwindow調整（リーク防止）
+    - `_filter_by_datetime_and_symbols()`: datetime範囲と銘柄でフィルタリング
   - `qeel/data_sources/mock.py` - MockDataSource（テスト用）
-- **テスト**: モックデータでfetch()が正しく動作、スキーマバリデーション
+- **テスト**: モックデータでfetch()が正しく動作、ヘルパーメソッドの動作確認
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: N/A（基盤、User Story 1で使用）
-- **責任範囲**: DataSourceConfigを受け取り、実際のデータ取得を実装。設定スキーマは002で定義済み
-- **備考**: ParquetはCSVより高速・型保持・圧縮効率が良いため、標準実装として提供。CSVは不要
+- **責任範囲**: DataSourceConfigを受け取り、実際のデータ取得を実装。設定スキーマは002で定義済み。共通前処理をヘルパーメソッドとして提供し、ユーザは任意に利用可能
+- **備考**: 任意のスキーマを許容し、強制的なバリデーションを行わない。ユーザは独自のデータソース（Parquet、API、データベース等）を自由に実装可能
 
 ---
 
@@ -173,7 +175,7 @@
   - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_df`のメタデータ（`signal_strength`等）を参照して注文生成
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
 - **設計変更（2025-11-27）**: `BaseSymbolSelector`を`BasePortfolioConstructor`に改名。`select()`メソッドを`construct()`に変更。戻り値は`pl.DataFrame`（必須列: datetime, symbol; オプション列: 任意のメタデータ）。`BaseOrderCreator.create()`の引数を`portfolio_df: pl.DataFrame`に変更。責務分離を保ちつつ、命名でポートフォリオ構築（銘柄選定+メタデータ付与）の意図を明確にする
-- **設計追加（2025-11-28）**: ユニバース管理ロジックを追加。`LoopConfig.universe`が指定されている場合はそのリストと当日データ存在銘柄の積集合、`None`なら全銘柄を対象とする。決定されたユニバースは`BaseDataSource.fetch()`の`symbols`引数として渡される
+- **設計追加（2025-11-28）**: ユニバース管理ロジックを追加。`LoopConfig.universe`が指定されている場合はそのリストを`BaseDataSource.fetch()`の`symbols`引数として渡す。Noneの場合は全銘柄が対象となる。data_sourceがフィルタリングした結果、当日データが存在する銘柄のみが残る（自然に積集合になる）
 
 ---
 

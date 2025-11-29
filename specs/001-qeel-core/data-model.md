@@ -24,6 +24,8 @@ class DataSourceConfig(BaseModel):
         name: データソース名（例: "ohlcv", "earnings"）
         datetime_column: datetime列の列名
         offset_seconds: データ利用可能時刻のオフセット（秒）
+            - 取得windowを調整することでオフセットを適用
+            - 例: offset_seconds=3600の場合、window(start, end)は(start-1h, end-1h)に調整される
         window_seconds: 取得するデータのwindow（秒）
         source_type: ソースタイプ（"parquet", "custom"）
         source_path: データソースのパス（ローカルファイルまたはURI）
@@ -153,23 +155,27 @@ class MarketDataSchema:
     必須列:
         datetime: pl.Datetime - データ利用可能時刻
         symbol: pl.Utf8 - 銘柄コード
-        close: pl.Float64 - 終値
 
     オプション列（データソース依存）:
         open: pl.Float64
         high: pl.Float64
         low: pl.Float64
+        close: pl.Float64
         volume: pl.Int64
+
+    Note:
+        BaseDataSourceは任意のスキーマを返すことができ、MarketDataSchemaは
+        市場データに特化したデータソースの参照例として提供される。
+        システムは強制的なバリデーションを行わない。
     """
     REQUIRED_COLUMNS = {
         "datetime": pl.Datetime,
         "symbol": pl.Utf8,
-        "close": pl.Float64,
     }
 
     @staticmethod
     def validate(df: pl.DataFrame) -> pl.DataFrame:
-        """スキーマバリデーション"""
+        """スキーマバリデーション（必須列のみ）"""
         for col, dtype in MarketDataSchema.REQUIRED_COLUMNS.items():
             if col not in df.columns:
                 raise ValueError(f"必須列が不足しています: {col}")

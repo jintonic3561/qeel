@@ -78,7 +78,7 @@
 #### Branch 003: データソースABC
 
 **Branch Name**: `003-data-source-abc`
-**目的**: データソース抽象基底クラスと標準実装
+**目的**: データソース抽象基底クラスと共通ヘルパーメソッド、テスト用実装
 **依存**: `002-core-config-and-schemas`
 **User Story**: N/A（User Story 1で使用）
 
@@ -88,17 +88,19 @@
 - [ ] T017 このブランチ専用のtasks.md生成
 - [ ] T018 TDD実装（以下を含む）
   - src/qeel/data_sources/base.py: BaseDataSource ABC
-  - src/qeel/data_sources/parquet.py: ParquetDataSource（標準実装）
-  - src/qeel/data_sources/mock.py: MockDataSource（テスト用）
-  - tests/unit/test_data_sources.py
+    - `_normalize_datetime_column()`: datetime列の正規化
+    - `_adjust_window_for_offset()`: offset_secondsによるwindow調整（リーク防止）
+    - `_filter_by_datetime_and_symbols()`: datetime範囲と銘柄でフィルタリング
+  - src/qeel/data_sources/mock.py: MockDataSource（テスト用、ヘルパーメソッド使用例）
+  - tests/unit/test_data_sources.py（ヘルパーメソッドの動作確認含む）
   - tests/contract/test_data_source_contract.py
 - [ ] T019 PRを作成しマージ
 
 **完了条件**:
 - モックデータでfetch()が正しく動作
-- Parquetから正しくデータ読み込み（型保持、高速、圧縮効率）
-- スキーマバリデーションが動作
-- CSVは不要（Parquetのみで十分）
+- 共通ヘルパーメソッドが期待通りに動作（datetime正規化、window調整、フィルタリング）
+- ユーザは任意のスキーマを返すことができ、システムは強制的なバリデーションを行わない
+- offset処理がdatetime列上書きではなくwindow調整で実装されている（リーク防止）
 
 ---
 
