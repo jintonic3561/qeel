@@ -160,7 +160,7 @@
   - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
   - `qeel/engines/backtest.py` - BacktestEngine
   - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
-  - ユニバース管理ロジック（`LoopConfig.universe`と当日データ存在銘柄の積集合を計算し、`BaseDataSource.fetch()`の`symbols`引数として渡す）
+  - ユニバース管理ロジック
   - `qeel/portfolio_constructors/base.py` - BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`、メタデータ付与可能）
   - `qeel/portfolio_constructors/top_n.py` - TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
   - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_df: pl.DataFrame`に変更）
