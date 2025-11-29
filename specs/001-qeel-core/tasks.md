@@ -75,6 +75,36 @@
 
 ---
 
+#### Branch 002a: Utilsインフラストラクチャ
+
+**Branch Name**: `002a-utils-infrastructure`
+**目的**: 実運用Executor実装を支援するユーティリティ群
+**依存**: `002-core-config-and-schemas`
+**User Story**: User Story 2（実運用支援、オプション機能）
+
+**このブランチで実施する作業**:
+
+- [ ] T015a ブランチ作成: `git checkout -b 002a-utils-infrastructure`
+- [ ] T015b このブランチ専用のtasks.md生成: `/speckit.tasks`
+- [ ] T015c TDD実装: `/speckit.implement`（以下を含む）
+  - src/qeel/utils/__init__.py作成
+  - src/qeel/utils/retry.py: with_retry関数（exponential backoff、タイムアウト）
+  - src/qeel/utils/notification.py: send_slack_notification関数
+  - src/qeel/utils/rounding.py: round_to_unit(value, unit)関数（汎用丸め処理）
+  - tests/unit/test_utils_retry.py（モックAPIクライアントでリトライ動作確認）
+  - tests/unit/test_utils_notification.py（モック通知送信確認）
+  - tests/unit/test_utils_rounding.py（丸め処理の精度検証: unit=0.01, 1.0, 0.001等）
+- [ ] T015d 型ヒント完備、可読性重視の実装確認
+- [ ] T015e PRを作成しマージ
+
+**完了条件**:
+- リトライ機能が正しく動作（exponential backoff、タイムアウト）
+- Slack通知が正しく送信される（モック確認）
+- 丸め処理が正しく動作（任意のunit指定で丸められる）
+- ユーザが簡単に利用できるインターフェース
+
+---
+
 #### Branch 003: データソースABC
 
 **Branch Name**: `003-data-source-abc`
@@ -407,6 +437,7 @@
 ```
 Phase 1: 基盤構築
   002 (Config & Schemas)
+   ├─→ 002a (Utils - retry, notification)
    ├─→ 003 (DataSource ABC)
    ├─→ 004 (Calculator ABC)
    ├─→ 005 (Context Management)
@@ -417,6 +448,7 @@ Phase 2: P1完成（バックテスト）
 
 Phase 3: P2完成（実運用）
   007 → 009 (Live Engine) → 010 (Executor Examples)
+  002a → 010 (Executor Examples - utils使用)
 
 Phase 4: P3-1完成（シグナル分析）
   002 → 011 (Return Calculator ABC)
@@ -436,7 +468,7 @@ Phase 6: ポリッシュ
 以下のブランチは依存関係がないため、並列で作業可能：
 
 **Phase 1（基盤構築）**:
-- 002完了後: 003, 004, 005, 006を並列実行可能
+- 002完了後: 002a, 003, 004, 005, 006を並列実行可能
 
 **Phase 4-5（P3機能）**:
 - 011と013は独立して並列実行可能
@@ -445,9 +477,9 @@ Phase 6: ポリッシュ
 
 ## マイルストーン
 
-- **M1（基盤完成）**: Branch 002-006完了 → 基盤クラスがすべて揃う
+- **M1（基盤完成）**: Branch 002-006（002a含む）完了 → 基盤クラスがすべて揃う
 - **M2（MVP完成、P1）**: Branch 007-008完了 → **バックテスト機能が動作し、ユーザに価値提供可能**
-- **M3（P2完成）**: Branch 009-010完了 → 実運用機能が動作
+- **M3（P2完成）**: Branch 009-010完了 → 実運用機能が動作（utilsヘルパー利用可能）
 - **M4（P3完成）**: Branch 011-013完了 → 分析機能が完成
 - **M5（リリース準備完了）**: Branch 014完了 → PyPIリリース可能
 
@@ -484,6 +516,6 @@ Phase 6: ポリッシュ
 
 ---
 
-**総タスク数**: 74タスク（このブランチ: 9、機能ブランチ作成・実装: 65）
-**機能ブランチ数**: 13ブランチ（002-014）
+**総タスク数**: 79タスク（このブランチ: 9、機能ブランチ作成・実装: 70）
+**機能ブランチ数**: 14ブランチ（002, 002a, 003-014）
 **User Story完成順序**: P1（M2）→ P2（M3）→ P3（M4）

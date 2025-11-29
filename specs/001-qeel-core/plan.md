@@ -100,6 +100,20 @@
 
 ---
 
+**Branch**: `002a-utils-infrastructure`
+- **目的**: 実運用Executor実装を支援するユーティリティ群（FR-026）
+- **成果物**:
+  - `qeel/utils/retry.py` - APIリトライロジック（exponential backoff、タイムアウト）
+  - `qeel/utils/notification.py` - エラー通知ヘルパー（Slack等）
+  - `qeel/utils/rounding.py` - 数量・価格の丸め処理（`round_to_unit(value, unit)`）
+  - 型ヒント完備、可読性重視の実装
+- **テスト**: モックAPIクライアントでリトライ動作確認、通知送信のモック確認、丸め処理の精度検証
+- **依存**: `002-core-config-and-schemas`
+- **User Story**: User Story 2（実運用支援、オプション機能）
+- **備考**: ユーザはこれらのutilsを自由に利用可能だが、利用は強制ではない。Executor実装時の負担を軽減する目的
+
+---
+
 **Branch**: `003-data-source-abc`
 - **目的**: データソースABCと共通ヘルパーメソッド、テスト用実装
 - **成果物**:
@@ -258,6 +272,8 @@
 
 ```
 Phase 1: 基盤構築
+  002 → 002a (utils)
+    ↓
   002 → 003 → 004 → 並行
          ↓     ↓
   005 ← ─┘     └─→ 006
@@ -270,7 +286,7 @@ Phase 2: P1完成
 Phase 3: P2完成
   009 (depends: 007)
    ↓
-  010
+  010 (depends: 009, 002a - utils使用)
 
 Phase 4 & 5: P3完成
   011 → 012 (depends: 004, 011)
@@ -322,6 +338,11 @@ src/qeel/
 ├── config/
 │   ├── __init__.py
 │   └── models.py          # Pydantic設定モデル（Config, DataSourceConfig等）
+├── utils/
+│   ├── __init__.py
+│   ├── retry.py           # APIリトライヘルパー（exponential backoff、タイムアウト）
+│   ├── notification.py    # エラー通知ヘルパー（Slack等）
+│   └── rounding.py        # 数量・価格の丸め処理（round_to_unit）
 ├── schemas/
 │   ├── __init__.py
 │   └── validators.py      # Polars DataFrameスキーマバリデータ

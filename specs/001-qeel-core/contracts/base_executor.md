@@ -95,41 +95,74 @@ class MockExecutor(BaseExecutor):
 ### 実運用用API実装（ユーザ実装例）
 
 ```python
-class ExchangeAPIExecutor(BaseExecutor):
-    """取引所API呼び出し実装
+from qeel.utils.retry import with_retry
+from qeel.utils.notification import send_slack_notification
+from qeel.utils.rounding import round_to_unit
 
-    ユーザが独自に実装。エラーハンドリングもユーザ責任。
+class ExchangeAPIExecutor(BaseExecutor):
+    """取引所API呼び出し実装（qeel.utils使用例）
+
+    qeel.utilsが提供するリトライ・通知・丸め機能を利用して、
+    エラーハンドリングと取引所仕様への適合を簡潔に実装する。
     """
 
-    def __init__(self, api_client):
+    def __init__(
+        self,
+        api_client,
+        slack_webhook_url: str | None = None,
+        tick_size: float = 0.01,
+        lot_size: float = 1.0,
+    ):
         self.api_client = api_client
         self.submitted_order_ids: list[str] = []
+        self.slack_webhook_url = slack_webhook_url
+        self.tick_size = tick_size
+        self.lot_size = lot_size
 
     def submit_orders(self, orders: pl.DataFrame) -> None:
         OrderSchema.validate(orders)
 
-        # 取引所APIに注文を送信
+        # 取引所APIに注文を送信（with_retryでexponential backoff）
         for row in orders.iter_rows(named=True):
             try:
-                order_id = self.api_client.submit_order(
-                    symbol=row["symbol"],
-                    side=row["side"],
-                    quantity=row["quantity"],
-                    price=row["price"],
-                    order_type=row["order_type"],
+                # 取引所仕様に応じて数量・価格を丸める
+                rounded_price = round_to_unit(row["price"], self.tick_size) if row["price"] is not None else None
+                rounded_quantity = round_to_unit(row["quantity"], self.lot_size)
+
+                order_id = with_retry(
+                    func=lambda: self.api_client.submit_order(
+                        symbol=row["symbol"],
+                        side=row["side"],
+                        quantity=rounded_quantity,
+                        price=rounded_price,
+                        order_type=row["order_type"],
+                    ),
+                    max_attempts=3,
+                    timeout=10.0,
+                    backoff_factor=2.0,
                 )
                 self.submitted_order_ids.append(order_id)
             except Exception as e:
-                # エラーハンドリングはユーザ責任
-                # リトライ、ログ、通知などを実装
+                # Slack通知（オプション）
+                if self.slack_webhook_url:
+                    send_slack_notification(
+                        webhook_url=self.slack_webhook_url,
+                        message=f"注文送信エラー: {e}",
+                        level="error",
+                    )
                 raise RuntimeError(f"注文送信エラー: {e}")
 
     def fetch_fills(self) -> pl.DataFrame:
-        # 約定情報をAPIから取得
+        # 約定情報をAPIから取得（with_retryでexponential backoff）
         fills_data = []
         for order_id in self.submitted_order_ids:
             try:
-                fill = self.api_client.get_fill(order_id)
+                fill = with_retry(
+                    func=lambda: self.api_client.get_fill(order_id),
+                    max_attempts=3,
+                    timeout=10.0,
+                    backoff_factor=2.0,
+                )
                 fills_data.append({
                     "order_id": fill.order_id,
                     "symbol": fill.symbol,
@@ -140,6 +173,12 @@ class ExchangeAPIExecutor(BaseExecutor):
                     "timestamp": fill.timestamp,
                 })
             except Exception as e:
+                if self.slack_webhook_url:
+                    send_slack_notification(
+                        webhook_url=self.slack_webhook_url,
+                        message=f"約定情報取得エラー: {e}",
+                        level="error",
+                    )
                 raise RuntimeError(f"約定情報取得エラー: {e}")
 
         self.submitted_order_ids.clear()
@@ -169,10 +208,9 @@ class ExchangeAPIExecutor(BaseExecutor):
 
 - **バックテスト**: 基本的にエラーは発生しない（スキーマエラーのみ）
 - **実運用**: APIエラーはユーザがcatch & handleする責任
-  - リトライロジック
-  - タイムアウト処理
-  - レート制限対策
-  - 通知（Slack/Email等）
+  - ユーザは`qeel.utils.retry`（exponential backoff、タイムアウト）と`qeel.utils.notification`（Slack通知等）を自由に利用可能
+  - utilsの利用は任意であり、ユーザは独自の実装も可能
+  - リトライロジック、レート制限対策、通知などの実装はユーザ責任
 
 ### 数量・価格の丸め
 
