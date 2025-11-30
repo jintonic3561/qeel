@@ -1,31 +1,3 @@
-<!--
-=============================================================================
-Sync Impact Report
-=============================================================================
-Version Change: 1.1.0 → 1.2.0 (Minor - DRY原則とPEP 8準拠の追加)
-
-Modified Principles:
-- なし
-
-Added Sections:
-- プロジェクト開始前のため、過去の更新履歴は不要
-
-Removed Sections:
-- なし
-
-Templates Requiring Updates:
-- ✅ .specify/templates/spec-template.md (影響なし - 仕様書テンプレート)
-- ✅ .specify/templates/plan-template.md (Constitution Checkセクションで新原則を検証可能)
-- ✅ .specify/templates/tasks-template.md (実装タスクで新原則を適用)
-
-Follow-up TODOs:
-- なし
-
-Version Bump Rationale:
-- プロジェクト開始前のため、過去の更新履歴は削除
-=============================================================================
--->
-
 # Qeel Constitution
 
 ## Core Principles

@@ -188,8 +188,7 @@
   - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
   - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_plan`のメタデータ（`signal_strength`等）を参照して注文生成
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
-- **設計変更（2025-11-27）**: `BaseSymbolSelector`を`BasePortfolioConstructor`に改名。`select()`メソッドを`construct()`に変更。戻り値は`pl.DataFrame`（必須列: datetime, symbol; オプション列: 任意のメタデータ）。`BaseOrderCreator.create()`の引数を`portfolio_plan`, `current_positions`, `ohlcv`に変更。責務分離を保ちつつ、命名でポートフォリオ構築（銘柄選定+メタデータ付与）の意図を明確にする。signals引数は削除（portfolio_planに必要な情報を含むため）
-- **設計追加（2025-11-28）**: ユニバース管理ロジックを追加。`LoopConfig.universe`が指定されている場合はそのリストを`BaseDataSource.fetch()`の`symbols`引数として渡す。Noneの場合は全銘柄が対象となる。data_sourceがフィルタリングした結果、当日データが存在する銘柄のみが残る（自然に積集合になる）
+- **ユニバース管理**: `LoopConfig.universe`が指定されている場合はそのリストを`BaseDataSource.fetch()`の`symbols`引数として渡す。Noneの場合は全銘柄が対象となる。フィルタリングの結果、当日データが存在する銘柄のみが残る（自然に積集合になる）
 
 ---
 
