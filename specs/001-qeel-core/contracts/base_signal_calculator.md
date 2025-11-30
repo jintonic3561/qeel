@@ -27,6 +27,25 @@ class BaseSignalCalculator(ABC):
         """
         self.params = params
 
+    def _validate_output(self, signals: pl.DataFrame) -> pl.DataFrame:
+        """出力シグナルの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            signals: シグナルDataFrame（SignalSchema準拠）
+
+        Returns:
+            バリデーション済みのDataFrame
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import SignalSchema
+
+        return SignalSchema.validate(signals)
+
     @abstractmethod
     def calculate(self, data_sources: dict[str, pl.DataFrame]) -> pl.DataFrame:
         """シグナルを計算する
@@ -88,7 +107,8 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
             .select(["datetime", "symbol", "signal"])
         )
 
-        return SignalSchema.validate(signals)
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(signals)
 ```
 
 ### 複数シグナルの実装例
@@ -125,7 +145,8 @@ class MultiSignalCalculator(BaseSignalCalculator):
             .select(["datetime", "symbol", "signal_momentum", "signal_value"])
         )
 
-        return SignalSchema.validate(signals)
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(signals)
 ```
 
 ## 契約事項
@@ -144,7 +165,8 @@ class MultiSignalCalculator(BaseSignalCalculator):
 
 ### バリデーション
 
-- 出力は `SignalSchema.validate()` でバリデーションすることを推奨
+- 出力DataFrameのバリデーションには、`BaseSignalCalculator._validate_output()`ヘルパーメソッドを使用可能（推奨）
+- ユーザは独自のバリデーションロジックを実装することも可能
 - 不正なスキーマはValueErrorをraiseする
 
 ### テスタビリティ

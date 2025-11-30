@@ -372,7 +372,7 @@ class Context(BaseModel):
         signals: シグナルDataFrame（SignalSchema準拠、SignalCalculatorの出力）
         portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、PortfolioConstructorの出力）
         orders: 注文DataFrame（OrderSchema準拠、OrderCreatorの出力）
-        positions: 現在のポジションDataFrame（PositionSchema準拠）
+        current_positions: 現在のポジションDataFrame（PositionSchema準拠）
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -380,7 +380,7 @@ class Context(BaseModel):
     signals: pl.DataFrame | None = None
     portfolio_plan: pl.DataFrame | None = None
     orders: pl.DataFrame | None = None
-    positions: pl.DataFrame | None = None
+    current_positions: pl.DataFrame | None = None
 ```
 
 ### 2.8 Metrics
@@ -496,7 +496,7 @@ Context
  ├─ signals: DataFrame (SignalSchema) | None
  ├─ portfolio_plan: DataFrame (PortfolioSchema) | None
  ├─ orders: DataFrame (OrderSchema) | None
- └─ positions: DataFrame (PositionSchema) | None
+ └─ current_positions: DataFrame (PositionSchema) | None
 
 BacktestEngine
  ├─ config: Config

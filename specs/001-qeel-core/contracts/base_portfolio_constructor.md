@@ -35,6 +35,43 @@ class BasePortfolioConstructor(ABC):
         """
         self.params = params
 
+    def _validate_inputs(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> None:
+        """入力データの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            signals: シグナルDataFrame（SignalSchema準拠）
+            current_positions: 現在のポジション（PositionSchema準拠）
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import SignalSchema, PositionSchema
+
+        SignalSchema.validate(signals)
+        PositionSchema.validate(current_positions)
+
+    def _validate_output(self, portfolio: pl.DataFrame) -> pl.DataFrame:
+        """出力ポートフォリオの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            portfolio: 構築済みポートフォリオDataFrame（PortfolioSchema準拠）
+
+        Returns:
+            バリデーション済みのDataFrame
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import PortfolioSchema
+
+        return PortfolioSchema.validate(portfolio)
+
     @abstractmethod
     def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         """シグナルからポートフォリオを構築し、執行条件計算に必要なメタデータを含むDataFrameを返す
@@ -73,11 +110,8 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
     """
 
     def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
-
-        # スキーマバリデーション
-        SignalSchema.validate(signals)
-        PositionSchema.validate(positions)
+        # 共通バリデーションヘルパーを使用
+        self._validate_inputs(signals, current_positions)
 
         # シグナルでソートして上位N銘柄を選定
         portfolio = (
@@ -88,7 +122,8 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
             .rename({"signal": "signal_strength"})
         )
 
-        return PortfolioSchema.validate(portfolio)
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(portfolio)
 ```
 
 ## カスタム実装例（閾値フィルタ付き）
@@ -104,10 +139,8 @@ class ThresholdPortfolioConstructor(BasePortfolioConstructor):
     """シグナルが閾値以上の銘柄から上位N銘柄でポートフォリオを構築"""
 
     def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
-
-        SignalSchema.validate(signals)
-        PositionSchema.validate(positions)
+        # 共通バリデーションヘルパーを使用
+        self._validate_inputs(signals, current_positions)
 
         # 閾値フィルタ + 上位N選定 + メタデータ付与
         portfolio = (
@@ -119,7 +152,8 @@ class ThresholdPortfolioConstructor(BasePortfolioConstructor):
             .rename({"signal": "signal_strength"})
         )
 
-        return PortfolioSchema.validate(portfolio)
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(portfolio)
 ```
 
 ## 複数シグナル対応の実装例
@@ -140,10 +174,8 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
     """
 
     def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
-
-        SignalSchema.validate(signals)
-        PositionSchema.validate(positions)
+        # 共通バリデーションヘルパーを使用
+        self._validate_inputs(signals, current_positions)
 
         # 複数シグナルの重み付け合成
         portfolio = (
@@ -166,7 +198,8 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
             .rename({"composite_signal": "signal_strength"})
         )
 
-        return PortfolioSchema.validate(portfolio)
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(portfolio)
 ```
 
 ## 契約事項
@@ -189,6 +222,12 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
 - すべてのパラメータはPydanticモデル（`PortfolioConstructorParams`を継承）で定義する
 - パラメータは実行時にバリデーションされる
 - 型ヒント必須（Constitution IV: 型安全性の確保）
+
+### スキーマバリデーション
+
+- 入力DataFrameのバリデーションには、`BasePortfolioConstructor._validate_inputs()`ヘルパーメソッドを使用可能（推奨）
+- 出力DataFrameのバリデーションには、`BasePortfolioConstructor._validate_output()`ヘルパーメソッドを使用可能（推奨）
+- ユーザは独自のバリデーションロジックを実装することも可能
 
 ### テスタビリティ
 

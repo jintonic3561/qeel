@@ -27,6 +27,25 @@ class BaseReturnCalculator(ABC):
         """
         self.params = params
 
+    def _validate_output(self, returns: pl.DataFrame) -> pl.DataFrame:
+        """出力リターンの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            returns: リターンDataFrame（必須列: datetime, symbol, return）
+
+        Returns:
+            バリデーション済みのDataFrame
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import ReturnSchema
+
+        return ReturnSchema.validate(returns)
+
     @abstractmethod
     def calculate(self, market_data: pl.DataFrame) -> pl.DataFrame:
         """リターンを計算する
@@ -70,7 +89,8 @@ class LogReturnCalculator(BaseReturnCalculator):
             .select(["datetime", "symbol", "return"])
         )
 
-        return returns
+        # 共通バリデーションヘルパーを使用
+        return self._validate_output(returns)
 ```
 
 ## 契約事項
@@ -84,6 +104,7 @@ class LogReturnCalculator(BaseReturnCalculator):
 
 - 必須列: `datetime`, `symbol`, `return`
 - `return` はFloat64型（NaN許容）
+- 出力DataFrameのバリデーションには、`BaseReturnCalculator._validate_output()`ヘルパーメソッドを使用可能（推奨）
 
 ### 用途
 

@@ -16,7 +16,7 @@ class BaseContextStore(ABC):
 
     iteration間でコンテキストの各要素を保存・復元する。
     日付ごとにパーティショニングされ、トレーサビリティを確保する。
-    各ステップの出力（signals, portfolio_plan, orders, positions）を
+    各ステップの出力（signals, portfolio_plan, orders, current_positions）を
     個別に保存することで、iteration内の段階的な状態を記録できる。
     """
 
@@ -69,7 +69,7 @@ class BaseContextStore(ABC):
 
         Args:
             target_datetime: 保存する日付
-            positions: PositionSchemaに準拠したDataFrame
+            current_positions: PositionSchemaに準拠したDataFrame
 
         Raises:
             RuntimeError: 保存失敗時
@@ -85,7 +85,7 @@ class BaseContextStore(ABC):
 
         Returns:
             保存されたコンテキスト。指定日付で利用可能な要素（signals, portfolio_plan,
-            orders, positions）を読み込み、存在しない要素はNoneとしてContextに格納。
+            orders, current_positions）を読み込み、存在しない要素はNoneとしてContextに格納。
             いずれかの要素が存在する場合のみContextを構築して返す。
             すべて存在しない場合はNone。
 
@@ -196,20 +196,20 @@ class LocalStore(BaseContextStore):
         if orders_path.exists():
             orders = pl.read_parquet(orders_path)
 
-        positions = None
+        current_positions = None
         positions_path = partition_dir / f"positions_{date_str}.parquet"
         if positions_path.exists():
-            positions = pl.read_parquet(positions_path)
+            current_positions = pl.read_parquet(positions_path)
 
         # いずれかの要素が存在する場合のみContextを構築
         if any([signals is not None, portfolio_plan is not None,
-                orders is not None, positions is not None]):
+                orders is not None, current_positions is not None]):
             return Context(
                 current_datetime=target_datetime,
                 signals=signals,
                 portfolio_plan=portfolio_plan,
                 orders=orders,
-                positions=positions,
+                current_positions=current_positions,
             )
         return None
 
@@ -311,13 +311,13 @@ class S3Store(BaseContextStore):
 
         # いずれかの要素が存在する場合のみContextを構築
         if any([signals is not None, portfolio_plan is not None,
-                orders is not None, positions is not None]):
+                orders is not None, current_positions is not None]):
             return Context(
                 current_datetime=target_datetime,
                 signals=signals,
                 portfolio_plan=portfolio_plan,
                 orders=orders,
-                positions=positions,
+                current_positions=current_positions,
             )
         return None
 
@@ -346,7 +346,7 @@ class S3Store(BaseContextStore):
         date_str = target_datetime.strftime("%Y-%m-%d")
 
         # いずれかのファイルが存在すればTrue
-        for name in ["signals", "portfolio_plan", "orders", "positions"]:
+        for name in ["signals", "portfolio_plan", "orders", "current_positions"]:
             try:
                 self.s3_client.head_object(
                     Bucket=self.bucket,
@@ -379,7 +379,7 @@ class S3Store(BaseContextStore):
 
 - 入力: `target_datetime: datetime`
 - 出力: 保存された `Context` またはNone
-- 指定日付で利用可能な要素（signals, portfolio_plan, orders, positions）を個別に読み込み、存在しない要素はNoneとしてContextに格納
+- 指定日付で利用可能な要素（signals, portfolio_plan, orders, current_positions）を個別に読み込み、存在しない要素はNoneとしてContextに格納
 - いずれかの要素が存在する場合のみContextを構築して返す（すべて存在しない場合はNone）
 - 破損している場合はRuntimeErrorをraise
 
@@ -407,7 +407,7 @@ class InMemoryStore(BaseContextStore):
         self._signals: pl.DataFrame | None = None
         self._portfolio_plan: pl.DataFrame | None = None
         self._orders: pl.DataFrame | None = None
-        self._positions: pl.DataFrame | None = None
+        self._current_positions: pl.DataFrame | None = None
         self._current_datetime: datetime | None = None
 
     def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
@@ -427,7 +427,7 @@ class InMemoryStore(BaseContextStore):
 
     def save_positions(self, target_datetime: datetime, positions: pl.DataFrame) -> None:
         """最新のポジションのみ保持（上書き）"""
-        self._positions = positions
+        self._current_positions = positions
         self._current_datetime = target_datetime
 
     def load(self, target_datetime: datetime) -> Context | None:
@@ -439,7 +439,7 @@ class InMemoryStore(BaseContextStore):
             signals=self._signals,
             portfolio_plan=self._portfolio_plan,
             orders=self._orders,
-            positions=self._positions,
+            positions=self._current_positions,
         )
 
     def load_latest(self) -> Context | None:
@@ -451,7 +451,7 @@ class InMemoryStore(BaseContextStore):
             signals=self._signals,
             portfolio_plan=self._portfolio_plan,
             orders=self._orders,
-            positions=self._positions,
+            positions=self._current_positions,
         )
 
     def exists(self, target_datetime: datetime) -> bool:

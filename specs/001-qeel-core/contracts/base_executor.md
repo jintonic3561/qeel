@@ -16,6 +16,41 @@ class BaseExecutor(ABC):
     バックテストではモック約定、実運用では取引所API呼び出しを実装する。
     """
 
+    def _validate_orders(self, orders: pl.DataFrame) -> None:
+        """注文DataFrameの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            orders: 注文DataFrame（OrderSchema準拠）
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import OrderSchema
+
+        OrderSchema.validate(orders)
+
+    def _validate_fills(self, fills: pl.DataFrame) -> pl.DataFrame:
+        """約定情報DataFrameの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            fills: 約定情報DataFrame（FillReportSchema準拠）
+
+        Returns:
+            バリデーション済みのDataFrame
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import FillReportSchema
+
+        return FillReportSchema.validate(fills)
+
     @abstractmethod
     def submit_orders(self, orders: pl.DataFrame) -> None:
         """注文を執行する
@@ -65,7 +100,8 @@ class MockExecutor(BaseExecutor):
         self.pending_fills: list[pl.DataFrame] = []
 
     def submit_orders(self, orders: pl.DataFrame) -> None:
-        OrderSchema.validate(orders)
+        # 共通バリデーションヘルパーを使用
+        self._validate_orders(orders)
 
         # 全注文を即座に約定とみなす
         fills = orders.with_columns([
@@ -89,7 +125,9 @@ class MockExecutor(BaseExecutor):
         # すべての約定を返す
         all_fills = pl.concat(self.pending_fills)
         self.pending_fills.clear()
-        return FillReportSchema.validate(all_fills)
+
+        # 共通バリデーションヘルパーを使用
+        return self._validate_fills(all_fills)
 ```
 
 ### 実運用用API実装（ユーザ実装例）
@@ -120,7 +158,8 @@ class ExchangeAPIExecutor(BaseExecutor):
         self.lot_size = lot_size
 
     def submit_orders(self, orders: pl.DataFrame) -> None:
-        OrderSchema.validate(orders)
+        # 共通バリデーションヘルパーを使用
+        self._validate_orders(orders)
 
         # 取引所APIに注文を送信（with_retryでexponential backoff）
         for row in orders.iter_rows(named=True):
@@ -187,7 +226,9 @@ class ExchangeAPIExecutor(BaseExecutor):
             return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
 
         fills_df = pl.DataFrame(fills_data)
-        return FillReportSchema.validate(fills_df)
+
+        # 共通バリデーションヘルパーを使用
+        return self._validate_fills(fills_df)
 ```
 
 ## 契約事項

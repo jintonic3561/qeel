@@ -231,11 +231,11 @@ class CustomConstructorParams(BaseModel):
 class CustomPortfolioConstructor(BasePortfolioConstructor):
     """シグナル上位N銘柄かつ閾値以上のものでポートフォリオを構築し、メタデータ付きで返す"""
 
-    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
-            positions: 現在のポジション（PositionSchema準拠）
+            current_positions: 現在のポジション（PositionSchema準拠）
 
         Returns:
             構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
@@ -243,7 +243,7 @@ class CustomPortfolioConstructor(BasePortfolioConstructor):
         from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
 
         SignalSchema.validate(signals)
-        PositionSchema.validate(positions)
+        PositionSchema.validate(current_positions)
 
         # 閾値フィルタ + 上位N選定 + メタデータ付与
         portfolio = (
@@ -289,14 +289,14 @@ class RiskParityOrderCreator(BaseOrderCreator):
         self,
         signals: pl.DataFrame,
         portfolio_df: pl.DataFrame,
-        positions: pl.DataFrame,
+        current_positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame
             portfolio_df: 構築済みポートフォリオDataFrame（メタデータ含む）
-            positions: 現在のポジション
+            current_positions: 現在のポジション
             market_data: 市場データ（価格情報）
 
         Returns:

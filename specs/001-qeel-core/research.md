@@ -176,7 +176,7 @@ class Context(BaseModel):
     signals: pl.DataFrame | None  # SignalSchema準拠
     portfolio_plan: pl.DataFrame | None  # PortfolioSchema準拠
     orders: pl.DataFrame | None  # OrderSchema準拠
-    positions: pl.DataFrame | None  # PositionSchema準拠
+    current_positions: pl.DataFrame | None  # PositionSchema準拠
 ```
 
 **Storage Abstraction**:
