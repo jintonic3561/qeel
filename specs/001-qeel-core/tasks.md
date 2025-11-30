@@ -187,20 +187,20 @@
 
 ---
 
-#### Branch 006: 執行ABC
+#### Branch 006: 取引所クライアントABC
 
-**Branch Name**: `006-executor-and-mock`
-**目的**: 執行ABCとモック約定シミュレーション
+**Branch Name**: `006-exchange-client-and-mock`
+**目的**: 取引所クライアントABCとモック約定・ポジション管理
 **依存**: `002-core-config-and-schemas`
 **User Story**: User Story 1（約定シミュレーション）
 
 **このブランチで実施する作業**:
 
-- [ ] T028 ブランチ作成: `git checkout -b 006-executor-and-mock`
+- [ ] T028 ブランチ作成: `git checkout -b 006-exchange-client-and-mock`
 - [ ] T029 このブランチ専用のtasks.md生成
 - [ ] T030 TDD実装（以下を含む）
-  - src/qeel/executors/base.py: BaseExecutor ABC
-  - src/qeel/executors/mock.py: MockExecutor（バックテスト用）
+  - src/qeel/exchange_clients/base.py: BaseExchangeClient ABC
+  - src/qeel/exchange_clients/mock.py: MockExchangeClient（バックテスト用）
   - コスト計算ロジック（手数料、スリッページ）
   - tests/unit/test_executors.py
   - tests/contract/test_executor_contract.py
@@ -315,7 +315,7 @@
 - [ ] T048 ブランチ作成: `git checkout -b 010-executor-examples`
 - [ ] T049 このブランチ専用のtasks.md生成
 - [ ] T050 実装（以下を含む）
-  - src/qeel/executors/examples/exchange_api.py: 取引所API実装例（スケルトン）
+  - src/qeel/exchange_clients/examples/exchange_api.py: 取引所API実装例（スケルトン）
   - ユーザ向けドキュメント
   - tests/unit/test_executor_examples.py（モックAPIクライアントで動作確認）
 - [ ] T051 PRを作成しマージ

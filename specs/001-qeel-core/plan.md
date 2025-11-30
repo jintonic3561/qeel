@@ -158,11 +158,11 @@
 
 ---
 
-**Branch**: `006-executor-and-mock`
-- **目的**: 執行ABCとモック約定シミュレーション
+**Branch**: `006-exchange-client-and-mock`
+- **目的**: 取引所クライアントABCとモック約定・ポジション管理
 - **成果物**:
-  - `qeel/executors/base.py` - BaseExecutor ABC
-  - `qeel/executors/mock.py` - MockExecutor（バックテスト用）
+  - `qeel/exchange_clients/base.py` - BaseExchangeClient ABC
+  - `qeel/exchange_clients/mock.py` - MockExchangeClient（バックテスト用）
   - コスト計算ロジック（手数料、スリッページ）
 - **テスト**: モック約定が正しく生成される、コスト反映
 - **依存**: `002-core-config-and-schemas`
@@ -221,7 +221,7 @@
 **Branch**: `010-executor-examples`
 - **目的**: 実運用用Executor実装例
 - **成果物**:
-  - `qeel/executors/examples/exchange_api.py` - 取引所API実装例（スケルトン）
+  - `qeel/exchange_clients/examples/exchange_api.py` - 取引所API実装例（スケルトン）
   - ユーザ向けドキュメント
 - **テスト**: モックAPIクライアントで動作確認
 - **依存**: `009-live-engine`
@@ -373,10 +373,10 @@ src/qeel/
 │   ├── __init__.py
 │   ├── base.py            # BaseOrderCreator ABC
 │   └── equal_weight.py    # EqualWeightOrderCreator（デフォルト実装）
-├── executors/
+├── exchange_clients/
 │   ├── __init__.py
-│   ├── base.py            # BaseExecutor ABC
-│   ├── mock.py            # MockExecutor（バックテスト用）
+│   ├── base.py            # BaseExchangeClient ABC
+│   ├── mock.py            # MockExchangeClient（バックテスト用）
 │   └── examples/
 │       ├── __init__.py
 │       └── exchange_api.py    # 取引所API実装例（スケルトン）

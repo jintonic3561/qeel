@@ -364,7 +364,7 @@ class Context(BaseModel):
 
     current_datetimeはiterationの開始時に設定され、iteration全体を通じて不変。
     signals, portfolio_plan, ordersはiteration内で段階的に構築される。
-    positionsは前iterationから引き継がれる。
+    current_positionsはBaseExchangeClient.fetch_positions()から動的に取得される。
     Polars DataFrameを直接保持することで、変換コストを排除し、型安全性を確保する。
 
     Attributes:
@@ -372,7 +372,7 @@ class Context(BaseModel):
         signals: シグナルDataFrame（SignalSchema準拠、SignalCalculatorの出力）
         portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、PortfolioConstructorの出力）
         orders: 注文DataFrame（OrderSchema準拠、OrderCreatorの出力）
-        current_positions: 現在のポジションDataFrame（PositionSchema準拠）
+        current_positions: 現在のポジションDataFrame（PositionSchema準拠、BaseExchangeClientから取得）
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

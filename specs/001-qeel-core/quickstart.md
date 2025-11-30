@@ -127,7 +127,7 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
 from pathlib import Path
 from qeel.config import Config
 from qeel.data_sources import ParquetDataSource
-from qeel.executors import MockExecutor
+from qeel.exchange_clients import MockExchangeClient
 from qeel.stores import LocalStore
 from qeel.engines import BacktestEngine
 from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
@@ -148,7 +148,7 @@ def main():
         # カスタムソースタイプも追加可能
 
     # 執行クラス（バックテストではモック）
-    executor = MockExecutor(config.costs)
+    exchange_client = MockExchangeClient(config.costs)
 
     # コンテキストストア（JSON形式）
     context_store = LocalStore(Path("context.json"), format="json")
@@ -157,7 +157,7 @@ def main():
     engine = BacktestEngine(
         calculator=calculator,
         data_sources=data_sources,
-        executor=executor,
+        executor=exchange_client,
         context_store=context_store,
         config=config,
     )
@@ -264,7 +264,7 @@ portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 engine = BacktestEngine(
     calculator=calculator,
     data_sources=data_sources,
-    executor=executor,
+    executor=exchange_client,
     context_store=context_store,
     config=config,
     portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
@@ -344,7 +344,7 @@ order_creator = RiskParityOrderCreator(params=order_creator_params)
 engine = BacktestEngine(
     calculator=calculator,
     data_sources=data_sources,
-    executor=executor,
+    executor=exchange_client,
     context_store=context_store,
     config=config,
     order_creator=order_creator,  # カスタム注文生成
@@ -357,11 +357,11 @@ engine = BacktestEngine(
 
 ```python
 from qeel.engines import LiveEngine
-from qeel.executors import ExchangeAPIExecutor  # ユーザ実装
+from qeel.exchange_clients import ExchangeAPIClient  # ユーザ実装
 from qeel.stores import S3Store
 
 # 実運用用の執行クラス
-executor = ExchangeAPIExecutor(api_client=my_api_client)
+exchange_client = ExchangeAPIClient(api_client=my_api_client)
 
 # 実運用用のコンテキストストア（JSON形式）
 context_store = S3Store(bucket="my-bucket", key_prefix="qeel/context", format="json")
@@ -370,7 +370,7 @@ context_store = S3Store(bucket="my-bucket", key_prefix="qeel/context", format="j
 live_engine = LiveEngine(
     calculator=calculator,  # バックテストと同じクラス
     data_sources=live_data_sources,
-    executor=executor,
+    executor=exchange_client,
     context_store=context_store,
     config=config,
 )

@@ -1,8 +1,8 @@
-# Contract: BaseExecutor
+# Contract: BaseExchangeClient
 
 ## 概要
 
-注文の執行と約定情報の取得を抽象化するインターフェース。バックテスト時はモック、実運用時は取引所APIを使用する。
+注文の執行、約定情報の取得、ポジション情報の取得を抽象化するインターフェース。バックテスト時はモック、実運用時は取引所APIを使用する。
 
 ## インターフェース定義
 
@@ -10,10 +10,10 @@
 from abc import ABC, abstractmethod
 import polars as pl
 
-class BaseExecutor(ABC):
-    """執行抽象基底クラス
+class BaseExchangeClient(ABC):
+    """取引所クライアント抽象基底クラス
 
-    バックテストではモック約定、実運用では取引所API呼び出しを実装する。
+    バックテストではモック約定とポジション管理、実運用では取引所API呼び出しを実装する。
     """
 
     def _validate_orders(self, orders: pl.DataFrame) -> None:
@@ -51,6 +51,25 @@ class BaseExecutor(ABC):
 
         return FillReportSchema.validate(fills)
 
+    def _validate_positions(self, positions: pl.DataFrame) -> pl.DataFrame:
+        """ポジション情報DataFrameの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            positions: ポジション情報DataFrame（PositionSchema準拠）
+
+        Returns:
+            バリデーション済みのDataFrame
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import PositionSchema
+
+        return PositionSchema.validate(positions)
+
     @abstractmethod
     def submit_orders(self, orders: pl.DataFrame) -> None:
         """注文を執行する
@@ -75,6 +94,21 @@ class BaseExecutor(ABC):
             RuntimeError: 実運用時のAPI呼び出しエラー（ユーザ実装で処理）
         """
         ...
+
+    @abstractmethod
+    def fetch_positions(self) -> pl.DataFrame:
+        """現在のポジションを取得する
+
+        バックテスト: 約定履歴から計算した現在のポジションを返す
+        実運用: 取引所APIから現在のポジションを取得して返す
+
+        Returns:
+            PositionSchemaに準拠したPolars DataFrame
+
+        Raises:
+            RuntimeError: 実運用時のAPI呼び出しエラー（ユーザ実装で処理）
+        """
+        ...
 ```
 
 ## 実装例
@@ -82,22 +116,24 @@ class BaseExecutor(ABC):
 ### Backtest用モック実装
 
 ```python
-from qeel.executors import BaseExecutor
-from qeel.schemas import OrderSchema, FillReportSchema
+from qeel.exchange_clients import BaseExchangeClient
+from qeel.schemas import OrderSchema, FillReportSchema, PositionSchema
 from qeel.config import CostConfig
 import polars as pl
 from datetime import datetime
 import uuid
 
-class MockExecutor(BaseExecutor):
-    """バックテスト用モック執行
+class MockExchangeClient(BaseExchangeClient):
+    """バックテスト用モック取引所クライアント
 
     全注文を即座に約定させ、コスト設定に基づいて手数料・スリッページを適用する。
+    約定履歴から現在のポジションを計算して返す。
     """
 
     def __init__(self, config: CostConfig):
         self.config = config
         self.pending_fills: list[pl.DataFrame] = []
+        self.fill_history: list[pl.DataFrame] = []  # ポジション計算用
 
     def submit_orders(self, orders: pl.DataFrame) -> None:
         # 共通バリデーションヘルパーを使用
@@ -117,6 +153,7 @@ class MockExecutor(BaseExecutor):
         ])
 
         self.pending_fills.append(fills)
+        self.fill_history.append(fills)  # ポジション計算用に保持
 
     def fetch_fills(self) -> pl.DataFrame:
         if not self.pending_fills:
@@ -128,6 +165,30 @@ class MockExecutor(BaseExecutor):
 
         # 共通バリデーションヘルパーを使用
         return self._validate_fills(all_fills)
+
+    def fetch_positions(self) -> pl.DataFrame:
+        """約定履歴から現在のポジションを計算"""
+        if not self.fill_history:
+            return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
+
+        # fill_historyからポジションを累積計算
+        all_fills = pl.concat(self.fill_history)
+        positions = (
+            all_fills
+            .group_by("symbol")
+            .agg([
+                pl.when(pl.col("side") == "buy")
+                  .then(pl.col("filled_quantity"))
+                  .otherwise(-pl.col("filled_quantity"))
+                  .sum()
+                  .alias("quantity"),
+                pl.col("filled_price").mean().alias("avg_price"),
+            ])
+            .filter(pl.col("quantity") != 0)
+        )
+
+        # 共通バリデーションヘルパーを使用
+        return self._validate_positions(positions)
 ```
 
 ### 実運用用API実装（ユーザ実装例）
@@ -137,7 +198,7 @@ from qeel.utils.retry import with_retry
 from qeel.utils.notification import send_slack_notification
 from qeel.utils.rounding import round_to_unit
 
-class ExchangeAPIExecutor(BaseExecutor):
+class ExchangeAPIClient(BaseExchangeClient):
     """取引所API呼び出し実装（qeel.utils使用例）
 
     qeel.utilsが提供するリトライ・通知・丸め機能を利用して、
@@ -229,6 +290,37 @@ class ExchangeAPIExecutor(BaseExecutor):
 
         # 共通バリデーションヘルパーを使用
         return self._validate_fills(fills_df)
+
+    def fetch_positions(self) -> pl.DataFrame:
+        """取引所APIからポジションを取得"""
+        try:
+            positions_data = with_retry(
+                func=lambda: self.api_client.get_positions(),
+                max_attempts=3,
+                timeout=10.0,
+                backoff_factor=2.0,
+            )
+
+            # API response を PositionSchema に変換
+            positions_df = pl.DataFrame([
+                {
+                    "symbol": pos.symbol,
+                    "quantity": pos.quantity,
+                    "avg_price": pos.avg_price,
+                }
+                for pos in positions_data
+            ])
+
+            # 共通バリデーションヘルパーを使用
+            return self._validate_positions(positions_df)
+        except Exception as e:
+            if self.slack_webhook_url:
+                send_slack_notification(
+                    webhook_url=self.slack_webhook_url,
+                    message=f"ポジション情報取得エラー: {e}",
+                    level="error",
+                )
+            raise RuntimeError(f"ポジション情報取得エラー: {e}")
 ```
 
 ## 契約事項
@@ -245,6 +337,12 @@ class ExchangeAPIExecutor(BaseExecutor):
 - バックテスト: モック約定情報を返す
 - 実運用: 実際の約定情報をAPIから取得
 
+### fetch_positions
+
+- 出力: `PositionSchema` に準拠したDataFrame
+- バックテスト: 約定履歴から計算した現在のポジションを返す
+- 実運用: 取引所APIから現在のポジションを取得
+
 ### エラーハンドリング
 
 - **バックテスト**: 基本的にエラーは発生しない（スキーマエラーのみ）
@@ -260,5 +358,5 @@ class ExchangeAPIExecutor(BaseExecutor):
 
 ## テスタビリティ
 
-- `MockExecutor` をテストで使用し、約定ロジックを検証
+- `MockExchangeClient` をテストで使用し、約定ロジックとポジション計算を検証
 - 実運用実装は、モックAPIクライアントでユニットテスト可能

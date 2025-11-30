@@ -43,7 +43,7 @@
 1. `BaseSignalCalculator`: `calculate(data_sources: dict[str, pl.DataFrame]) -> pl.DataFrame`
 2. `BaseReturnCalculator`: `calculate(market_data: pl.DataFrame) -> pl.DataFrame`
 3. `BaseDataSource`: `fetch(start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame`
-4. `BaseExecutor`: `submit_orders(orders: pl.DataFrame) -> None` / `fetch_fills() -> pl.DataFrame`
+4. `BaseExchangeClient`: `submit_orders(orders: pl.DataFrame) -> None` / `fetch_fills() -> pl.DataFrame`
 5. `BaseContextStore`: `save(context: Context) -> None` / `load() -> Context`
 
 **Design Principle**:
