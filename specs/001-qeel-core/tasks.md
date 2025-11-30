@@ -234,7 +234,7 @@
   - 取引日判定ロジック（toml設定のtradingCalendarを使用）
   - src/qeel/portfolio_constructors/base.py: BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`）
   - src/qeel/portfolio_constructors/top_n.py: TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
-  - src/qeel/order_creators/base.py: BaseOrderCreator ABC（引数`portfolio_df: pl.DataFrame`に変更）
+  - src/qeel/order_creators/base.py: BaseOrderCreator ABC（引数`portfolio_plan: pl.DataFrame`に変更）
   - src/qeel/order_creators/equal_weight.py: EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
   - tests/unit/test_engines.py
   - tests/unit/test_portfolio_constructors.py（新インターフェースに対応）

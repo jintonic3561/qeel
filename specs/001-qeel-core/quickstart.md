@@ -288,14 +288,14 @@ class RiskParityOrderCreator(BaseOrderCreator):
     def create(
         self,
         signals: pl.DataFrame,
-        portfolio_df: pl.DataFrame,
+        portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame
-            portfolio_df: 構築済みポートフォリオDataFrame（メタデータ含む）
+            portfolio_plan: 構築済みポートフォリオDataFrame（メタデータ含む）
             current_positions: 現在のポジション
             market_data: 市場データ（価格情報）
 
@@ -304,12 +304,12 @@ class RiskParityOrderCreator(BaseOrderCreator):
         """
         from qeel.schemas import PortfolioSchema
 
-        PortfolioSchema.validate(portfolio_df)
+        PortfolioSchema.validate(portfolio_plan)
 
         orders = []
         max_value_per_symbol = self.params.capital * self.params.max_position_pct
 
-        for row in portfolio_df.iter_rows(named=True):
+        for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
 
             # メタデータからシグナル強度を取得

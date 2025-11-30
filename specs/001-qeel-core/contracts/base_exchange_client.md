@@ -286,10 +286,10 @@ class ExchangeAPIClient(BaseExchangeClient):
         if not fills_data:
             return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
 
-        fills_df = pl.DataFrame(fills_data)
+        fills = pl.DataFrame(fills_data)
 
         # 共通バリデーションヘルパーを使用
-        return self._validate_fills(fills_df)
+        return self._validate_fills(fills)
 
     def fetch_positions(self) -> pl.DataFrame:
         """取引所APIからポジションを取得"""
@@ -302,7 +302,7 @@ class ExchangeAPIClient(BaseExchangeClient):
             )
 
             # API response を PositionSchema に変換
-            positions_df = pl.DataFrame([
+            positions = pl.DataFrame([
                 {
                     "symbol": pos.symbol,
                     "quantity": pos.quantity,
@@ -312,7 +312,7 @@ class ExchangeAPIClient(BaseExchangeClient):
             ])
 
             # 共通バリデーションヘルパーを使用
-            return self._validate_positions(positions_df)
+            return self._validate_positions(positions)
         except Exception as e:
             if self.slack_webhook_url:
                 send_slack_notification(
