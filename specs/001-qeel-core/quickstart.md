@@ -290,14 +290,14 @@ class RiskParityOrderCreator(BaseOrderCreator):
         signals: pl.DataFrame,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
-        market_data: pl.DataFrame,
+        ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
         """
         Args:
             signals: シグナルDataFrame
             portfolio_plan: 構築済みポートフォリオDataFrame（メタデータ含む）
             current_positions: 現在のポジション
-            market_data: 市場データ（価格情報）
+            ohlcv: OHLCV価格データ
 
         Returns:
             注文DataFrame（OrderSchema準拠）
@@ -316,7 +316,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
             signal_value = row.get("signal_strength", 0.0)
 
             # 現在価格取得
-            price_row = market_data.filter(pl.col("symbol") == symbol)
+            price_row = ohlcv.filter(pl.col("symbol") == symbol)
             if price_row.height == 0:
                 continue
             current_price = price_row["close"][0]

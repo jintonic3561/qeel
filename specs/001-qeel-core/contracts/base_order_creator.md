@@ -39,7 +39,7 @@ class BaseOrderCreator(ABC):
         self,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
-        market_data: pl.DataFrame,
+        ohlcv: pl.DataFrame,
     ) -> None:
         """入力データの共通バリデーション
 
@@ -49,23 +49,23 @@ class BaseOrderCreator(ABC):
         Args:
             portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠）
             current_positions: 現在のポジション（PositionSchema準拠）
-            market_data: 市場データ（MarketDataSchema準拠）
+            ohlcv: OHLCV価格データ（OHLCVSchema準拠）
 
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import PortfolioSchema, PositionSchema, MarketDataSchema
+        from qeel.schemas import PortfolioSchema, PositionSchema, OHLCVSchema
 
         PortfolioSchema.validate(portfolio_plan)
         PositionSchema.validate(current_positions)
-        MarketDataSchema.validate(market_data)
+        OHLCVSchema.validate(ohlcv)
 
     @abstractmethod
     def create(
         self,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
-        market_data: pl.DataFrame,
+        ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
         """ポートフォリオ計画とポジションから注文を生成する
 
@@ -74,7 +74,7 @@ class BaseOrderCreator(ABC):
                 必須列: datetime, symbol
                 オプション列: signal_strength, priority, tags等（PortfolioConstructorから渡される）
             current_positions: 現在のポジション（PositionSchema準拠）
-            market_data: 市場データ（MarketDataSchema準拠、価格情報取得用）
+            ohlcv: OHLCV価格データ（OHLCVSchema準拠、価格情報取得用）
 
         Returns:
             注文DataFrame（OrderSchema準拠）
@@ -107,12 +107,12 @@ class EqualWeightOrderCreator(BaseOrderCreator):
         self,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
-        market_data: pl.DataFrame,
+        ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
         from qeel.schemas import OrderSchema
 
         # 共通バリデーションヘルパーを使用
-        self._validate_inputs(portfolio_plan, current_positions, market_data)
+        self._validate_inputs(portfolio_plan, current_positions, ohlcv)
 
         if portfolio_plan.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
@@ -125,7 +125,7 @@ class EqualWeightOrderCreator(BaseOrderCreator):
             symbol = row["symbol"]
 
             # 現在価格取得（open価格）
-            price_row = market_data.filter(pl.col("symbol") == symbol)
+            price_row = ohlcv.filter(pl.col("symbol") == symbol)
             if price_row.height == 0:
                 continue  # データがない銘柄はスキップ
 
@@ -172,12 +172,12 @@ class RiskParityOrderCreator(BaseOrderCreator):
         self,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
-        market_data: pl.DataFrame,
+        ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
         from qeel.schemas import OrderSchema
 
         # 共通バリデーションヘルパーを使用
-        self._validate_inputs(portfolio_plan, current_positions, market_data)
+        self._validate_inputs(portfolio_plan, current_positions, ohlcv)
 
         if portfolio_plan.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
@@ -188,7 +188,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
         for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
 
-            price_row = market_data.filter(pl.col("symbol") == symbol)
+            price_row = ohlcv.filter(pl.col("symbol") == symbol)
             if price_row.height == 0:
                 continue
 
@@ -225,7 +225,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
   - 必須列: `datetime`, `symbol`
   - オプション列: `signal_strength`, `priority`, `tags` 等（`PortfolioConstructor`から渡される）
 - `current_positions`: PositionSchemaに準拠したPolars DataFrame
-- `market_data`: MarketDataSchemaに準拠したPolars DataFrame（価格情報取得用）
+- `ohlcv`: OHLCVSchemaに準拠したPolars DataFrame（価格情報取得用）
 
 ### 出力
 

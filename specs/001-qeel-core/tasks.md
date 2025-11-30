@@ -62,7 +62,7 @@
   - pyproject.toml、mypy.ini作成
   - src/qeel/__init__.py作成
   - src/qeel/config/models.py: Config, DataSourceConfig, CostConfig, LoopConfig
-  - src/qeel/schemas/validators.py: MarketDataSchema, SignalSchema等
+  - src/qeel/schemas/validators.py: OHLCVSchema, SignalSchema等
   - tests/unit/test_config.py
   - tests/unit/test_schemas.py
 - [ ] T014 mypy strictモードでの型チェック合格

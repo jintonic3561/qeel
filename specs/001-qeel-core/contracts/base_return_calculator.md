@@ -47,11 +47,11 @@ class BaseReturnCalculator(ABC):
         return ReturnSchema.validate(returns)
 
     @abstractmethod
-    def calculate(self, market_data: pl.DataFrame) -> pl.DataFrame:
+    def calculate(self, ohlcv: pl.DataFrame) -> pl.DataFrame:
         """リターンを計算する
 
         Args:
-            market_data: MarketDataSchemaに準拠したPolars DataFrame
+            ohlcv: OHLCVSchemaに準拠したPolars DataFrame
 
         Returns:
             リターンDataFrame
@@ -80,9 +80,9 @@ class LogReturnCalculator(BaseReturnCalculator):
     リーク防止のため、period日後の価格を使用して前向きリターンを算出。
     """
 
-    def calculate(self, market_data: pl.DataFrame) -> pl.DataFrame:
+    def calculate(self, ohlcv: pl.DataFrame) -> pl.DataFrame:
         returns = (
-            market_data
+            ohlcv
             .sort(["symbol", "datetime"])
             .group_by("symbol")
             .agg([
@@ -103,7 +103,7 @@ class LogReturnCalculator(BaseReturnCalculator):
 
 ### 入力
 
-- `market_data`: `MarketDataSchema` に準拠したDataFrame
+- `ohlcv`: `OHLCVSchema` に準拠したDataFrame
 - 必須列: `datetime`, `symbol`, `close`
 
 ### 出力
@@ -127,5 +127,5 @@ class LogReturnCalculator(BaseReturnCalculator):
 
 ### テスタビリティ
 
-- モックMarketDataで簡単にユニットテスト可能
+- モックOHLCVデータで簡単にユニットテスト可能
 - パラメータ変更が型安全

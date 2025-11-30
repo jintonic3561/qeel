@@ -144,19 +144,17 @@ class Config(BaseModel):
 
 ## 2. Domain Models
 
-### 2.1 MarketData
+### 2.1 OHLCV
 
 ```python
 import polars as pl
 
-class MarketDataSchema:
-    """MarketDataのPolarsスキーマ定義
+class OHLCVSchema:
+    """OHLCVのPolarsスキーマ定義
 
     必須列:
         datetime: pl.Datetime - データ利用可能時刻
         symbol: pl.Utf8 - 銘柄コード
-
-    オプション列（データソース依存）:
         open: pl.Float64
         high: pl.Float64
         low: pl.Float64
@@ -164,19 +162,23 @@ class MarketDataSchema:
         volume: pl.Int64
 
     Note:
-        BaseDataSourceは任意のスキーマを返すことができ、MarketDataSchemaは
-        市場データに特化したデータソースの参照例として提供される。
-        システムは強制的なバリデーションを行わない。
+        BaseDataSourceは任意のスキーマを返すことができ、OHLCVSchemaは
+        OHLCV価格データに特化したデータソースの参照例として提供される。
     """
     REQUIRED_COLUMNS = {
         "datetime": pl.Datetime,
         "symbol": pl.Utf8,
+        "open": pl.Float64,
+        "high": pl.Float64,
+        "low": pl.Float64,
+        "close": pl.Float64,
+        "volume": pl.Int64,
     }
 
     @staticmethod
     def validate(df: pl.DataFrame) -> pl.DataFrame:
         """スキーマバリデーション（必須列のみ）"""
-        for col, dtype in MarketDataSchema.REQUIRED_COLUMNS.items():
+        for col, dtype in OHLCVSchema.REQUIRED_COLUMNS.items():
             if col not in df.columns:
                 raise ValueError(f"必須列が不足しています: {col}")
             if df[col].dtype != dtype:
@@ -507,7 +509,7 @@ BacktestEngine
  └─ context_store: BaseContextStore
 
 Iteration Flow:
-  MarketData (DataSource)
+  OHLCV / その他データソース (DataSource)
     → Signal (SignalCalculator)
     → Portfolio DataFrame (PortfolioConstructor: 銘柄選定+メタデータ付与)
     → Order (OrderCreator: メタデータ活用)
