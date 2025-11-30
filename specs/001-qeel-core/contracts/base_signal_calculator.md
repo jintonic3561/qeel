@@ -52,7 +52,7 @@ class BaseSignalCalculator(ABC):
 
         Args:
             data_sources: データソース名をキーとするPolars DataFrameの辞書
-                         各DataFrameはMarketDataSchemaに準拠
+                         各DataFrameは`datetime`列を必須とし、それ以外の列スキーマはデータソースごとに任意
 
         Returns:
             シグナルDataFrame（SignalSchemaに準拠）
@@ -154,7 +154,8 @@ class MultiSignalCalculator(BaseSignalCalculator):
 ### 入力
 
 - `data_sources`: 辞書形式で複数のデータソースを受け取る
-- 各DataFrameは `MarketDataSchema` に準拠していることが保証される
+- 各DataFrameは`datetime`列を必須とし、データソースごとに独自のスキーマを持つ（OHLCV、決算情報、OI等）
+- リーク防止のため、`datetime`列でデータの利用可能時刻が管理される
 - データは既にiteration範囲でフィルタリングされている
 
 ### 出力
