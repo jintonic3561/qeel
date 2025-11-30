@@ -8,8 +8,10 @@
 
 ```python
 from abc import ABC, abstractmethod
+
 import polars as pl
 from pydantic import BaseModel
+
 
 class OrderCreatorParams(BaseModel):
     """注文生成パラメータの基底クラス
@@ -89,6 +91,7 @@ class BaseOrderCreator(ABC):
 
 ```python
 from pydantic import Field
+
 
 class EqualWeightParams(OrderCreatorParams):
     """等ウェイトポートフォリオのパラメータ"""
@@ -253,6 +256,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
 ```python
 from qeel.order_creators import EqualWeightOrderCreator, EqualWeightParams
+
 
 # パラメータ定義
 params = EqualWeightParams(capital=1_000_000.0, rebalance_threshold=0.05)

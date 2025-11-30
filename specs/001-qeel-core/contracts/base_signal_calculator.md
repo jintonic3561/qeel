@@ -8,8 +8,11 @@
 
 ```python
 from abc import ABC, abstractmethod
+
 import polars as pl
+
 from qeel.schemas import SignalCalculatorParams, SignalSchema
+
 
 class BaseSignalCalculator(ABC):
     """シグナル計算抽象基底クラス
@@ -68,9 +71,11 @@ class BaseSignalCalculator(ABC):
 ## 実装例
 
 ```python
-from pydantic import BaseModel, Field
 import polars as pl
+from pydantic import BaseModel, Field
+
 from qeel.calculators.signals.base import BaseSignalCalculator
+
 
 class MovingAverageCrossParams(BaseModel):
     short_window: int = Field(..., gt=0, description="短期移動平均のwindow")

@@ -8,8 +8,11 @@
 
 ```python
 from abc import ABC, abstractmethod
+
 import polars as pl
+
 from qeel.schemas import ReturnCalculatorParams
+
 
 class BaseReturnCalculator(ABC):
     """リターン計算抽象基底クラス
@@ -66,9 +69,11 @@ class BaseReturnCalculator(ABC):
 ## 実装例
 
 ```python
-from pydantic import BaseModel, Field
 import polars as pl
+from pydantic import BaseModel, Field
+
 from qeel.calculators.returns.base import BaseReturnCalculator
+
 
 class LogReturnParams(BaseModel):
     period: int = Field(default=1, gt=0, description="リターン計算期間（日数）")

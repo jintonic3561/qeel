@@ -8,8 +8,10 @@
 
 ```python
 from abc import ABC, abstractmethod
+
 import polars as pl
 from pydantic import BaseModel
+
 
 class PortfolioConstructorParams(BaseModel):
     """ポートフォリオ構築パラメータの基底クラス
@@ -95,6 +97,7 @@ class BasePortfolioConstructor(ABC):
 
 ```python
 from pydantic import Field
+
 
 class TopNConstructorParams(PortfolioConstructorParams):
     """上位N銘柄構築のパラメータ"""
@@ -237,7 +240,11 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
 ## 使用例
 
 ```python
-from qeel.portfolio_constructors import TopNPortfolioConstructor, TopNConstructorParams
+from qeel.portfolio_constructors import (
+    TopNConstructorParams,
+    TopNPortfolioConstructor,
+)
+
 
 # パラメータ定義
 params = TopNConstructorParams(top_n=10)

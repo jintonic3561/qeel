@@ -77,10 +77,12 @@ df.write_parquet("data/ohlcv.parquet")
 ### 4. シグナル計算クラス（my_signal.py）
 
 ```python
-from pydantic import BaseModel, Field
 import polars as pl
+from pydantic import BaseModel, Field
+
 from qeel.calculators import BaseSignalCalculator
 from qeel.schemas import SignalSchema
+
 
 class MovingAverageCrossParams(BaseModel):
     """移動平均クロス戦略のパラメータ"""
@@ -125,12 +127,15 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
 
 ```python
 from pathlib import Path
+
+from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
+
 from qeel.config import Config
 from qeel.data_sources import ParquetDataSource
+from qeel.engines import BacktestEngine
 from qeel.exchange_clients import MockExchangeClient
 from qeel.stores import LocalStore
-from qeel.engines import BacktestEngine
-from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
+
 
 def main():
     # 設定読み込み

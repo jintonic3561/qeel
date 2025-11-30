@@ -14,8 +14,10 @@
 ### 1.1 DataSourceConfig
 
 ```python
-from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
+
+from pydantic import BaseModel, Field, field_validator
+
 
 class DataSourceConfig(BaseModel):
     """データソースの設定
@@ -77,6 +79,9 @@ class CostConfig(BaseModel):
 ```python
 from datetime import timedelta
 
+from pydantic import BaseModel, Field
+
+
 class MethodTimingConfig(BaseModel):
     """各メソッドの実行タイミング設定
 
@@ -119,6 +124,12 @@ class LoopConfig(BaseModel):
 ### 1.4 Config（全体設定）
 
 ```python
+from pathlib import Path
+
+import tomli
+from pydantic import BaseModel, Field
+
+
 class Config(BaseModel):
     """Qeelの全体設定
 
@@ -134,7 +145,6 @@ class Config(BaseModel):
     @classmethod
     def from_toml(cls, path: Path) -> "Config":
         """tomlファイルから設定を読み込む"""
-        import tomli
         with open(path, "rb") as f:
             data = tomli.load(f)
         return cls(**data)
@@ -358,8 +368,11 @@ class FillReportSchema:
 ### 2.7 Context
 
 ```python
-from typing import Any
-from pydantic import ConfigDict
+from datetime import datetime
+
+import polars as pl
+from pydantic import BaseModel, ConfigDict
+
 
 class Context(BaseModel):
     """iterationをまたいで保持されるコンテキスト

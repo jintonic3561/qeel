@@ -8,7 +8,9 @@
 
 ```python
 from abc import ABC, abstractmethod
+
 import polars as pl
+
 
 class BaseExchangeClient(ABC):
     """取引所クライアント抽象基底クラス
@@ -116,12 +118,15 @@ class BaseExchangeClient(ABC):
 ### Backtest用モック実装
 
 ```python
-from qeel.exchange_clients import BaseExchangeClient
-from qeel.schemas import OrderSchema, FillReportSchema, PositionSchema
-from qeel.config import CostConfig
-import polars as pl
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+import polars as pl
+
+from qeel.config import CostConfig
+from qeel.exchange_clients import BaseExchangeClient
+from qeel.schemas import FillReportSchema, OrderSchema, PositionSchema
+
 
 class MockExchangeClient(BaseExchangeClient):
     """バックテスト用モック取引所クライアント
@@ -194,9 +199,11 @@ class MockExchangeClient(BaseExchangeClient):
 ### 実運用用API実装（ユーザ実装例）
 
 ```python
-from qeel.utils.retry import with_retry
+from qeel.exchange_clients import BaseExchangeClient
 from qeel.utils.notification import send_slack_notification
+from qeel.utils.retry import with_retry
 from qeel.utils.rounding import round_to_unit
+
 
 class ExchangeAPIClient(BaseExchangeClient):
     """取引所API呼び出し実装（qeel.utils使用例）
