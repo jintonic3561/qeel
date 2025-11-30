@@ -2,7 +2,7 @@
 
 ## 概要
 
-ユーザがリターン計算ロジックを実装するための抽象基底クラス。シグナル評価時に使用され、市場データを入力として受け取り、リターン系列を返す。
+ユーザがリターン計算ロジックを実装するための抽象基底クラス。シグナル評価時に使用され、市場データを入力として受け取り、**current_datetimeで生成されたシグナルに対する未来の実現リターン系列**を返す。リーク（ルックアヘッドバイアス）を防ぐため、リターンは必ず前向き（forward）に計算しなければならない。
 
 ## インターフェース定義
 
@@ -74,7 +74,11 @@ class LogReturnParams(BaseModel):
     period: int = Field(default=1, gt=0, description="リターン計算期間（日数）")
 
 class LogReturnCalculator(BaseReturnCalculator):
-    """対数リターン計算"""
+    """対数リターン計算（前向き/forward return）
+
+    current_datetimeで生成されたシグナルに対する未来の実現リターンを計算する。
+    リーク防止のため、period日後の価格を使用して前向きリターンを算出。
+    """
 
     def calculate(self, market_data: pl.DataFrame) -> pl.DataFrame:
         returns = (
@@ -83,7 +87,9 @@ class LogReturnCalculator(BaseReturnCalculator):
             .group_by("symbol")
             .agg([
                 pl.col("datetime"),
-                (pl.col("close").log().diff(self.params.period)).alias("return"),
+                # 未来の実現リターンを計算（forward return）
+                # shift(-period)でperiod日後の価格を取得し、現在価格との差分を計算
+                (pl.col("close").log().shift(-self.params.period) - pl.col("close").log()).alias("return"),
             ])
             .explode(["datetime", "return"])
             .select(["datetime", "symbol", "return"])
@@ -106,10 +112,18 @@ class LogReturnCalculator(BaseReturnCalculator):
 - `return` はFloat64型（NaN許容）
 - 出力DataFrameのバリデーションには、`BaseReturnCalculator._validate_output()`ヘルパーメソッドを使用可能（推奨）
 
+### リーク防止（重要）
+
+- **リターンは必ず前向き（forward）に計算する**: リターンは`current_datetime`で生成されたシグナルに対する**未来の実現リターン**を表す
+- **過去リターンの使用は厳禁**: `diff(period)`のような過去差分は、ルックアヘッドバイアス（未来情報の漏洩）を引き起こすため使用してはならない
+- **時系列の整合性**: シグナル生成時点（datetime）における未来リターンを計算することで、バックテストの再現性を保証する
+
 ### 用途
 
-- シグナル評価時に `SignalSchema` のDataFrameと結合され、順位相関係数が計算される
-- バックテストループ内では直接使用されない
+- **シグナル評価**: シグナル評価時に`SignalSchema`のDataFrameと`datetime`, `symbol`で結合され、順位相関係数が計算される
+  - シグナル（datetime, symbol, signal）とリターン（datetime, symbol, return）を結合
+  - 各datetime（シグナル生成時点）における、シグナルと未来の実現リターンの順位相関を評価
+- **バックテストループとの分離**: バックテストループ内では直接使用されない（ループ内では約定履歴によってパフォーマンスが計算される）
 
 ### テスタビリティ
 
