@@ -103,7 +103,7 @@
 - **FR-004**: システムは、iteration内で以下のステップを分離して実装できなければならない：
   - シグナル計算（calculate_signals）: ユーザが抽象基底クラス`BaseSignalCalculator`を継承し、Pydanticモデルでパラメータを定義し、`calculate()`メソッドをオーバーライドして実装。入出力はPolars DataFrameを使用
   - ポートフォリオ構築（construct_portfolio）: ユーザが抽象基底クラス`BasePortfolioConstructor`を継承し、Pydanticモデルでパラメータを定義し、`construct()`メソッドをオーバーライドして実装。入出力はPolars DataFrameを使用。出力DataFrameには必須列として`datetime`と`symbol`を含み、オプション列として執行条件計算に必要なメタデータ（シグナル強度、優先度、タグ等）を含められる。デフォルト実装（シグナル上位N銘柄選定）を提供
-  - 執行条件計算（create_orders）: ユーザが抽象基底クラス`BaseOrderCreator`を継承し、Pydanticモデルでパラメータを定義し、`create()`メソッドをオーバーライドして実装。入出力はPolars DataFrameを使用。`BasePortfolioConstructor`から渡されたメタデータ（シグナル強度、優先度等）を活用して柔軟な注文生成が可能。デフォルト実装（等ウェイトポートフォリオ、成行注文）を提供
+  - 執行条件計算（create_orders）: ユーザが抽象基底クラス`BaseOrderCreator`を継承し、Pydanticモデルでパラメータを定義し、`create()`メソッドをオーバーライドして実装。入力は`portfolio_plan`（構築済みポートフォリオDataFrame、メタデータ含む）、`current_positions`（現在のポジション）、`market_data`（価格情報）。`BasePortfolioConstructor`から渡されたメタデータ（シグナル強度、優先度等）を活用して柔軟な注文生成が可能。デフォルト実装（等ウェイトポートフォリオ、成行注文）を提供
   - 執行（submit_orders）
   - 約定情報取得（fetch_fill_reports）: 出力はPolars DataFrameを使用
   - パフォーマンス計算（calculate_metrics）: 入出力はPolars DataFrameを使用
@@ -174,7 +174,7 @@
 - **Signal（シグナル）**: 各銘柄に対する定量的な特徴量または予測値。`BaseSignalCalculator`を継承したクラスの`calculate()`メソッドから生成され、銘柄選定の基礎となる。複数シグナル列（signal_momentum, signal_value等の任意の列名）を柔軟に扱える。
 - **BaseSignalCalculator（シグナル計算抽象基底クラス）**: ユーザがシグナル計算ロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを受け取り、`calculate()`メソッドをオーバーライドして、複数のデータソースを入力として受け取り、シグナルを返す。返り値のスキーマ（datetime, symbol列は必須、シグナル列は任意）は実行時バリデーションされる。
 - **BasePortfolioConstructor（ポートフォリオ構築抽象基底クラス）**: ユーザがポートフォリオ構築ロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを受け取り、`construct()`メソッドをオーバーライドして、シグナルDataFrameから構築済みポートフォリオDataFrameを返す。出力DataFrameには必須列として`datetime`と`symbol`を含み、オプション列として執行条件計算に必要なメタデータ（シグナル強度、優先度、タグ等）を含められる。これにより、`OrderCreator`がメタデータを活用して柔軟な注文生成が可能になる。デフォルト実装（シグナル上位N銘柄選定）を提供。
-- **BaseOrderCreator（注文生成抽象基底クラス）**: ユーザが注文生成ロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを受け取り、`create()`メソッドをオーバーライドして、シグナル、構築済みポートフォリオDataFrame（メタデータ含む）、ポジションから注文DataFrameを返す。`BasePortfolioConstructor`から渡されたメタデータを活用して、シグナル強度に応じた数量調整や優先度別の執行タイミング等の複雑な注文生成が可能。デフォルト実装（等ウェイトポートフォリオ、成行注文）を提供。
+- **BaseOrderCreator（注文生成抽象基底クラス）**: ユーザが注文生成ロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを受け取り、`create()`メソッドをオーバーライドして、`portfolio_plan`（構築済みポートフォリオDataFrame、メタデータ含む）、`current_positions`（現在のポジション）、`market_data`（価格情報）から注文DataFrameを返す。`BasePortfolioConstructor`から渡されたメタデータを活用して、シグナル強度に応じた数量調整や優先度別の執行タイミング等の複雑な注文生成が可能。。デフォルト実装（等ウェイトポートフォリオ、成行注文）を提供。
 - **BaseReturnCalculator（リターン計算抽象基底クラス）**: ユーザがリターン計算ロジックを実装するための抽象基底クラス。`calculate()`メソッドをオーバーライドして、市場データを入力として受け取り、リターン系列を返す。シグナル評価時に使用される。返り値の列スキーマは実行時バリデーションされる。
 - **Position（ポジション）**: 現在保有している銘柄と数量。各iterationで参照され、執行条件計算の入力となる。
 - **Order（注文）**: 執行する注文の詳細（銘柄、売買区分、数量、価格、注文タイプ）。create_ordersメソッドで生成され、submit_ordersで執行される。

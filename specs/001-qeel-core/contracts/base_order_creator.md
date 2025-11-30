@@ -2,7 +2,7 @@
 
 ## 概要
 
-ユーザがシグナル、選定銘柄、ポジションから注文を生成するロジックを実装するための抽象基底クラス。Signal計算クラスと同様に、Pydanticモデルでパラメータを定義し、ABCパターンで拡張性を確保する。
+ユーザがポートフォリオ計画（選定銘柄+メタデータ）とポジションから注文を生成するロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを定義し、ABCパターンで拡張性を確保する。入力バリデーションは共通ヘルパーメソッドとして提供され、重複を避けて可読性を向上させる。
 
 ## インターフェース定義
 
@@ -35,20 +35,45 @@ class BaseOrderCreator(ABC):
         """
         self.params = params
 
+    def _validate_inputs(
+        self,
+        portfolio_plan: pl.DataFrame,
+        current_positions: pl.DataFrame,
+        market_data: pl.DataFrame,
+    ) -> None:
+        """入力データの共通バリデーション
+
+        サブクラスで任意に呼び出し可能なヘルパーメソッド。
+        スキーマバリデーションを一箇所で実行し、重複を避ける。
+
+        Args:
+            portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠）
+            current_positions: 現在のポジション（PositionSchema準拠）
+            market_data: 市場データ（MarketDataSchema準拠）
+
+        Raises:
+            ValueError: スキーマ違反の場合
+        """
+        from qeel.schemas import PortfolioSchema, PositionSchema, MarketDataSchema
+
+        PortfolioSchema.validate(portfolio_plan)
+        PositionSchema.validate(current_positions)
+        MarketDataSchema.validate(market_data)
+
     @abstractmethod
     def create(
         self,
-        signals: pl.DataFrame,
-        portfolio_df: pl.DataFrame,
-        positions: pl.DataFrame,
+        portfolio_plan: pl.DataFrame,
+        current_positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
-        """シグナルとポジションから注文を生成する
+        """ポートフォリオ計画とポジションから注文を生成する
 
         Args:
-            signals: シグナルDataFrame（SignalSchema準拠）
-            portfolio_df: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
-            positions: 現在のポジション（PositionSchema準拠）
+            portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
+                必須列: datetime, symbol
+                オプション列: signal_strength, priority, tags等（PortfolioConstructorから渡される）
+            current_positions: 現在のポジション（PositionSchema準拠）
             market_data: 市場データ（MarketDataSchema準拠、価格情報取得用）
 
         Returns:
@@ -80,27 +105,23 @@ class EqualWeightOrderCreator(BaseOrderCreator):
 
     def create(
         self,
-        signals: pl.DataFrame,
-        portfolio_df: pl.DataFrame,
-        positions: pl.DataFrame,
+        portfolio_plan: pl.DataFrame,
+        current_positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PortfolioSchema, PositionSchema, MarketDataSchema, OrderSchema
+        from qeel.schemas import OrderSchema
 
-        # スキーマバリデーション
-        SignalSchema.validate(signals)
-        PortfolioSchema.validate(portfolio_df)
-        PositionSchema.validate(positions)
-        MarketDataSchema.validate(market_data)
+        # 共通バリデーションヘルパーを使用
+        self._validate_inputs(portfolio_plan, current_positions, market_data)
 
-        if portfolio_df.height == 0:
+        if portfolio_plan.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
 
-        n_symbols = portfolio_df.height
+        n_symbols = portfolio_plan.height
         target_value_per_symbol = self.params.capital / n_symbols
 
         orders = []
-        for row in portfolio_df.iter_rows(named=True):
+        for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
 
             # 現在価格取得（open価格）
@@ -111,12 +132,11 @@ class EqualWeightOrderCreator(BaseOrderCreator):
             current_price = price_row["open"][0]
             target_quantity = target_value_per_symbol / current_price
 
-            # シグナル取得（portfolio_dfにsignal_strengthが含まれている場合はそれを使用）
-            if "signal_strength" in portfolio_df.columns:
+            # シグナル強度をportfolio_planから取得（メタデータとして含まれている）
+            if "signal_strength" in portfolio_plan.columns:
                 signal_value = row["signal_strength"]
             else:
-                signal_row = signals.filter(pl.col("symbol") == symbol)
-                signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
+                signal_value = 1.0  # デフォルト値
 
             # シグナルが正なら買い、負なら売り
             side = "buy" if signal_value > 0 else "sell"
@@ -150,25 +170,22 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
     def create(
         self,
-        signals: pl.DataFrame,
-        portfolio_df: pl.DataFrame,
-        positions: pl.DataFrame,
+        portfolio_plan: pl.DataFrame,
+        current_positions: pl.DataFrame,
         market_data: pl.DataFrame,
     ) -> pl.DataFrame:
-        from qeel.schemas import SignalSchema, PortfolioSchema, PositionSchema, MarketDataSchema, OrderSchema
+        from qeel.schemas import OrderSchema
 
-        SignalSchema.validate(signals)
-        PortfolioSchema.validate(portfolio_df)
-        PositionSchema.validate(positions)
-        MarketDataSchema.validate(market_data)
+        # 共通バリデーションヘルパーを使用
+        self._validate_inputs(portfolio_plan, current_positions, market_data)
 
-        if portfolio_df.height == 0:
+        if portfolio_plan.height == 0:
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
 
         orders = []
         max_value_per_symbol = self.params.capital * self.params.max_position_pct
 
-        for row in portfolio_df.iter_rows(named=True):
+        for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
 
             price_row = market_data.filter(pl.col("symbol") == symbol)
@@ -177,13 +194,11 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
             current_price = price_row["close"][0]
 
-            # シグナルの強さをportfolio_dfから取得（メタデータとして含まれている）
-            if "signal_strength" in portfolio_df.columns:
+            # シグナルの強さをportfolio_planから取得（メタデータとして含まれている）
+            if "signal_strength" in portfolio_plan.columns:
                 signal_value = row["signal_strength"]
             else:
-                # フォールバック: signalsから取得
-                signal_row = signals.filter(pl.col("symbol") == symbol)
-                signal_value = signal_row["signal"][0] if signal_row.height > 0 else 0.0
+                signal_value = 1.0  # デフォルト値
 
             # リスクに応じた配分（シグナルの強さに応じて数量を調整）
             target_value = max_value_per_symbol * abs(signal_value)
@@ -206,11 +221,10 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
 ### 入力
 
-- `signals`: SignalSchemaに準拠したPolars DataFrame
-- `portfolio_df`: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
+- `portfolio_plan`: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
   - 必須列: `datetime`, `symbol`
   - オプション列: `signal_strength`, `priority`, `tags` 等（`PortfolioConstructor`から渡される）
-- `positions`: PositionSchemaに準拠したPolars DataFrame
+- `current_positions`: PositionSchemaに準拠したPolars DataFrame
 - `market_data`: MarketDataSchemaに準拠したPolars DataFrame（価格情報取得用）
 
 ### 出力
@@ -226,7 +240,8 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
 ### スキーマバリデーション
 
-- 入力DataFrameは冒頭でスキーマバリデーションを実行する
+- 入力DataFrameのバリデーションには、`BaseOrderCreator._validate_inputs()`ヘルパーメソッドを使用可能（推奨）
+- ユーザは独自のバリデーションロジックを実装することも可能
 - 出力DataFrameは`OrderSchema.validate()`を通して返す
 
 ### テスタビリティ

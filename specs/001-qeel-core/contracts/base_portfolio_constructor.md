@@ -36,12 +36,12 @@ class BasePortfolioConstructor(ABC):
         self.params = params
 
     @abstractmethod
-    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         """シグナルからポートフォリオを構築し、執行条件計算に必要なメタデータを含むDataFrameを返す
 
         Args:
             signals: シグナルDataFrame（SignalSchema準拠）
-            positions: 現在のポジション（PositionSchema準拠）
+            current_positions: 現在のポジション（PositionSchema準拠）
 
         Returns:
             構築済みポートフォリオDataFrame（PortfolioSchema準拠）
@@ -72,7 +72,7 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
     選定された銘柄のシグナル強度（signal列）をメタデータとして含めて返す。
     """
 
-    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
 
         # スキーマバリデーション
@@ -103,7 +103,7 @@ class ThresholdConstructorParams(PortfolioConstructorParams):
 class ThresholdPortfolioConstructor(BasePortfolioConstructor):
     """シグナルが閾値以上の銘柄から上位N銘柄でポートフォリオを構築"""
 
-    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
 
         SignalSchema.validate(signals)
@@ -139,7 +139,7 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
     上位N銘柄を選定する。
     """
 
-    def construct(self, signals: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         from qeel.schemas import SignalSchema, PositionSchema, PortfolioSchema
 
         SignalSchema.validate(signals)
@@ -174,7 +174,7 @@ class MultiSignalPortfolioConstructor(BasePortfolioConstructor):
 ### 入力
 
 - `signals`: SignalSchemaに準拠したPolars DataFrame（必須列: datetime, symbol; オプション列: signal, signal_momentum等の任意のシグナル列）
-- `positions`: PositionSchemaに準拠したPolars DataFrame（現在のポジション情報）
+- `current_positions`: PositionSchemaに準拠したPolars DataFrame（現在のポジション情報）
 
 ### 出力
 
