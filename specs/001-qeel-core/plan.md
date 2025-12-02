@@ -144,17 +144,19 @@
 
 #### Phase 2: Backtest Engine（P1対応）
 
-**Branch**: `005-context-management`
-- **目的**: コンテキスト管理とストア
+**Branch**: `005-io-and-context-management`
+- **目的**: IOレイヤーとコンテキスト管理
 - **成果物**:
   - `qeel/models/context.py` - Context Pydanticモデル
-  - `qeel/stores/base.py` - BaseContextStore ABC
-  - `qeel/stores/local.py` - LocalStore
-  - `qeel/stores/s3.py` - S3Store
+  - `qeel/io/base.py` - BaseIO ABC
+  - `qeel/io/local.py` - LocalIO実装
+  - `qeel/io/s3.py` - S3IO実装
+  - `qeel/stores/context_store.py` - ContextStore（単一実装、IOレイヤー依存）
   - `qeel/stores/in_memory.py` - InMemoryStore（テスト用）
-- **テスト**: save_*メソッドが各要素を個別に保存、load()が指定日付のコンテキストを復元、load_latest()が最新日付のコンテキストを復元、存在しない要素はNone、S3ストアはモックboto3で動作確認
+- **テスト**: IOレイヤーのsave/load/exists動作確認、ContextStoreがIOレイヤー経由で各要素を個別に保存、load()が指定日付のコンテキストを復元、load_latest()が最新日付のコンテキストを復元、存在しない要素はNone、S3IOはモックboto3で動作確認
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 1（コンテキスト永続化、トレーサビリティ確保）、User Story 2（実運用でS3使用）
+- **備考**: IOレイヤーで Local/S3 の判別を一手に引き受け、DRY原則を遵守。ContextStoreはIOレイヤーに依存し、Local/S3の判別ロジックを持たない
 
 ---
 
@@ -322,9 +324,12 @@ specs/001-qeel-core/
 └── contracts/           # Phase 1 output - ABC interface specifications
     ├── base_signal_calculator.md
     ├── base_return_calculator.md
+    ├── base_portfolio_constructor.md
+    ├── base_order_creator.md
     ├── base_data_source.md
-    ├── base_executor.md
-    └── base_context_store.md
+    ├── base_exchange_client.md
+    ├── base_io.md
+    └── context_store.md
 ```
 
 ### Source Code (repository root)
@@ -379,11 +384,14 @@ src/qeel/
 │   └── examples/
 │       ├── __init__.py
 │       └── exchange_api.py    # 取引所API実装例（スケルトン）
+├── io/
+│   ├── __init__.py
+│   ├── base.py            # BaseIO ABC
+│   ├── local.py           # LocalIO（ローカルファイルシステム）
+│   └── s3.py              # S3IO（S3ストレージ）
 ├── stores/
 │   ├── __init__.py
-│   ├── base.py            # BaseContextStore ABC
-│   ├── local.py           # LocalStore（JSON/Parquet対応）
-│   ├── s3.py              # S3Store（JSON/Parquet対応、実運用必須）
+│   ├── context_store.py   # ContextStore（単一実装、IOレイヤー依存）
 │   └── in_memory.py       # InMemoryStore（テスト用）
 ├── models/
 │   ├── __init__.py

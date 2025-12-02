@@ -101,6 +101,13 @@ class Config(BaseModel):
 ```toml
 # config.toml - バックテスト設定ファイル例
 
+# General設定
+[general]
+storage_type = "local"  # "local" または "s3"
+# S3使用時は以下を指定
+# s3_bucket = "my-qeel-bucket"
+# s3_region = "ap-northeast-1"
+
 # ループ管理設定
 [loop]
 start_date = "2020-01-01"
@@ -119,7 +126,7 @@ datetime_column = "timestamp"
 offset_seconds = 0  # データが利用可能になる時刻オフセット（UTC基準、秒）
 window_seconds = 2592000  # 各iterationで取得する過去データ（秒）、30日 = 30*24*3600
 source_type = "parquet"
-source_path = "/data/ohlcv.parquet"
+source_path = "inputs/ohlcv.parquet"  # ワークスペースからの相対パス
 
 [[data_sources]]
 name = "earnings"
@@ -127,7 +134,7 @@ datetime_column = "announcement_date"
 offset_seconds = 57600  # 決算発表は16時以降に利用可能（16時間 = 16*3600秒）
 window_seconds = 7776000  # 90日 = 90*24*3600秒
 source_type = "parquet"
-source_path = "/data/earnings.parquet"
+source_path = "inputs/earnings.parquet"  # ワークスペースからの相対パス
 
 # コスト設定
 [costs]
@@ -142,18 +149,22 @@ calculate_signals = "09:00:00"  # シグナル計算タイミング
 select_symbols = "09:05:00"
 create_orders = "09:10:00"
 submit_orders = "09:30:00"  # 執行タイミング
-
-# コンテキスト保存設定
-[context_store]
-type = "local_json"  # "local_json", "local_parquet", "s3"
-base_path = "/tmp/qeel_context"
-
-# 実運用時のS3設定例（オプション）
-# [context_store.s3]
-# bucket = "my-trading-bucket"
-# prefix = "qeel/context/"
-# region = "ap-northeast-1"
 ```
+
+**Note**: ワークスペース構造は以下の通り:
+```
+$QEEL_WORKSPACE/  (未設定時はカレントディレクトリ)
+├── configs/
+│   └── config.toml
+├── inputs/
+│   ├── ohlcv.parquet
+│   └── earnings.parquet
+└── outputs/
+    ├── context/  (iteration内の各ステップ出力を保存)
+    └── reports/  (パフォーマンスレポート等)
+```
+
+`qeel init`コマンドで上記構造と設定テンプレートが自動生成される。
 
 ---
 
@@ -318,6 +329,84 @@ def calculate_metrics(fills: pl.DataFrame) -> pl.DataFrame:
 **Alternatives Considered**:
 - **pandas**: 速度劣る、メモリ消費大
 - **NumPy直接**: 可読性低下、Polarsのゼロコピー利点失う
+
+---
+
+### 8. ワークスペース管理とIOレイヤーの統一
+
+**Decision**:
+- 環境変数`QEEL_WORKSPACE`でワークスペースディレクトリを指定可能にする
+- `qeel init`コマンドでワークスペース構造（configs/inputs/outputs）を自動生成
+- IOレイヤー（BaseIO、LocalIO、S3IO）でLocal/S3の判別を一手に引き受ける
+- ContextStoreとDataSourceは単一実装とし、IOレイヤー経由でデータ操作
+
+**Rationale**:
+- **DRY原則**: LocalStore/S3Storeの重複実装を排除。パーティショニングロジックをIOレイヤーに集約
+- **Single Responsibility**: Local/S3判別をIOレイヤーに委譲し、ContextStore/DataSourceは永続化ロジックに専念
+- **可読性**: ワークスペース構造が明確化され、設定の意図が理解しやすい
+- **ユーザ体験**: `qeel init`で即座に利用可能な環境を構築できる
+
+**Workspace Structure**:
+```
+$QEEL_WORKSPACE/  (未設定時はカレントディレクトリ)
+├── configs/
+│   └── config.toml  (General設定、データソース設定等)
+├── inputs/
+│   ├── ohlcv.parquet
+│   └── earnings.parquet
+└── outputs/
+    ├── context/  (iteration内の各ステップ出力を保存、YYYY/MM/でパーティショニング)
+    └── reports/  (パフォーマンスレポート等)
+```
+
+**IO Layer Design**:
+- `BaseIO.from_config(general_config)`: ファクトリメソッドでGeneral設定から適切な実装を返す
+- `LocalIO`: ワークスペース配下のファイルシステム操作
+- `S3IO`: S3バケット配下のオブジェクト操作
+- 共通メソッド:
+  - `get_base_path(subdir)`: inputs/outputsのベースパス取得
+  - `get_partition_dir(base_path, datetime)`: YYYY/MM/パーティショニング
+  - `save(path, data, format)`: dict→JSON、DataFrame→Parquet
+  - `load(path, format)`: JSON→dict、Parquet→DataFrame
+  - `exists(path)`: ファイル存在確認
+
+**Context Store Implementation**:
+```python
+class ContextStore:  # ABCではなく単一実装
+    def __init__(self, io: BaseIO):
+        self.io = io
+        self.base_path = io.get_base_path("outputs/context")
+
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        partition_dir = self.io.get_partition_dir(self.base_path, target_datetime)
+        date_str = target_datetime.strftime("%Y-%m-%d")
+        path = f"{partition_dir}/signals_{date_str}.parquet"
+        self.io.save(path, signals, format="parquet")
+```
+
+**Data Source Implementation**:
+```python
+class ParquetDataSource(BaseDataSource):
+    def __init__(self, config: DataSourceConfig, io: BaseIO):
+        super().__init__(config)
+        self.io = io
+
+    def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
+        # IOレイヤー経由で読み込み
+        base_path = self.io.get_base_path("inputs")
+        df = self.io.load(f"{base_path}/{self.config.source_path}", format="parquet")
+        # 以降は既存のフィルタリングロジック
+        ...
+```
+
+**Alternatives Considered**:
+- **LocalStore/S3Store分離**: パーティショニングロジックが重複し、DRY原則に違反
+- **設定ファイルにbase_pathをハードコード**: 環境間での移植性が低下
+
+**Benefits**:
+- ContextStore、DataSourceから200行以上の重複コードを削減
+- ストレージ切り替えはGeneral設定のみで完結（コード変更不要）
+- テスト時はInMemoryIOを注入可能（ファイルシステム不要）
 
 ---
 

@@ -23,14 +23,17 @@ class BaseDataSource(ABC):
 
     Attributes:
         config: DataSourceConfig（toml設定から生成）
+        io: BaseIO（IOレイヤー、データ読み込みに使用）
     """
 
-    def __init__(self, config: DataSourceConfig):
+    def __init__(self, config: DataSourceConfig, io: BaseIO):
         """
         Args:
             config: データソース設定
+            io: IOレイヤー実装（LocalIO、S3IO等）
         """
         self.config = config
+        self.io = io
 
     @abstractmethod
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
@@ -125,13 +128,18 @@ from qeel.data_sources import BaseDataSource
 class ParquetDataSource(BaseDataSource):
     """Parquetファイルからデータを読み込む実装例
 
-    BaseDataSourceの共通ヘルパーメソッドを活用することで、
+    BaseDataSourceの共通ヘルパーメソッドとIOレイヤーを活用することで、
     簡潔で可読性の高い実装が可能。
     """
 
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
-        # Parquetファイルを読み込み
-        df = pl.read_parquet(self.config.source_path)
+        # IOレイヤー経由でParquetファイルを読み込み
+        base_path = self.io.get_base_path("inputs")
+        full_path = f"{base_path}/{self.config.source_path}"
+        df = self.io.load(full_path, format="parquet")
+
+        if df is None:
+            raise ValueError(f"データソースが見つかりません: {full_path}")
 
         # 共通ヘルパーメソッドを使用した前処理
         df = self._normalize_datetime_column(df)
@@ -158,6 +166,7 @@ class APIDataSource(BaseDataSource):
 
     ユーザは独自のデータ取得ロジックを自由に実装可能。
     共通ヘルパーメソッドは必要に応じて利用する。
+    IOレイヤーは使用しない（API経由でデータ取得するため）。
     """
 
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
