@@ -29,6 +29,10 @@
   - 拡張可能な抽象基底クラス設計
   - パッケージとしてインストール可能
 
+**Design Philosophy**:
+  - **Dependency Injection over Mode Configuration**: バックテストと実運用は通常別スクリプトで実行される。ユーザがコンストラクタで`BacktestEngine`/`LiveEngine`、`MockExchangeClient`/`ExchangeAPIClient`（、必要に応じて`ParquetDataSource`/`APIDataSource`）を明示的にインスタンス化し、依存を注入する。モード設定やCLIコマンドは提供しない（ユーザが必要に応じてファクトリー実装可能）
+  - **Rationale**: テスタビリティ（モック注入容易）、明示性（依存関係明確）、型安全性（IDE補完）、シンプルさ（内部分岐なし）を優先
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
