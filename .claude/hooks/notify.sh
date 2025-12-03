@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # .envファイルから環境変数を読み込む
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
-if [ -f "${SCRIPT_DIR}/.env" ]; then
+# プロジェクトルートの.envを探す（.claude/hooks/ から2階層上）
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../.. && pwd)"
+if [ -f "${PROJECT_ROOT}/.env" ]; then
     set -a
-    source "${SCRIPT_DIR}/.env"
+    source "${PROJECT_ROOT}/.env"
     set +a
 fi
 
