@@ -6,37 +6,97 @@
 ## 前提条件
 
 - Python 3.11+
-- Qeelパッケージがインストール済み（`pip install qeel` または `uv add qeel`）
 
 ## 最小構成の例
 
-### 1. プロジェクト構成
+### 1. インストール
+
+Qeelパッケージをインストールします。
+
+**pipを使用する場合:**
+
+```bash
+pip install qeel
+```
+
+**uvを使用する場合:**
+
+```bash
+uv add qeel
+```
+
+### 2. ワークスペースの初期化
+
+`qeel init`でワークスペース構造と設定テンプレートを自動生成します。
+
+#### ワークスペースディレクトリの指定
+
+ワークスペースディレクトリは環境変数`QEEL_WORKSPACE`で指定できます。未設定の場合は、カレントディレクトリがワークスペースとして使用されます。
+
+**方法1: カレントディレクトリを使用（環境変数未設定）**
+
+```bash
+mkdir my_backtest
+cd my_backtest
+qeel init
+```
+
+**方法2: 環境変数で明示的に指定**
+
+```bash
+export QEEL_WORKSPACE=/path/to/my_backtest
+qeel init
+```
+
+#### 生成される構造
+
+いずれの方法でも、以下の構造が生成されます：
 
 ```text
-my_backtest/
-├── config.toml          # 設定ファイル
-├── data/
+$QEEL_WORKSPACE/  (または カレントディレクトリ)
+├── configs/
+│   └── config.toml      # 設定ファイル（テンプレート）
+├── inputs/              # 市場データ配置先
+└── outputs/             # バックテスト結果出力先
+```
+
+### 3. プロジェクト構成
+
+以下のファイルを追加します：
+
+```text
+$QEEL_WORKSPACE/
+├── configs/
+│   └── config.toml      # 設定ファイル（編集）
+├── inputs/
 │   └── ohlcv.parquet    # 市場データ（OHLCV、Parquet形式）
 ├── my_signal.py         # ユーザ定義シグナル計算クラス
 └── run_backtest.py      # バックテスト実行スクリプト
 ```
 
-### 2. 設定ファイル（config.toml）
+### 4. 設定ファイル（configs/config.toml）
 
 ```toml
+# General設定
+[general]
+storage_type = "local"  # "local" または "s3"
+
+# ループ管理設定
 [loop]
 frequency = "1d"
 start_date = "2023-01-01T00:00:00"
 end_date = "2023-12-31T23:59:59"
 
+# データソース定義
 [[data_sources]]
 name = "ohlcv"
 datetime_column = "datetime"
 offset_seconds = 0
 window_seconds = 2592000  # 30日 = 30 * 24 * 3600秒
 source_type = "parquet"
-source_path = "data/ohlcv.parquet"
+source_path = "ohlcv.parquet"  # inputs/からの相対パス
 
+# コスト設定
 [costs]
 commission_rate = 0.001  # 0.1%
 slippage_bps = 5.0       # 5 bps
@@ -44,7 +104,7 @@ market_impact_model = "fixed"
 market_impact_param = 0.0
 ```
 
-### 3. データファイル（data/ohlcv.parquet）
+### 5. データファイル（inputs/ohlcv.parquet）
 
 Parquet形式のファイルを用意します。Parquetは型情報を保持し、高速・圧縮効率が良いフォーマットです。
 
@@ -71,16 +131,16 @@ data = {
 }
 
 df = pl.DataFrame(data)
-df.write_parquet("data/ohlcv.parquet")
+df.write_parquet("inputs/ohlcv.parquet")
 ```
 
-### 4. シグナル計算クラス（my_signal.py）
+### 6. シグナル計算クラス（my_signal.py）
 
 ```python
 import polars as pl
 from pydantic import BaseModel, Field
 
-from qeel.calculators import BaseSignalCalculator
+from qeel.calculators.signals.base import BaseSignalCalculator
 from qeel.schemas import SignalSchema
 
 
@@ -123,7 +183,7 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
         return SignalSchema.validate(signals)
 ```
 
-### 5. バックテスト実行スクリプト（run_backtest.py）
+### 7. バックテスト実行スクリプト（run_backtest.py）
 
 ```python
 from pathlib import Path
@@ -131,38 +191,54 @@ from pathlib import Path
 from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
 
 from qeel.config import Config
-from qeel.data_sources import ParquetDataSource
-from qeel.engines import BacktestEngine
-from qeel.exchange_clients import MockExchangeClient
-from qeel.stores import LocalStore
+from qeel.data_sources.parquet import ParquetDataSource
+from qeel.engines.backtest import BacktestEngine
+from qeel.exchange_clients.mock import MockExchangeClient
+from qeel.io.base import BaseIO
+from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
+from qeel.portfolio_constructors.top_n import TopNPortfolioConstructor, TopNConstructorParams
+from qeel.stores.context_store import ContextStore
 
 
 def main():
     # 設定読み込み
-    config = Config.from_toml(Path("config.toml"))
+    config = Config.from_toml(Path("configs/config.toml"))
+
+    # IOレイヤーのセットアップ
+    io = BaseIO.from_config(config.general)
 
     # シグナル計算クラスのインスタンス化
     signal_params = MovingAverageCrossParams(short_window=5, long_window=20)
     calculator = MovingAverageCrossCalculator(params=signal_params)
 
+    # ポートフォリオ構築クラスのインスタンス化（デフォルト実装）
+    constructor_params = TopNConstructorParams(top_n=10)
+    portfolio_constructor = TopNPortfolioConstructor(params=constructor_params)
+
+    # 注文生成クラスのインスタンス化（デフォルト実装）
+    order_creator_params = EqualWeightParams(capital=1_000_000.0)
+    order_creator = EqualWeightOrderCreator(params=order_creator_params)
+
     # データソースのセットアップ
     data_sources = {}
     for ds_config in config.data_sources:
         if ds_config.source_type == "parquet":
-            data_sources[ds_config.name] = ParquetDataSource(ds_config)
+            data_sources[ds_config.name] = ParquetDataSource(ds_config, io)
         # カスタムソースタイプも追加可能
 
     # 執行クラス（バックテストではモック）
     exchange_client = MockExchangeClient(config.costs)
 
-    # コンテキストストア（JSON形式）
-    context_store = LocalStore(Path("context.json"), format="json")
+    # コンテキストストア
+    context_store = ContextStore(io)
 
     # バックテストエンジン構築
     engine = BacktestEngine(
         calculator=calculator,
+        portfolio_constructor=portfolio_constructor,
+        order_creator=order_creator,
         data_sources=data_sources,
-        executor=exchange_client,
+        exchange_client=exchange_client,
         context_store=context_store,
         config=config,
     )
@@ -187,7 +263,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### 6. 実行
+### 8. 実行
 
 ```bash
 python run_backtest.py
@@ -269,7 +345,7 @@ portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 engine = BacktestEngine(
     calculator=calculator,
     data_sources=data_sources,
-    executor=exchange_client,
+    exchange_client=exchange_client,
     context_store=context_store,
     config=config,
     portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
@@ -292,14 +368,12 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
     def create(
         self,
-        signals: pl.DataFrame,
         portfolio_plan: pl.DataFrame,
         current_positions: pl.DataFrame,
         ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
         """
         Args:
-            signals: シグナルDataFrame
             portfolio_plan: 構築済みポートフォリオDataFrame（メタデータ含む）
             current_positions: 現在のポジション
             ohlcv: OHLCV価格データ
@@ -349,7 +423,7 @@ order_creator = RiskParityOrderCreator(params=order_creator_params)
 engine = BacktestEngine(
     calculator=calculator,
     data_sources=data_sources,
-    executor=exchange_client,
+    exchange_client=exchange_client,
     context_store=context_store,
     config=config,
     order_creator=order_creator,  # カスタム注文生成
@@ -361,27 +435,50 @@ engine = BacktestEngine(
 バックテストと同じシグナル計算クラスを使用し、`LiveEngine` に切り替えることで実運用に転用できます：
 
 ```python
-from qeel.engines import LiveEngine
-from qeel.exchange_clients import ExchangeAPIClient  # ユーザ実装
-from qeel.stores import S3Store
+from datetime import datetime
+
+from qeel.engines.live import LiveEngine
+from qeel.exchange_clients.examples.exchange_api import ExchangeAPIClient  # ユーザ実装
+from qeel.io.base import BaseIO
+from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
+from qeel.portfolio_constructors.top_n import TopNPortfolioConstructor, TopNConstructorParams
+from qeel.stores.context_store import ContextStore
+
+# 実運用用設定（storage_type="s3"）
+# config.tomlの[general]セクションで設定:
+# storage_type = "s3"
+# s3_bucket = "my-bucket"
+# s3_region = "ap-northeast-1"
+
+# IOレイヤーのセットアップ（S3を使用）
+io = BaseIO.from_config(config.general)
+
+# ポートフォリオ構築クラスのインスタンス化（バックテストと同じ）
+constructor_params = TopNConstructorParams(top_n=10)
+portfolio_constructor = TopNPortfolioConstructor(params=constructor_params)
+
+# 注文生成クラスのインスタンス化（バックテストと同じ）
+order_creator_params = EqualWeightParams(capital=1_000_000.0)
+order_creator = EqualWeightOrderCreator(params=order_creator_params)
 
 # 実運用用の執行クラス
 exchange_client = ExchangeAPIClient(api_client=my_api_client)
 
-# 実運用用のコンテキストストア（JSON形式）
-context_store = S3Store(bucket="my-bucket", key_prefix="qeel/context", format="json")
+# 実運用用のコンテキストストア（S3経由）
+context_store = ContextStore(io)
 
 # 実運用エンジン
 live_engine = LiveEngine(
     calculator=calculator,  # バックテストと同じクラス
+    portfolio_constructor=portfolio_constructor,  # バックテストと同じクラス
+    order_creator=order_creator,  # バックテストと同じクラス
     data_sources=live_data_sources,
-    executor=exchange_client,
+    exchange_client=exchange_client,
     context_store=context_store,
     config=config,
 )
 
 # 当日を指定して単一iteration実行
-from datetime import datetime
 live_engine.run_iteration(datetime.now())
 ```
 
