@@ -100,12 +100,12 @@
 - **テスト**: 不正なtomlでValidationError、正常なtomlで正しくロード
 - **依存**: なし
 - **User Story**: N/A（基盤）
-- **責任範囲**: toml設定ファイルのスキーマ定義とバリデーションロジック。データソースの実装は003で行う
+- **責任範囲**: toml設定ファイルのスキーマ定義とバリデーションロジック。データソースの実装は004で行う
 
 ---
 
-**Branch**: `002a-utils-infrastructure`
-- **目的**: 実運用Executor実装を支援するユーティリティ群（FR-026）
+**Branch**: `003-utils-infrastructure`
+- **目的**: 実運用Executor実装を支援するユーティリティ群（FR-031）
 - **成果物**:
   - `qeel/utils/retry.py` - APIリトライロジック（exponential backoff、タイムアウト）
   - `qeel/utils/notification.py` - エラー通知ヘルパー（Slack等）
@@ -118,7 +118,7 @@
 
 ---
 
-**Branch**: `003-data-source-abc`
+**Branch**: `004-data-source-abc`
 - **目的**: データソースABCと共通ヘルパーメソッド、テスト用実装
 - **成果物**:
   - `qeel/data_sources/base.py` - BaseDataSource ABC
@@ -134,7 +134,7 @@
 
 ---
 
-**Branch**: `004-calculator-abc`
+**Branch**: `005-calculator-abc`
 - **目的**: シグナル計算ABCとサンプル実装
 - **成果物**:
   - `qeel/calculators/signals/base.py` - BaseSignalCalculator ABC
@@ -148,7 +148,7 @@
 
 #### Phase 2: Backtest Engine（P1対応）
 
-**Branch**: `005-io-and-context-management`
+**Branch**: `006-io-and-context-management`
 - **目的**: IOレイヤーとコンテキスト管理
 - **成果物**:
   - `qeel/models/context.py` - Context Pydanticモデル
@@ -164,7 +164,7 @@
 
 ---
 
-**Branch**: `006-exchange-client-and-mock`
+**Branch**: `007-exchange-client-and-mock`
 - **目的**: 取引所クライアントABCとモック約定・ポジション管理
 - **成果物**:
   - `qeel/exchange_clients/base.py` - BaseExchangeClient ABC
@@ -176,7 +176,7 @@
 
 ---
 
-**Branch**: `007-backtest-engine`
+**Branch**: `008-backtest-engine`
 - **目的**: バックテストエンジン本体（P1完成）
 - **成果物**:
   - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
@@ -188,7 +188,7 @@
   - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_plan`, `current_positions`, `ohlcv`）
   - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
 - **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
-- **依存**: `003`, `004`, `005`, `006`
+- **依存**: `004`, `005`, `006`, `007`
 - **User Story**: **User Story 1（P1）完成**
 - **デフォルト実装詳細**:
   - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
@@ -198,45 +198,45 @@
 
 ---
 
-**Branch**: `008-metrics-calculation`
+**Branch**: `009-metrics-calculation`
 - **目的**: パフォーマンス指標計算
 - **成果物**:
   - `qeel/metrics/calculator.py` - メトリクス計算ロジック
   - シャープレシオ、最大ドローダウン、勝率等
 - **テスト**: 約定データから正しく指標が算出される
-- **依存**: `007-backtest-engine`
+- **依存**: `008-backtest-engine`
 - **User Story**: User Story 1（結果検証）の完成
 
 ---
 
 #### Phase 3: Production Deployment（P2対応）
 
-**Branch**: `009-live-engine`
+**Branch**: `010-live-engine`
 - **目的**: 実運用エンジン（P2完成）
 - **成果物**:
   - `qeel/engines/live.py` - LiveEngine
   - バックテストとの再現性保証ロジック
   - 当日iteration実行
 - **テスト**: 同一日時・データで BacktestEngine と LiveEngine が同じOrdersを生成
-- **依存**: `007-backtest-engine`
+- **依存**: `008-backtest-engine`
 - **User Story**: **User Story 2（P2）完成**
 
 ---
 
-**Branch**: `010-executor-examples`
+**Branch**: `011-executor-examples`
 - **目的**: 実運用用Executor実装例
 - **成果物**:
   - `qeel/exchange_clients/examples/exchange_api.py` - 取引所API実装例（スケルトン）
   - ユーザ向けドキュメント
 - **テスト**: モックAPIクライアントで動作確認
-- **依存**: `009-live-engine`
+- **依存**: `010-live-engine`
 - **User Story**: User Story 2（API連携）
 
 ---
 
 #### Phase 4: Signal Analysis（P3対応）
 
-**Branch**: `011-return-calculator-abc`
+**Branch**: `012-return-calculator-abc`
 - **目的**: リターン計算ABCとサンプル実装
 - **成果物**:
   - `qeel/calculators/returns/base.py` - BaseReturnCalculator ABC
@@ -247,28 +247,28 @@
 
 ---
 
-**Branch**: `012-signal-analysis`
+**Branch**: `013-signal-analysis`
 - **目的**: シグナル分析機能（P3完成）
 - **成果物**:
   - `qeel/analysis/rank_correlation.py` - 順位相関係数計算
   - `qeel/analysis/visualizer.py` - 分布可視化
   - パラメータグリッド評価機能
 - **テスト**: シグナルとリターンから順位相関が計算される
-- **依存**: `004-calculator-abc`, `011-return-calculator-abc`
+- **依存**: `005-calculator-abc`, `012-return-calculator-abc`
 - **User Story**: **User Story 3（P3）完成**
 
 ---
 
 #### Phase 5: Backtest-Live Divergence（P3対応）
 
-**Branch**: `013-backtest-live-divergence`
+**Branch**: `014-backtest-live-divergence`
 - **目的**: バックテストと実運用の差異検証（P3完成）
 - **成果物**:
   - `qeel/diagnostics/comparison.py` - バックテストと実運用の差異計算ロジック
   - `qeel/diagnostics/visualizer.py` - 差異可視化
   - 詳細ログ出力
 - **テスト**: バックテストと実運用の約定データから差異が可視化される
-- **依存**: `008-metrics-calculation`, `009-live-engine`
+- **依存**: `009-metrics-calculation`, `010-live-engine`
 - **User Story**: **User Story 4（P3）完成**
 
 ---
@@ -277,25 +277,25 @@
 
 ```
 Phase 1: 基盤構築
-  002 → 002a (utils)
+  002 → 003 (utils)
     ↓
-  002 → 003 → 004 → 並行
+  002 → 004 → 005 → 並行
          ↓     ↓
-  005 ← ─┘     └─→ 006
+  006 ← ─┘     └─→ 007
 
 Phase 2: P1完成
-  007 (depends: 003, 004, 005, 006)
+  008 (depends: 004, 005, 006, 007)
    ↓
-  008
+  009
 
 Phase 3: P2完成
-  009 (depends: 007)
+  010 (depends: 008)
    ↓
-  010 (depends: 009, 002a - utils使用)
+  011 (depends: 010, 003 - utils使用)
 
 Phase 4 & 5: P3完成
-  011 → 012 (depends: 004, 011)
-  013 (depends: 008, 009)
+  012 → 013 (depends: 005, 012)
+  014 (depends: 009, 010)
 ```
 
 ### 各ブランチでの作業手順
@@ -309,10 +309,10 @@ Phase 4 & 5: P3完成
 
 ### マイルストーン
 
-- **M1（基盤完成）**: Branch 002-006完了 → 基盤クラスがすべて揃う
-- **M2（P1完成）**: Branch 007-008完了 → バックテスト機能が動作
-- **M3（P2完成）**: Branch 009-010完了 → 実運用機能が動作
-- **M4（P3完成）**: Branch 011-013完了 → 分析機能が完成
+- **M1（基盤完成）**: Branch 002-007完了 → 基盤クラスがすべて揃う
+- **M2（P1完成）**: Branch 008-009完了 → バックテスト機能が動作
+- **M3（P2完成）**: Branch 010-011完了 → 実運用機能が動作
+- **M4（P3完成）**: Branch 012-014完了 → 分析機能が完成
 
 ## Project Structure
 
