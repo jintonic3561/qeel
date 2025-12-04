@@ -196,52 +196,90 @@ class Context(BaseModel):
 
 ---
 
-### 5. バックテストと実運用の再現性保証
+### 5. バックテストと実運用の再現性保証とステップ単位実行
 
 **Decision**:
-- `BacktestEngine` と `LiveEngine` を共通の `BaseEngine` から継承
-- シグナル計算〜執行条件計算は共通ロジック
-- 実行部分（`submit_orders`, `fetch_fills`）のみ差し替え
+- `StrategyEngine`が各ステップを独立して実行可能なメソッドを提供
+- `BacktestRunner`が`StrategyEngine`インスタンスを保持し、ループ管理とタイミング制御を担当
+- 実運用時は外部スケジューラが`StrategyEngine.run_step`を直接呼び出し
+- 各ステップ間でコンテキストを永続化し、状態を受け渡す
 
 **Rationale**:
-- Template Methodパターンで共通フローを親クラスで定義
-- サブクラスで `_execute_orders()` を実装（Backtestはモック、Liveは実API）
-- 同一日時・同一データでiterationを実行すれば、生成されるOrdersが一致することを保証
+- **Composition over Inheritance**: 継承階層を排除し、責任分離を明確化（StrategyEngine: ステップ実行、BacktestRunner: ループ管理）
+- **Serverless Support**: 各ステップを数時間空けて実行可能（Lambda等のサーバーレス環境で利用可能）
+- **Reproducibility**: バックテストと実運用で同一の`StrategyEngine`を使用し、同一日時・同一データで同じOrdersを生成することを保証
+- **Testability**: `StrategyEngine`を単独でテスト可能、モックを注入しやすい
 
 **Key Design**:
 ```python
-class BaseEngine(ABC):
-    def run_iteration(self, date: datetime):
-        data = self.fetch_data(date)
-        signals = self.calculator.calculate(data)
-        symbols = self.select_symbols(signals)
-        orders = self.create_orders(signals, symbols)
-        self._execute_orders(orders)  # サブクラスで実装
+class StrategyEngine:
+    """単一実装、ステップ単位実行を提供"""
 
-    @abstractmethod
-    def _execute_orders(self, orders: pl.DataFrame):
-        ...
+    def run_step(self, date: datetime, step_name: str) -> None:
+        """指定ステップのみ実行し、結果をContextStoreに保存"""
+        context = self.context_store.load(date) or Context(current_datetime=date)
 
-class BacktestEngine(BaseEngine):
-    def _execute_orders(self, orders: pl.DataFrame):
-        # モック約定をシミュレート
-        fills = simulate_fills(orders, self.config.costs)
-        self.fills_history.append(fills)
+        if step_name == "calculate_signals":
+            data = self._fetch_data(date)
+            signals = self.calculator.calculate(data)
+            self.context_store.save_signals(date, signals)
 
-class LiveEngine(BaseEngine):
-    def _execute_orders(self, orders: pl.DataFrame):
-        # 取引所APIに送信
-        self.executor.submit_orders(orders)
+        elif step_name == "construct_portfolio":
+            context = self.context_store.load(date)
+            portfolio_plan = self.portfolio_constructor.construct(context.signals, context.current_positions)
+            self.context_store.save_portfolio_plan(date, portfolio_plan)
+
+        # ... 他のステップも同様
+
+    def run_steps(self, date: datetime, step_names: list[str]) -> None:
+        """複数ステップを逐次実行"""
+        for step_name in step_names:
+            self.run_step(date, step_name)
+
+class BacktestRunner:
+    """StrategyEngineを保持し、ループ管理のみを担当（継承なし）"""
+
+    def __init__(self, engine: StrategyEngine, config: Config):
+        self.engine = engine
+        self.config = config
+
+    def run(self, start_date: datetime, end_date: datetime) -> None:
+        """全期間のバックテストを実行"""
+        for date in self._date_range(start_date, end_date):
+            if not self._is_trading_day(date):
+                continue
+            # 全ステップを実行
+            self.engine.run_steps(date, ["calculate_signals", "construct_portfolio", "create_orders", "submit_orders"])
+```
+
+**Production Deployment**:
+```python
+# Lambda Handler（各ステップを独立したLambda関数にデプロイ）
+def lambda_handler_calculate_signals(event, context):
+    date = datetime.fromisoformat(event['date'])
+    engine = StrategyEngine(calculator, data_sources, exchange_client, context_store, config)
+    engine.run_step(date, "calculate_signals")
+
+def lambda_handler_submit_orders(event, context):
+    date = datetime.fromisoformat(event['date'])
+    engine = StrategyEngine(calculator, data_sources, exchange_client, context_store, config)
+    engine.run_step(date, "submit_orders")
+
+# EventBridgeで各Lambdaをスケジュール
+# 09:00 → calculate_signals
+# 10:00 → construct_portfolio
+# 14:00 → create_orders
+# 15:00 → submit_orders
 ```
 
 **Testing Strategy**:
-- 同一入力（date, data, context）で両Engineを実行
-- `create_orders()` の出力を比較（assert DataFrameが一致）
-- 数量・価格の丸めは `LiveExecutor` 内で実施（Backtestでは省略）
+- 同一入力（date, data, context）で`StrategyEngine.run_step`を実行
+- バックテストと実運用で`create_orders()`の出力を比較（assert DataFrameが一致）
+- 数量・価格の丸めは`ExchangeClient`実装内で実施（MockExchangeClientでは省略、ExchangeAPIClientで実施）
 
 **Alternatives Considered**:
-- **完全に別実装**: コード重複、再現性保証が困難
-- **フラグでモード切り替え**: if文の氾濫、可読性低下
+- **BaseEngine + BacktestEngine/LiveEngine継承**: 継承階層が不要、実運用は単にStrategyEngineのステップ単位実行を使えばよい
+- **全ステップを一括実行のみ**: サーバーレス環境で数時間稼働が必要、コスト高、柔軟性低い
 
 ---
 
@@ -256,7 +294,7 @@ class LiveEngine(BaseEngine):
 
 **Example**:
 ```python
-class BacktestEngine:
+class StrategyEngine:
     def __init__(
         self,
         calculator: BaseSignalCalculator,
@@ -272,16 +310,16 @@ class BacktestEngine:
 
 **Testing**:
 ```python
-def test_backtest_run():
+def test_strategy_engine_run_step():
     mock_calculator = MockSignalCalculator()
     mock_data = MockDataSource()
-    engine = BacktestEngine(
+    engine = StrategyEngine(
         calculator=mock_calculator,
         data_sources={"ohlcv": mock_data},
         context_store=InMemoryStore(),
         config=test_config,
     )
-    engine.run_iteration(datetime(2023, 1, 1))
+    engine.run_step(datetime(2023, 1, 1), "calculate_signals")
     # アサーション
 ```
 

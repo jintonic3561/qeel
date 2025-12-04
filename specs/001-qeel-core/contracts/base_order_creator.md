@@ -265,13 +265,13 @@ params = EqualWeightParams(capital=1_000_000.0, rebalance_threshold=0.05)
 # 注文生成クラスのインスタンス化
 order_creator = EqualWeightOrderCreator(params=params)
 
-# バックテストエンジンに渡す
-engine = BacktestEngine(
+# StrategyEngineに渡す
+engine = StrategyEngine(
     calculator=signal_calculator,
-    symbol_selector=symbol_selector,
+    portfolio_constructor=portfolio_constructor,
     order_creator=order_creator,  # デフォルトまたはカスタム実装
     data_sources=data_sources,
-    executor=executor,
+    exchange_client=exchange_client,
     context_store=context_store,
     config=config,
 )

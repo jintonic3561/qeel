@@ -30,8 +30,9 @@
   - パッケージとしてインストール可能
 
 **Design Philosophy**:
-  - **Dependency Injection over Mode Configuration**: バックテストと実運用は通常別スクリプトで実行される。ユーザがコンストラクタで`BacktestEngine`/`LiveEngine`、`MockExchangeClient`/`ExchangeAPIClient`（、必要に応じて`ParquetDataSource`/`APIDataSource`）を明示的にインスタンス化し、依存を注入する。モード設定やCLIコマンドは提供しない（ユーザが必要に応じてファクトリー実装可能）
-  - **Rationale**: テスタビリティ（モック注入容易）、明示性（依存関係明確）、型安全性（IDE補完）、シンプルさ（内部分岐なし）を優先
+  - **Single Engine with Step Execution**: バックテストと実運用で同一の`StrategyEngine`クラスを使用する。`StrategyEngine`はステップ単位実行メソッド（`run_step`, `run_steps`）を提供し、各ステップ間でコンテキストを永続化する。バックテストは`BacktestRunner`が`StrategyEngine.run_step`を繰り返し呼び出し、実運用は外部スケジューラ（cron、Lambda EventBridge等）が`StrategyEngine.run_step`を呼び出す
+  - **Composition over Inheritance**: `BacktestRunner`は`StrategyEngine`を継承せず、インスタンスを保持（コンポジション）。ループ管理とタイミング制御のみを担当し、ステップ実行は`StrategyEngine`に委譲
+  - **Rationale**: 継承階層を排除し、責任分離を明確化（StrategyEngine: ステップ実行、BacktestRunner: ループ管理）。テスタビリティ向上（StrategyEngineを単独でテスト可能）。サーバーレス環境（Lambda等）での運用を可能にし、各ステップを数時間空けて実行可能
 
 ## Constitution Check
 
@@ -66,7 +67,7 @@
 ✅ **準拠**:
 - `src/qeel/` をトップレベルパッケージとする
 - `__init__.py` をすべてのディレクトリに配置
-- 絶対import使用（`from qeel.core.engine import BacktestEngine`）
+- 絶対import使用（`from qeel.core.strategy_engine import StrategyEngine`）
 - `pyproject.toml` でパッケージ管理
 
 ### 判定
@@ -144,7 +145,7 @@
 
 ---
 
-#### Phase 2: Backtest Engine（P1対応）
+#### Phase 2: Core Engine（P1対応）
 
 **Branch**: `006-io-and-context-management`
 - **目的**: IOレイヤーとコンテキスト管理
@@ -174,67 +175,79 @@
 
 ---
 
-**Branch**: `008-backtest-engine`
-- **目的**: バックテストエンジン本体（P1完成）
+**Branch**: `008-portfolio-and-orders`
+- **目的**: ポートフォリオ構築・注文生成のABCとデフォルト実装
 - **成果物**:
-  - `qeel/engines/base.py` - BaseEngine（共通フロー、Template Methodパターン）
-  - `qeel/engines/backtest.py` - BacktestEngine
-  - iteration管理、取引日判定（toml設定のtradingCalendarを使用）
-  - ユニバース管理ロジック
   - `qeel/portfolio_constructors/base.py` - BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`、メタデータ付与可能）
   - `qeel/portfolio_constructors/top_n.py` - TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
   - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_plan`, `current_positions`, `ohlcv`）
   - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
-- **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
-- **依存**: `004`, `005`, `006`, `007`
-- **User Story**: **User Story 1（P1）完成**
+- **テスト**: モックデータでポートフォリオ構築と注文生成が正しく動作
+- **依存**: `002-core-config-and-schemas`
+- **User Story**: User Story 1（ポートフォリオ構築、注文生成）
 - **デフォルト実装詳細**:
   - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
   - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_plan`のメタデータ（`signal_strength`等）を参照して注文生成
   - 注文タイミング: toml設定の`timing.submit_orders`で指定
+
+---
+
+**Branch**: `009-strategy-engine`
+- **目的**: StrategyEngine実装（ステップ単位実行）
+- **成果物**:
+  - `qeel/core/strategy_engine.py` - StrategyEngine（単一実装、ステップ単位実行）
+    - `run_step(date, step_name)`: 指定ステップのみ実行
+    - `run_steps(date, step_names)`: 複数ステップを逐次実行
+- **テスト**: ステップ単位実行のテスト、コンテキスト永続化の動作確認
+- **依存**: `004`, `005`, `006`, `007`, `008`
+- **User Story**: User Story 1（ステップ実行）、User Story 2（実運用でステップ単位実行）
+- **実運用対応**: `StrategyEngine.run_step`を外部スケジューラから直接呼び出すことで、サーバーレス環境での運用が可能
+
+---
+
+**Branch**: `010-backtest-runner`
+- **目的**: BacktestRunner実装（ループ管理、取引日判定、ユニバース管理）
+- **成果物**:
+  - `qeel/core/backtest_runner.py` - BacktestRunner（StrategyEngineを保持、ループ管理）
+  - 取引日判定（toml設定のtradingCalendarを使用）
+  - ユニバース管理ロジック
+- **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
+- **依存**: `009-strategy-engine`
+- **User Story**: **User Story 1（P1）完成、User Story 2（P2）のコア実装完成**
 - **ユニバース管理**: `LoopConfig.universe`が指定されている場合はそのリストを`BaseDataSource.fetch()`の`symbols`引数として渡す。Noneの場合は全銘柄が対象となる。フィルタリングの結果、当日データが存在する銘柄のみが残る（自然に積集合になる）
 
 ---
 
-**Branch**: `009-metrics-calculation`
+**Branch**: `011-metrics-calculation`
 - **目的**: パフォーマンス指標計算
 - **成果物**:
   - `qeel/metrics/calculator.py` - メトリクス計算ロジック
   - シャープレシオ、最大ドローダウン、勝率等
 - **テスト**: 約定データから正しく指標が算出される
-- **依存**: `008-backtest-engine`
+- **依存**: `010-backtest-runner`
 - **User Story**: User Story 1（結果検証）の完成
 
 ---
 
-#### Phase 3: Production Deployment（P2対応）
+#### Phase 3: Production Examples（P2対応）
 
-**Branch**: `010-live-engine`
-- **目的**: 実運用エンジン（P2完成）
+**Branch**: `012-executor-examples`
+- **目的**: 実運用用Executor実装例とデプロイメントドキュメント
 - **成果物**:
-  - `qeel/engines/live.py` - LiveEngine
-  - バックテストとの再現性保証ロジック
-  - 当日iteration実行
-- **テスト**: 同一日時・データで BacktestEngine と LiveEngine が同じOrdersを生成
-- **依存**: `008-backtest-engine`
-- **User Story**: **User Story 2（P2）完成**
-
----
-
-**Branch**: `011-executor-examples`
-- **目的**: 実運用用Executor実装例
-- **成果物**:
-  - `qeel/examples/exchange_clients/exchange_api.py` - 取引所API実装例（スケルトン）
-  - ユーザ向けドキュメント
-- **テスト**: モックAPIクライアントで動作確認
-- **依存**: `010-live-engine`
-- **User Story**: User Story 2（API連携）
+  - `qeel/exchange_clients/examples/exchange_api.py` - 取引所API実装例（スケルトン）
+  - `docs/deployment/lambda.md` - Lambdaデプロイメント例
+  - `docs/deployment/ecs.md` - ECS/Fargateデプロイメント例
+  - `docs/deployment/local_cron.md` - ローカルcronデプロイメント例
+  - quickstart.mdに実運用例を追加
+- **テスト**: モックAPIクライアントで動作確認、Lambdaローカルテスト例
+- **依存**: `010-backtest-runner`, `003-utils-infrastructure`
+- **User Story**: User Story 2（API連携、デプロイメント）完全完成
 
 ---
 
 #### Phase 4: Signal Analysis（P3対応）
 
-**Branch**: `012-return-calculator-abc`
+**Branch**: `013-return-calculator-abc`
 - **目的**: リターン計算ABCとデフォルト実装
 - **成果物**:
   - `qeel/calculators/returns/base.py` - BaseReturnCalculator ABC
@@ -245,28 +258,28 @@
 
 ---
 
-**Branch**: `013-signal-analysis`
+**Branch**: `014-signal-analysis`
 - **目的**: シグナル分析機能（P3完成）
 - **成果物**:
   - `qeel/analysis/rank_correlation.py` - 順位相関係数計算
   - `qeel/analysis/visualizer.py` - 分布可視化
   - パラメータグリッド評価機能
 - **テスト**: シグナルとリターンから順位相関が計算される
-- **依存**: `005-calculator-abc`, `012-return-calculator-abc`
+- **依存**: `005-calculator-abc`, `013-return-calculator-abc`
 - **User Story**: **User Story 3（P3）完成**
 
 ---
 
 #### Phase 5: Backtest-Live Divergence（P3対応）
 
-**Branch**: `014-backtest-live-divergence`
+**Branch**: `015-backtest-live-divergence`
 - **目的**: バックテストと実運用の差異検証（P3完成）
 - **成果物**:
   - `qeel/diagnostics/comparison.py` - バックテストと実運用の差異計算ロジック
   - `qeel/diagnostics/visualizer.py` - 差異可視化
   - 詳細ログ出力
 - **テスト**: バックテストと実運用の約定データから差異が可視化される
-- **依存**: `009-metrics-calculation`, `010-live-engine`
+- **依存**: `011-metrics-calculation`, `010-backtest-runner`
 - **User Story**: **User Story 4（P3）完成**
 
 ---
@@ -281,19 +294,21 @@ Phase 1: 基盤構築
          ↓     ↓
   006 ← ─┘     └─→ 007
 
-Phase 2: P1完成
-  008 (depends: 004, 005, 006, 007)
+Phase 2: P1完成、P2コア実装
+  008 (depends: 002) - Portfolio & Orders
    ↓
-  009
+  009 (depends: 004, 005, 006, 007, 008) - StrategyEngine
+   ↓
+  010 (depends: 009) - BacktestRunner
+   ↓
+  011 - Metrics
 
-Phase 3: P2完成
-  010 (depends: 008)
-   ↓
-  011 (depends: 010, 003 - utils使用)
+Phase 3: P2完成（実運用例とドキュメント）
+  012 (depends: 010, 003 - utils使用) - Executor Examples + Deployment Docs
 
 Phase 4 & 5: P3完成
-  012 → 013 (depends: 005, 012)
-  014 (depends: 009, 010)
+  013 → 014 (depends: 005, 013)
+  015 (depends: 011, 010)
 ```
 
 ### 各ブランチでの作業手順
@@ -308,9 +323,9 @@ Phase 4 & 5: P3完成
 ### マイルストーン
 
 - **M1（基盤完成）**: Branch 002-007完了 → 基盤クラスがすべて揃う
-- **M2（P1完成）**: Branch 008-009完了 → バックテスト機能が動作
-- **M3（P2完成）**: Branch 010-011完了 → 実運用機能が動作
-- **M4（P3完成）**: Branch 012-014完了 → 分析機能が完成
+- **M2（P1完成、P2コア実装）**: Branch 008-011完了 → バックテスト機能が動作、実運用でステップ単位実行が可能
+- **M3（P2完成）**: Branch 012完了 → 実運用例とデプロイメントドキュメントが揃う
+- **M4（P3完成）**: Branch 013-015完了 → 分析機能が完成
 
 ## Project Structure
 
@@ -390,11 +405,10 @@ src/qeel/
 ├── models/
 │   ├── __init__.py
 │   └── context.py         # Context Pydanticモデル
-├── engines/
+├── core/
 │   ├── __init__.py
-│   ├── base.py            # BaseEngine（共通フロー）
-│   ├── backtest.py        # BacktestEngine
-│   └── live.py            # LiveEngine
+│   ├── strategy_engine.py # StrategyEngine（単一実装、ステップ単位実行）
+│   └── backtest_runner.py # BacktestRunner（ループ管理）
 ├── metrics/
 │   ├── __init__.py
 │   └── calculator.py      # パフォーマンス指標計算
@@ -426,7 +440,7 @@ tests/
 │   ├── test_order_creators.py
 │   ├── test_executors.py
 │   ├── test_stores.py
-│   ├── test_engines.py
+│   ├── test_core.py       # StrategyEngine, BacktestRunnerのテスト
 │   ├── test_metrics.py
 │   ├── test_analysis.py
 │   └── test_diagnostics.py

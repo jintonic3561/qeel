@@ -252,13 +252,13 @@ params = TopNConstructorParams(top_n=10)
 # コンストラクタインスタンス化
 constructor = TopNPortfolioConstructor(params=params)
 
-# バックテストエンジンに渡す
-engine = BacktestEngine(
+# StrategyEngineに渡す
+engine = StrategyEngine(
     calculator=signal_calculator,
     portfolio_constructor=constructor,  # デフォルトまたはカスタム実装
     order_creator=order_creator,
     data_sources=data_sources,
-    executor=executor,
+    exchange_client=exchange_client,
     context_store=context_store,
     config=config,
 )

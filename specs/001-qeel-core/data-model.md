@@ -775,13 +775,17 @@ Context
  ├─ orders: DataFrame (OrderSchema) | None
  └─ current_positions: DataFrame (PositionSchema) | None
 
-BacktestEngine
+StrategyEngine
  ├─ config: Config
  ├─ calculator: BaseSignalCalculator (params: SignalCalculatorParams)
  ├─ portfolio_constructor: BasePortfolioConstructor (params: PortfolioConstructorParams)
  ├─ order_creator: BaseOrderCreator (params: OrderCreatorParams)
  ├─ data_sources: dict[str, BaseDataSource]
  └─ context_store: BaseContextStore
+
+BacktestRunner
+ ├─ engine: StrategyEngine
+ └─ config: Config
 
 Iteration Flow:
   OHLCV / その他データソース (DataSource)

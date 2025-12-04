@@ -192,7 +192,8 @@ from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
 
 from qeel.config import Config
 from qeel.data_sources.parquet import ParquetDataSource
-from qeel.engines.backtest import BacktestEngine
+from qeel.core.strategy_engine import StrategyEngine
+from qeel.core.backtest_runner import BacktestRunner
 from qeel.exchange_clients.mock import MockExchangeClient
 from qeel.io.base import BaseIO
 from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
@@ -232,8 +233,8 @@ def main():
     # コンテキストストア
     context_store = ContextStore(io)
 
-    # バックテストエンジン構築
-    engine = BacktestEngine(
+    # StrategyEngine構築
+    engine = StrategyEngine(
         calculator=calculator,
         portfolio_constructor=portfolio_constructor,
         order_creator=order_creator,
@@ -243,9 +244,12 @@ def main():
         config=config,
     )
 
+    # BacktestRunner構築
+    runner = BacktestRunner(engine=engine, config=config)
+
     # バックテスト実行
     print("バックテスト開始...")
-    results = engine.run()
+    results = runner.run()
 
     # 結果表示
     print("\n=== バックテスト結果 ===")
@@ -342,7 +346,7 @@ class CustomPortfolioConstructor(BasePortfolioConstructor):
 constructor_params = CustomConstructorParams(top_n=10, min_signal_threshold=0.5)
 portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 
-engine = BacktestEngine(
+engine = StrategyEngine(
     calculator=calculator,
     data_sources=data_sources,
     exchange_client=exchange_client,
@@ -350,6 +354,8 @@ engine = BacktestEngine(
     config=config,
     portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
 )
+
+runner = BacktestRunner(engine=engine, config=config)
 ```
 
 ### 注文生成ロジックのカスタマイズ
@@ -420,7 +426,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
 order_creator_params = CustomOrderCreatorParams(capital=1_000_000.0, max_position_pct=0.15)
 order_creator = RiskParityOrderCreator(params=order_creator_params)
 
-engine = BacktestEngine(
+engine = StrategyEngine(
     calculator=calculator,
     data_sources=data_sources,
     exchange_client=exchange_client,
@@ -428,16 +434,18 @@ engine = BacktestEngine(
     config=config,
     order_creator=order_creator,  # カスタム注文生成
 )
+
+runner = BacktestRunner(engine=engine, config=config)
 ```
 
 ## 実運用への転用
 
-バックテストと同じシグナル計算クラスを使用し、`LiveEngine` に切り替えることで実運用に転用できます：
+バックテストと同じシグナル計算クラスを使用し、`StrategyEngine` のステップ単位実行機能を利用することで実運用に転用できます：
 
 ```python
 from datetime import datetime
 
-from qeel.engines.live import LiveEngine
+from qeel.core.strategy_engine import StrategyEngine
 from qeel.examples.exchange_clients.exchange_api import ExchangeAPIClient  # ユーザ実装
 from qeel.io.base import BaseIO
 from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
@@ -474,19 +482,24 @@ exchange_client = ExchangeAPIClient(api_client=my_api_client)
 # 実運用用のコンテキストストア（S3経由）
 context_store = ContextStore(io)
 
-# 実運用エンジン
-live_engine = LiveEngine(
+# StrategyEngine（バックテストと同一）
+engine = StrategyEngine(
     calculator=calculator,  # バックテストと同じクラス
     portfolio_constructor=portfolio_constructor,  # バックテストと同じクラス
     order_creator=order_creator,  # バックテストと同じクラス
     data_sources=data_sources,  # バックテストと同じクラス
     exchange_client=exchange_client,
-    context_store=context_store, # バックテストと同じクラス
+    context_store=context_store,  # バックテストと同じクラス
     config=config,
 )
 
-# 当日を指定して単一iteration実行
-live_engine.run_iteration(datetime.now())
+# 外部スケジューラから各ステップを独立して実行
+# 例: Lambda関数やcronジョブから呼び出し
+today = datetime.now().date()
+engine.run_step(today, "calculate_signals")  # 09:00に実行
+engine.run_step(today, "construct_portfolio")  # 10:00に実行
+engine.run_step(today, "create_orders")  # 14:00に実行
+engine.run_step(today, "submit_orders")  # 15:00に実行
 ```
 
 ## 次のステップ
