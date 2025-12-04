@@ -77,8 +77,6 @@ class CostConfig(BaseModel):
 ### 1.3 LoopConfig
 
 ```python
-from datetime import timedelta
-
 from pydantic import BaseModel, Field
 
 
@@ -86,15 +84,15 @@ class MethodTimingConfig(BaseModel):
     """各メソッドの実行タイミング設定
 
     Attributes:
-        calculate_signals_offset: シグナル計算のオフセット
-        select_symbols_offset: 銘柄選定のオフセット
-        create_orders_offset: 注文生成のオフセット
-        submit_orders_offset: 注文執行のオフセット
+        calculate_signals_offset_seconds: シグナル計算のオフセット（秒）
+        select_symbols_offset_seconds: 銘柄選定のオフセット（秒）
+        create_orders_offset_seconds: 注文生成のオフセット（秒）
+        submit_orders_offset_seconds: 注文執行のオフセット（秒）
     """
-    calculate_signals_offset: timedelta = Field(default=timedelta(hours=0))
-    select_symbols_offset: timedelta = Field(default=timedelta(hours=0))
-    create_orders_offset: timedelta = Field(default=timedelta(hours=0))
-    submit_orders_offset: timedelta = Field(default=timedelta(hours=0))
+    calculate_signals_offset_seconds: int = Field(default=0, description="シグナル計算のオフセット（秒）")
+    select_symbols_offset_seconds: int = Field(default=0, description="銘柄選定のオフセット（秒）")
+    create_orders_offset_seconds: int = Field(default=0, description="注文生成のオフセット（秒）")
+    submit_orders_offset_seconds: int = Field(default=0, description="注文執行のオフセット（秒）")
 
 
 class LoopConfig(BaseModel):
