@@ -237,10 +237,10 @@ class MockDataSource(BaseDataSource):
 ### 出力
 
 - Polars DataFrameを返す
-- 必須列: `datetime` (pl.Datetime), `symbol` (pl.Utf8)
+- 必須列: `datetime` (pl.Datetime)
 - その他の列は任意（データソースの種類に依存）
-  - 例: OHLCVデータの場合は `close`, `open`, `high`, `low`, `volume` 等
-  - 例: 決算情報の場合は `earnings`, `revenue` 等
+  - 例: OHLCVデータの場合は `symbol`, `close`, `open`, `high`, `low`, `volume` 等
+  - 例: 決算情報の場合は `symbol`, `earnings`, `revenue` 等
 - データが存在しない場合は空のDataFrameを返す（エラーにしない）
 - ユーザは任意のスキーマを返すことができ、システムは強制的なバリデーションを行わない
 

@@ -178,7 +178,7 @@ $QEEL_WORKSPACE/  (未設定時はカレントディレクトリ)
 **Rationale**:
 - Pydanticモデル → dict → JSON/Parquetは標準的なシリアライゼーションパターン
 - Polars DataFrameは `write_parquet` / `read_parquet` でゼロコピー永続化可能
-- バックテスト時はローカル、実運用時はS3/DBへの切り替えは `BaseContextStore` で抽象化
+- バックテスト時はローカル、実運用時はS3/DBへの切り替えは `BaseIO` で抽象化
 
 **Context Structure**:
 ```python
@@ -189,10 +189,6 @@ class Context(BaseModel):
     orders: pl.DataFrame | None  # OrderSchema準拠
     current_positions: pl.DataFrame | None  # PositionSchema準拠
 ```
-
-**Storage Abstraction**:
-- `LocalStore(BaseContextStore)`: `Path` ベース、JSON/Parquet両対応（バックテスト用）
-- `S3Store(BaseContextStore)`: boto3使用、JSON/Parquet両対応（**実運用必須対応、標準実装として提供**）
 
 **Alternatives Considered**:
 - **pickle**: セキュリティリスク、バージョン依存性

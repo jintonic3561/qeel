@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 import polars as pl
 from pydantic import BaseModel
 
+from qeel.schemas import PortfolioSchema, PositionSchema, OHLCVSchema
+
 
 class OrderCreatorParams(BaseModel):
     """注文生成パラメータの基底クラス
@@ -56,7 +58,6 @@ class BaseOrderCreator(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import PortfolioSchema, PositionSchema, OHLCVSchema
 
         PortfolioSchema.validate(portfolio_plan)
         PositionSchema.validate(current_positions)

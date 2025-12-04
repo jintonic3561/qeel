@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 
 import polars as pl
 
-from qeel.schemas import ReturnCalculatorParams
+from qeel.schemas import ReturnCalculatorParams, ReturnSchema
 
 
 class BaseReturnCalculator(ABC):
@@ -45,7 +45,6 @@ class BaseReturnCalculator(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import ReturnSchema
 
         return ReturnSchema.validate(returns)
 
@@ -109,7 +108,6 @@ class LogReturnCalculator(BaseReturnCalculator):
 ### 入力
 
 - `ohlcv`: `OHLCVSchema` に準拠したDataFrame
-- 必須列: `datetime`, `symbol`, `close`
 
 ### 出力
 

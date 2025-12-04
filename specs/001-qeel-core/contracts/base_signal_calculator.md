@@ -45,7 +45,6 @@ class BaseSignalCalculator(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import SignalSchema
 
         return SignalSchema.validate(signals)
 

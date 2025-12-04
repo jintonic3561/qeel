@@ -35,8 +35,6 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
 ### I. 日本語優先
 
 ✅ **準拠**: すべてのドキュメント（spec.md、plan.md、今後のコード内docstring/コメント）は日本語で記述する。

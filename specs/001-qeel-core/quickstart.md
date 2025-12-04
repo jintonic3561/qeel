@@ -94,7 +94,7 @@ datetime_column = "datetime"
 offset_seconds = 0
 window_seconds = 2592000  # 30日 = 30 * 24 * 3600秒
 source_type = "parquet"
-source_path = "ohlcv.parquet"  # inputs/からの相対パス
+source_path = "inputs/ohlcv.parquet"  # ワークスペースからの相対パス
 
 # コスト設定
 [costs]
@@ -461,6 +461,13 @@ portfolio_constructor = TopNPortfolioConstructor(params=constructor_params)
 order_creator_params = EqualWeightParams(capital=1_000_000.0)
 order_creator = EqualWeightOrderCreator(params=order_creator_params)
 
+# データソースのセットアップ（バックテストと同じ、S3経由）
+data_sources = {}
+for ds_config in config.data_sources:
+    if ds_config.source_type == "parquet":
+        data_sources[ds_config.name] = ParquetDataSource(ds_config, io)
+    # カスタムソースタイプも追加可能
+
 # 実運用用の執行クラス
 exchange_client = ExchangeAPIClient(api_client=my_api_client)
 
@@ -472,9 +479,9 @@ live_engine = LiveEngine(
     calculator=calculator,  # バックテストと同じクラス
     portfolio_constructor=portfolio_constructor,  # バックテストと同じクラス
     order_creator=order_creator,  # バックテストと同じクラス
-    data_sources=live_data_sources,
+    data_sources=data_sources,  # バックテストと同じクラス
     exchange_client=exchange_client,
-    context_store=context_store,
+    context_store=context_store, # バックテストと同じクラス
     config=config,
 )
 
