@@ -105,8 +105,8 @@
 
 - [ ] T036 src/qeel/calculators/signals/base.pyにBaseSignalCalculatorを実装（ABCパターン、calculate()抽象メソッド）
 - [ ] T037 BaseSignalCalculatorに_validate_output()ヘルパーを実装（SignalSchemaバリデーション）
-- [ ] T038 src/qeel/calculators/signals/examples/moving_average.pyにMovingAverageCrossParamsを実装（Pydanticモデル）
-- [ ] T039 src/qeel/calculators/signals/examples/moving_average.pyにMovingAverageCrossCalculatorを実装（サンプル戦略）
+- [ ] T038 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossParamsを実装（Pydanticモデル）
+- [ ] T039 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossCalculatorを実装（サンプル戦略）
 - [ ] T040 tests/unit/test_calculators.pyにMovingAverageCrossCalculator.calculate()のテスト（モックデータで正しくシグナル計算）
 - [ ] T041 tests/unit/test_calculators.pyに_validate_output()ヘルパーのテスト（不正スキーマでValueError）
 - [ ] T042 tests/contract/test_signal_calculator_contract.pyにBaseSignalCalculator契約テスト（サブクラスがcalculate()実装を強制されることを確認）
@@ -256,7 +256,7 @@
 
 ### 実装タスク
 
-- [ ] T105 src/qeel/exchange_clients/examples/exchange_api.pyにExchangeAPIClientを実装（スケルトン、qeel.utils使用例）
+- [ ] T105 src/qeel/examples/exchange_clients/exchange_api.pyにExchangeAPIClientを実装（スケルトン、qeel.utils使用例）
 - [ ] T106 ExchangeAPIClient.submit_orders()を実装（with_retry、send_slack_notification、round_to_unit使用例）
 - [ ] T107 ExchangeAPIClient.fetch_fills()を実装（with_retry、APIから約定情報取得）
 - [ ] T108 ExchangeAPIClient.fetch_positions()を実装（with_retry、APIからポジション取得）
@@ -279,8 +279,8 @@
 
 - [ ] T112 src/qeel/calculators/returns/base.pyにBaseReturnCalculatorを実装（ABCパターン、calculate()抽象メソッド）
 - [ ] T113 BaseReturnCalculatorに_validate_output()ヘルパーを実装（ReturnSchemaバリデーション）
-- [ ] T114 src/qeel/calculators/returns/examples/log_return.pyにLogReturnParamsを実装（Pydanticモデル、period）
-- [ ] T115 src/qeel/calculators/returns/examples/log_return.pyにLogReturnCalculatorを実装（前向きリターン計算、リーク防止）
+- [ ] T114 src/qeel/calculators/returns/log_return.pyにLogReturnParamsを実装（Pydanticモデル、period）
+- [ ] T115 src/qeel/calculators/returns/log_return.pyにLogReturnCalculatorを実装（前向きリターン計算、リーク防止、デフォルト実装）
 - [ ] T116 tests/unit/test_calculators.pyにLogReturnCalculator.calculate()のテスト（forward return確認、リーク防止検証）
 - [ ] T117 tests/unit/test_calculators.pyに_validate_output()ヘルパーのテスト（不正スキーマでValueError）
 - [ ] T118 tests/contract/test_return_calculator_contract.pyにBaseReturnCalculator契約テスト（サブクラスがcalculate()実装を強制されることを確認）

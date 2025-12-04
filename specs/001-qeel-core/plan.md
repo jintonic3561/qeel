@@ -136,7 +136,7 @@
 - **目的**: シグナル計算ABCとサンプル実装
 - **成果物**:
   - `qeel/calculators/signals/base.py` - BaseSignalCalculator ABC
-  - `qeel/calculators/signals/examples/moving_average.py` - 移動平均クロス実装例
+  - `qeel/examples/signals/moving_average.py` - 移動平均クロス実装例
   - Pydanticパラメータモデル
 - **テスト**: モックデータでcalculate()が正しく動作
 - **依存**: `002-core-config-and-schemas`
@@ -224,7 +224,7 @@
 **Branch**: `011-executor-examples`
 - **目的**: 実運用用Executor実装例
 - **成果物**:
-  - `qeel/exchange_clients/examples/exchange_api.py` - 取引所API実装例（スケルトン）
+  - `qeel/examples/exchange_clients/exchange_api.py` - 取引所API実装例（スケルトン）
   - ユーザ向けドキュメント
 - **テスト**: モックAPIクライアントで動作確認
 - **依存**: `010-live-engine`
@@ -235,10 +235,10 @@
 #### Phase 4: Signal Analysis（P3対応）
 
 **Branch**: `012-return-calculator-abc`
-- **目的**: リターン計算ABCとサンプル実装
+- **目的**: リターン計算ABCとデフォルト実装
 - **成果物**:
   - `qeel/calculators/returns/base.py` - BaseReturnCalculator ABC
-  - `qeel/calculators/returns/examples/log_return.py` - 対数リターン実装例
+  - `qeel/calculators/returns/log_return.py` - 対数リターン（デフォルト実装）
 - **テスト**: モックデータでリターン計算が正しく動作
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 3（リターン計算）
@@ -361,16 +361,11 @@ src/qeel/
 │   ├── __init__.py
 │   ├── signals/
 │   │   ├── __init__.py
-│   │   ├── base.py        # BaseSignalCalculator ABC
-│   │   └── examples/
-│   │       ├── __init__.py
-│   │       └── moving_average.py  # 移動平均クロス実装例
+│   │   └── base.py        # BaseSignalCalculator ABC
 │   └── returns/
 │       ├── __init__.py
 │       ├── base.py        # BaseReturnCalculator ABC
-│       └── examples/
-│           ├── __init__.py
-│           └── log_return.py      # 対数リターン実装例
+│       └── log_return.py  # 対数リターン（デフォルト実装）
 ├── portfolio_constructors/
 │   ├── __init__.py
 │   ├── base.py            # BasePortfolioConstructor ABC
@@ -382,10 +377,7 @@ src/qeel/
 ├── exchange_clients/
 │   ├── __init__.py
 │   ├── base.py            # BaseExchangeClient ABC
-│   ├── mock.py            # MockExchangeClient（バックテスト用）
-│   └── examples/
-│       ├── __init__.py
-│       └── exchange_api.py    # 取引所API実装例（スケルトン）
+│   └── mock.py            # MockExchangeClient（バックテスト用）
 ├── io/
 │   ├── __init__.py
 │   ├── base.py            # BaseIO ABC
@@ -410,10 +402,18 @@ src/qeel/
 │   ├── __init__.py
 │   ├── rank_correlation.py    # 順位相関係数計算
 │   └── visualizer.py          # 分布可視化
-└── diagnostics/
+├── diagnostics/
+│   ├── __init__.py
+│   ├── comparison.py      # バックテストと実運用の差異計算
+│   └── visualizer.py      # 差異可視化
+└── examples/              # 実装例を集約
     ├── __init__.py
-    ├── comparison.py      # バックテストと実運用の差異計算
-    └── visualizer.py      # 差異可視化
+    ├── signals/
+    │   ├── __init__.py
+    │   └── moving_average.py  # 移動平均クロス実装例
+    └── exchange_clients/
+        ├── __init__.py
+        └── exchange_api.py    # 取引所API実装例（スケルトン）
 
 tests/
 ├── conftest.py            # pytest共通設定、フィクスチャ
