@@ -216,7 +216,7 @@
   - ユニバース管理ロジック
 - **テスト**: E2Eでバックテスト実行、User Story 1のAcceptance Scenarios
 - **依存**: `009-strategy-engine`
-- **User Story**: **User Story 1（P1）完成、User Story 2（P2）のコア実装完成**
+- **User Story**: **User Story 1（P1）完成。StrategyEngine.run_step()により、実運用でステップ単位実行が可能**
 - **ユニバース管理**: `LoopConfig.universe`が指定されている場合はそのリストを`BaseDataSource.fetch()`の`symbols`引数として渡す。Noneの場合は全銘柄が対象となる。フィルタリングの結果、当日データが存在する銘柄のみが残る（自然に積集合になる）
 
 ---
@@ -244,7 +244,7 @@
   - quickstart.mdに実運用例を追加
 - **テスト**: モックAPIクライアントで動作確認、Lambdaローカルテスト例
 - **依存**: `010-backtest-runner`, `003-utils-infrastructure`
-- **User Story**: User Story 2（API連携、デプロイメント）完全完成
+- **User Story**: **User Story 2（P2）完成。実運用例とデプロイメントドキュメントが揃う**
 
 ---
 
@@ -326,7 +326,7 @@ Phase 4 & 5: P3完成
 ### マイルストーン
 
 - **M1（基盤完成）**: Branch 002-007完了 → 基盤クラスがすべて揃う
-- **M2（P1完成、P2コア実装）**: Branch 008-011完了 → バックテスト機能が動作、実運用でステップ単位実行が可能
+- **M2（P1完成）**: Branch 008-011完了 → バックテスト機能が完全に動作、StrategyEngine.run_step()により実運用でステップ単位実行が可能
 - **M3（P2完成）**: Branch 012完了 → 実運用例とデプロイメントドキュメントが揃う
 - **M4（P3完成）**: Branch 013-015完了 → 分析機能が完成
 
