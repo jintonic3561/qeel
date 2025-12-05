@@ -1,8 +1,8 @@
-# Contract: BaseOrderCreator
+# Contract: BaseEntryOrderCreator
 
 ## 概要
 
-ユーザがポートフォリオ計画（選定銘柄+メタデータ）とポジションから注文を生成するロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを定義し、ABCパターンで拡張性を確保する。入力バリデーションは共通ヘルパーメソッドとして提供され、重複を避けて可読性を向上させる。
+ユーザがポートフォリオ計画（選定銘柄+メタデータ）とポジションからエントリー注文を生成するロジックを実装するための抽象基底クラス。Pydanticモデルでパラメータを定義し、ABCパターンで拡張性を確保する。入力バリデーションは共通ヘルパーメソッドとして提供され、重複を避けて可読性を向上させる。
 
 ## インターフェース定義
 
@@ -15,27 +15,27 @@ from pydantic import BaseModel
 from qeel.schemas import PortfolioSchema, PositionSchema, OHLCVSchema
 
 
-class OrderCreatorParams(BaseModel):
-    """注文生成パラメータの基底クラス
+class EntryOrderCreatorParams(BaseModel):
+    """エントリー注文生成パラメータの基底クラス
 
     ユーザはこれを継承して独自のパラメータを定義する。
     """
     pass  # ユーザが拡張
 
 
-class BaseOrderCreator(ABC):
-    """注文生成抽象基底クラス
+class BaseEntryOrderCreator(ABC):
+    """エントリー注文生成抽象基底クラス
 
     ユーザはこのクラスを継承し、create()メソッドを実装する。
 
     Attributes:
-        params: OrderCreatorParams（Pydanticモデル）
+        params: EntryOrderCreatorParams（Pydanticモデル）
     """
 
-    def __init__(self, params: OrderCreatorParams):
+    def __init__(self, params: EntryOrderCreatorParams):
         """
         Args:
-            params: 注文生成パラメータ（Pydanticモデル）
+            params: エントリー注文生成パラメータ（Pydanticモデル）
         """
         self.params = params
 
@@ -70,7 +70,7 @@ class BaseOrderCreator(ABC):
         current_positions: pl.DataFrame,
         ohlcv: pl.DataFrame,
     ) -> pl.DataFrame:
-        """ポートフォリオ計画とポジションから注文を生成する
+        """ポートフォリオ計画とポジションからエントリー注文を生成する
 
         Args:
             portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、メタデータ含む）
@@ -80,7 +80,7 @@ class BaseOrderCreator(ABC):
             ohlcv: OHLCV価格データ（OHLCVSchema準拠、価格情報取得用）
 
         Returns:
-            注文DataFrame（OrderSchema準拠）
+            エントリー注文DataFrame（OrderSchema準拠）
 
         Raises:
             ValueError: 入力データが不正またはスキーマ違反の場合
@@ -88,20 +88,20 @@ class BaseOrderCreator(ABC):
         ...
 ```
 
-## デフォルト実装例（EqualWeightOrderCreator）
+## デフォルト実装例（EqualWeightEntryOrderCreator）
 
 ```python
 from pydantic import Field
 
 
-class EqualWeightParams(OrderCreatorParams):
+class EqualWeightEntryParams(EntryOrderCreatorParams):
     """等ウェイトポートフォリオのパラメータ"""
     capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
     rebalance_threshold: float = Field(default=0.05, ge=0.0, le=1.0, description="リバランス閾値")
 
 
-class EqualWeightOrderCreator(BaseOrderCreator):
-    """等ウェイトポートフォリオで注文を生成するデフォルト実装
+class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
+    """等ウェイトポートフォリオでエントリー注文を生成するデフォルト実装
 
     選定された銘柄に対して等ウェイト（1/N）で資金を配分し、
     open価格で成行注文を生成する。
@@ -159,15 +159,15 @@ class EqualWeightOrderCreator(BaseOrderCreator):
 ## カスタム実装例（リスクパリティ）
 
 ```python
-class RiskParityParams(OrderCreatorParams):
+class RiskParityEntryParams(EntryOrderCreatorParams):
     """リスクパリティのパラメータ"""
     capital: float = Field(default=1_000_000.0, gt=0.0)
     max_position_pct: float = Field(default=0.2, gt=0.0, le=1.0, description="1銘柄の最大ポジション比率")
     volatility_window: int = Field(default=20, gt=0, description="ボラティリティ計算window")
 
 
-class RiskParityOrderCreator(BaseOrderCreator):
-    """リスクパリティに基づいて注文を生成
+class RiskParityEntryOrderCreator(BaseEntryOrderCreator):
+    """リスクパリティに基づいてエントリー注文を生成
 
     各銘柄のボラティリティに応じて資金配分を調整する。
     """
@@ -233,18 +233,18 @@ class RiskParityOrderCreator(BaseOrderCreator):
 
 ### 出力
 
-- 注文DataFrame（OrderSchemaに準拠）
+- エントリー注文DataFrame（OrderSchemaに準拠）
 - 注文が1つも生成されない場合は空のDataFrameを返す（エラーにしない）
 
 ### パラメータ管理
 
-- すべてのパラメータはPydanticモデル（`OrderCreatorParams`を継承）で定義する
+- すべてのパラメータはPydanticモデル（`EntryOrderCreatorParams`を継承）で定義する
 - パラメータは実行時にバリデーションされる
 - 型ヒント必須（Constitution IV: 型安全性の確保）
 
 ### スキーマバリデーション
 
-- 入力DataFrameのバリデーションには、`BaseOrderCreator._validate_inputs()`ヘルパーメソッドを使用可能（推奨）
+- 入力DataFrameのバリデーションには、`BaseEntryOrderCreator._validate_inputs()`ヘルパーメソッドを使用可能（推奨）
 - ユーザは独自のバリデーションロジックを実装することも可能
 - 出力DataFrameは`OrderSchema.validate()`を通して返す
 
@@ -256,20 +256,21 @@ class RiskParityOrderCreator(BaseOrderCreator):
 ## 使用例
 
 ```python
-from qeel.order_creators import EqualWeightOrderCreator, EqualWeightParams
+from qeel.entry_order_creators import EqualWeightEntryOrderCreator, EqualWeightEntryParams
 
 
 # パラメータ定義
-params = EqualWeightParams(capital=1_000_000.0, rebalance_threshold=0.05)
+params = EqualWeightEntryParams(capital=1_000_000.0, rebalance_threshold=0.05)
 
-# 注文生成クラスのインスタンス化
-order_creator = EqualWeightOrderCreator(params=params)
+# エントリー注文生成クラスのインスタンス化
+entry_order_creator = EqualWeightEntryOrderCreator(params=params)
 
 # StrategyEngineに渡す
 engine = StrategyEngine(
     calculator=signal_calculator,
     portfolio_constructor=portfolio_constructor,
-    order_creator=order_creator,  # デフォルトまたはカスタム実装
+    entry_order_creator=entry_order_creator,  # デフォルトまたはカスタム実装
+    exit_order_creator=exit_order_creator,
     data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
@@ -281,7 +282,7 @@ engine = StrategyEngine(
 
 Qeelは以下の標準実装を提供する：
 
-- `EqualWeightOrderCreator`: 等ウェイトポートフォリオ注文生成（**推奨デフォルト実装**）
+- `EqualWeightEntryOrderCreator`: 等ウェイトポートフォリオエントリー注文生成（**推奨デフォルト実装**）
   - パラメータ: `capital`（運用資金）、`rebalance_threshold`（リバランス閾値）
 
-ユーザは独自の注文生成クラスを自由に実装可能。
+ユーザは独自のエントリー注文生成クラスを自由に実装可能。

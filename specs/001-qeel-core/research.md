@@ -147,8 +147,10 @@ market_impact_coef = 0.0001
 [timing]
 calculate_signals = "09:00:00"  # シグナル計算タイミング
 select_symbols = "09:05:00"
-create_orders = "09:10:00"
-submit_orders = "09:30:00"  # 執行タイミング
+create_entry_orders = "09:10:00"
+create_exit_orders = "09:12:00"
+submit_entry_orders = "09:30:00"  # エントリー注文執行タイミング
+submit_exit_orders = "09:32:00"  # エグジット注文執行タイミング
 ```
 
 **Note**: ワークスペース構造は以下の通り:
@@ -186,7 +188,8 @@ class Context(BaseModel):
     current_datetime: datetime  # 必須、iteration開始時に設定
     signals: pl.DataFrame | None  # SignalSchema準拠
     portfolio_plan: pl.DataFrame | None  # PortfolioSchema準拠
-    orders: pl.DataFrame | None  # OrderSchema準拠
+    entry_orders: pl.DataFrame | None  # OrderSchema準拠
+    exit_orders: pl.DataFrame | None  # OrderSchema準拠
     current_positions: pl.DataFrame | None  # PositionSchema準拠
 ```
 
@@ -249,7 +252,14 @@ class BacktestRunner:
             if not self._is_trading_day(date):
                 continue
             # 全ステップを実行
-            self.engine.run_steps(date, ["calculate_signals", "construct_portfolio", "create_orders", "submit_orders"])
+            self.engine.run_steps(date, [
+                "calculate_signals",
+                "construct_portfolio",
+                "create_entry_orders",
+                "create_exit_orders",
+                "submit_entry_orders",
+                "submit_exit_orders"
+            ])
 ```
 
 **Production Deployment**:
@@ -257,24 +267,31 @@ class BacktestRunner:
 # Lambda Handler（各ステップを独立したLambda関数にデプロイ）
 def lambda_handler_calculate_signals(event, context):
     date = datetime.fromisoformat(event['date'])
-    engine = StrategyEngine(calculator, data_sources, exchange_client, context_store, config)
+    engine = StrategyEngine(calculator, portfolio_constructor, entry_order_creator, exit_order_creator, data_sources, exchange_client, context_store, config)
     engine.run_step(date, "calculate_signals")
 
-def lambda_handler_submit_orders(event, context):
+def lambda_handler_submit_entry_orders(event, context):
     date = datetime.fromisoformat(event['date'])
-    engine = StrategyEngine(calculator, data_sources, exchange_client, context_store, config)
-    engine.run_step(date, "submit_orders")
+    engine = StrategyEngine(calculator, portfolio_constructor, entry_order_creator, exit_order_creator, data_sources, exchange_client, context_store, config)
+    engine.run_step(date, "submit_entry_orders")
+
+def lambda_handler_submit_exit_orders(event, context):
+    date = datetime.fromisoformat(event['date'])
+    engine = StrategyEngine(calculator, portfolio_constructor, entry_order_creator, exit_order_creator, data_sources, exchange_client, context_store, config)
+    engine.run_step(date, "submit_exit_orders")
 
 # EventBridgeで各Lambdaをスケジュール
 # 09:00 → calculate_signals
 # 10:00 → construct_portfolio
-# 14:00 → create_orders
-# 15:00 → submit_orders
+# 14:00 → create_entry_orders
+# 14:05 → create_exit_orders
+# 15:00 → submit_entry_orders
+# 15:05 → submit_exit_orders
 ```
 
 **Testing Strategy**:
 - 同一入力（date, data, context）で`StrategyEngine.run_step`を実行
-- バックテストと実運用で`create_orders()`の出力を比較（assert DataFrameが一致）
+- バックテストと実運用で`create_entry_orders()`, `create_exit_orders()`の出力を比較（assert DataFrameが一致）
 - 数量・価格の丸めは`ExchangeClient`実装内で実施（MockExchangeClientでは省略、ExchangeAPIClientで実施）
 
 **Alternatives Considered**:

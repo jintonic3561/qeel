@@ -180,15 +180,18 @@
 - **成果物**:
   - `qeel/portfolio_constructors/base.py` - BasePortfolioConstructor ABC（戻り値を`pl.DataFrame`、メタデータ付与可能）
   - `qeel/portfolio_constructors/top_n.py` - TopNPortfolioConstructor（デフォルト実装、signal_strengthをメタデータとして返す）
-  - `qeel/order_creators/base.py` - BaseOrderCreator ABC（引数`portfolio_plan`, `current_positions`, `ohlcv`）
-  - `qeel/order_creators/equal_weight.py` - EqualWeightOrderCreator（デフォルト実装、メタデータ活用）
-- **テスト**: モックデータでポートフォリオ構築と注文生成が正しく動作
+  - `qeel/entry_order_creators/base.py` - BaseEntryOrderCreator ABC（引数`portfolio_plan`, `current_positions`, `ohlcv`）
+  - `qeel/entry_order_creators/equal_weight.py` - EqualWeightEntryOrderCreator（デフォルト実装、メタデータ活用）
+  - `qeel/exit_order_creators/base.py` - BaseExitOrderCreator ABC（引数`current_positions`, `ohlcv`）
+  - `qeel/exit_order_creators/full_exit.py` - FullExitOrderCreator（デフォルト実装、保有ポジション全決済）
+- **テスト**: モックデータでポートフォリオ構築、エントリー注文生成、エグジット注文生成が正しく動作
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 1（ポートフォリオ構築、注文生成）
 - **デフォルト実装詳細**:
   - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
-  - `EqualWeightOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_plan`のメタデータ（`signal_strength`等）を参照して注文生成
-  - 注文タイミング: toml設定の`timing.submit_orders`で指定
+  - `EqualWeightEntryOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_plan`のメタデータ（`signal_strength`等）を参照してエントリー注文生成
+  - `FullExitOrderCreator`: 保有ポジションに対して全決済注文を生成。close価格での成行決済
+  - 注文タイミング: toml設定の`timing.create_entry_orders_offset_seconds`, `timing.submit_entry_orders_offset_seconds`, `timing.create_exit_orders_offset_seconds`, `timing.submit_exit_orders_offset_seconds`で指定
 
 ---
 
@@ -198,7 +201,7 @@
   - `qeel/core/strategy_engine.py` - StrategyEngine（単一実装、ステップ単位実行）
     - `run_step(date, step_name)`: 指定ステップのみ実行
     - `run_steps(date, step_names)`: 複数ステップを逐次実行
-- **テスト**: ステップ単位実行のテスト、コンテキスト永続化の動作確認
+- **テスト**: ステップ単位実行のテスト、Entry/Exit注文生成・執行のテスト、コンテキスト永続化の動作確認
 - **依存**: `004`, `005`, `006`, `007`, `008`
 - **User Story**: User Story 1（ステップ実行）、User Story 2（実運用でステップ単位実行）
 - **実運用対応**: `StrategyEngine.run_step`を外部スケジューラから直接呼び出すことで、サーバーレス環境での運用が可能
@@ -342,7 +345,8 @@ specs/001-qeel-core/
     ├── base_signal_calculator.md
     ├── base_return_calculator.md
     ├── base_portfolio_constructor.md
-    ├── base_order_creator.md
+    ├── base_entry_order_creator.md
+    ├── base_exit_order_creator.md
     ├── base_data_source.md
     ├── base_exchange_client.md
     ├── base_io.md
@@ -385,10 +389,14 @@ src/qeel/
 │   ├── __init__.py
 │   ├── base.py            # BasePortfolioConstructor ABC
 │   └── top_n.py           # TopNPortfolioConstructor（デフォルト実装）
-├── order_creators/
+├── entry_order_creators/
 │   ├── __init__.py
-│   ├── base.py            # BaseOrderCreator ABC
-│   └── equal_weight.py    # EqualWeightOrderCreator（デフォルト実装）
+│   ├── base.py            # BaseEntryOrderCreator ABC
+│   └── equal_weight.py    # EqualWeightEntryOrderCreator（デフォルト実装）
+├── exit_order_creators/
+│   ├── __init__.py
+│   ├── base.py            # BaseExitOrderCreator ABC
+│   └── full_exit.py       # FullExitOrderCreator（デフォルト実装）
 ├── exchange_clients/
 │   ├── __init__.py
 │   ├── base.py            # BaseExchangeClient ABC

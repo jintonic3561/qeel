@@ -196,7 +196,8 @@ from qeel.core.strategy_engine import StrategyEngine
 from qeel.core.backtest_runner import BacktestRunner
 from qeel.exchange_clients.mock import MockExchangeClient
 from qeel.io.base import BaseIO
-from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
+from qeel.entry_order_creators.equal_weight import EqualWeightEntryOrderCreator, EqualWeightEntryParams
+from qeel.exit_order_creators.full_exit import FullExitOrderCreator, FullExitParams
 from qeel.portfolio_constructors.top_n import TopNPortfolioConstructor, TopNConstructorParams
 from qeel.stores.context_store import ContextStore
 
@@ -216,9 +217,13 @@ def main():
     constructor_params = TopNConstructorParams(top_n=10)
     portfolio_constructor = TopNPortfolioConstructor(params=constructor_params)
 
-    # 注文生成クラスのインスタンス化（デフォルト実装）
-    order_creator_params = EqualWeightParams(capital=1_000_000.0)
-    order_creator = EqualWeightOrderCreator(params=order_creator_params)
+    # エントリー注文生成クラスのインスタンス化（デフォルト実装）
+    entry_order_creator_params = EqualWeightEntryParams(capital=1_000_000.0)
+    entry_order_creator = EqualWeightEntryOrderCreator(params=entry_order_creator_params)
+
+    # エグジット注文生成クラスのインスタンス化（デフォルト実装）
+    exit_order_creator_params = FullExitParams(exit_threshold=1.0)
+    exit_order_creator = FullExitOrderCreator(params=exit_order_creator_params)
 
     # データソースのセットアップ
     data_sources = {}
@@ -237,7 +242,8 @@ def main():
     engine = StrategyEngine(
         calculator=calculator,
         portfolio_constructor=portfolio_constructor,
-        order_creator=order_creator,
+        entry_order_creator=entry_order_creator,
+        exit_order_creator=exit_order_creator,
         data_sources=data_sources,
         exchange_client=exchange_client,
         context_store=context_store,
@@ -348,29 +354,31 @@ portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 
 engine = StrategyEngine(
     calculator=calculator,
+    portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
+    entry_order_creator=entry_order_creator,  # デフォルトまたはカスタム実装
+    exit_order_creator=exit_order_creator,  # デフォルトまたはカスタム実装
     data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
     config=config,
-    portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
 )
 
 runner = BacktestRunner(engine=engine, config=config)
 ```
 
-### 注文生成ロジックのカスタマイズ
+### エントリー注文生成ロジックのカスタマイズ
 
 ```python
-from qeel.order_creators import BaseOrderCreator
+from qeel.entry_order_creators import BaseEntryOrderCreator
 from qeel.schemas import OrderSchema
 
-class CustomOrderCreatorParams(BaseModel):
-    """カスタム注文生成のパラメータ"""
+class CustomEntryOrderCreatorParams(BaseModel):
+    """カスタムエントリー注文生成のパラメータ"""
     capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
     max_position_pct: float = Field(default=0.2, gt=0.0, le=1.0, description="1銘柄の最大ポジション比率")
 
-class RiskParityOrderCreator(BaseOrderCreator):
-    """リスクパリティに基づいて注文を生成"""
+class RiskParityEntryOrderCreator(BaseEntryOrderCreator):
+    """リスクパリティに基づいてエントリー注文を生成"""
 
     def create(
         self,
@@ -385,7 +393,7 @@ class RiskParityOrderCreator(BaseOrderCreator):
             ohlcv: OHLCV価格データ
 
         Returns:
-            注文DataFrame（OrderSchema準拠）
+            エントリー注文DataFrame（OrderSchema準拠）
         """
         from qeel.schemas import PortfolioSchema
 
@@ -423,16 +431,110 @@ class RiskParityOrderCreator(BaseOrderCreator):
         return OrderSchema.validate(pl.DataFrame(orders))
 
 # 使用例
-order_creator_params = CustomOrderCreatorParams(capital=1_000_000.0, max_position_pct=0.15)
-order_creator = RiskParityOrderCreator(params=order_creator_params)
+entry_order_creator_params = CustomEntryOrderCreatorParams(capital=1_000_000.0, max_position_pct=0.15)
+entry_order_creator = RiskParityEntryOrderCreator(params=entry_order_creator_params)
 
 engine = StrategyEngine(
     calculator=calculator,
+    portfolio_constructor=portfolio_constructor,
+    entry_order_creator=entry_order_creator,  # カスタムエントリー注文生成
+    exit_order_creator=exit_order_creator,  # デフォルトまたはカスタム実装
     data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
     config=config,
-    order_creator=order_creator,  # カスタム注文生成
+)
+
+runner = BacktestRunner(engine=engine, config=config)
+```
+
+### エグジット注文生成ロジックのカスタマイズ
+
+```python
+from qeel.exit_order_creators import BaseExitOrderCreator
+from qeel.schemas import OrderSchema
+
+class ConditionalExitParams(BaseModel):
+    """条件付きエグジットのパラメータ"""
+    stop_loss_pct: float = Field(default=0.05, gt=0.0, le=1.0, description="ストップロス閾値（%）")
+    take_profit_pct: float = Field(default=0.10, gt=0.0, le=1.0, description="テイクプロフィット閾値（%）")
+
+class ConditionalExitOrderCreator(BaseExitOrderCreator):
+    """条件付きエグジット注文を生成
+
+    各ポジションの損益がストップロスまたはテイクプロフィット閾値に達した場合に決済注文を生成する。
+    """
+
+    def create(
+        self,
+        current_positions: pl.DataFrame,
+        ohlcv: pl.DataFrame,
+    ) -> pl.DataFrame:
+        """
+        Args:
+            current_positions: 現在のポジション
+            ohlcv: OHLCV価格データ
+
+        Returns:
+            エグジット注文DataFrame（OrderSchema準拠）
+        """
+        from qeel.schemas import PositionSchema
+
+        PositionSchema.validate(current_positions)
+
+        orders = []
+        for row in current_positions.iter_rows(named=True):
+            symbol = row["symbol"]
+            quantity = row["quantity"]
+            avg_price = row["avg_price"]
+
+            if quantity == 0:
+                continue
+
+            # 現在価格取得
+            price_row = ohlcv.filter(pl.col("symbol") == symbol)
+            if price_row.height == 0:
+                continue
+            current_price = price_row["close"][0]
+
+            # 損益率を計算
+            if quantity > 0:  # 買いポジション
+                pnl_pct = (current_price - avg_price) / avg_price
+            else:  # 売りポジション
+                pnl_pct = (avg_price - current_price) / avg_price
+
+            # ストップロスまたはテイクプロフィット条件を満たす場合に決済
+            should_exit = (
+                pnl_pct <= -self.params.stop_loss_pct or
+                pnl_pct >= self.params.take_profit_pct
+            )
+
+            if should_exit:
+                side = "sell" if quantity > 0 else "buy"
+
+                orders.append({
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": abs(quantity),
+                    "price": None,  # 成行
+                    "order_type": "market",
+                })
+
+        return OrderSchema.validate(pl.DataFrame(orders))
+
+# 使用例
+exit_order_creator_params = ConditionalExitParams(stop_loss_pct=0.05, take_profit_pct=0.10)
+exit_order_creator = ConditionalExitOrderCreator(params=exit_order_creator_params)
+
+engine = StrategyEngine(
+    calculator=calculator,
+    portfolio_constructor=portfolio_constructor,
+    entry_order_creator=entry_order_creator,  # デフォルトまたはカスタム実装
+    exit_order_creator=exit_order_creator,  # カスタムエグジット注文生成
+    data_sources=data_sources,
+    exchange_client=exchange_client,
+    context_store=context_store,
+    config=config,
 )
 
 runner = BacktestRunner(engine=engine, config=config)
@@ -448,7 +550,8 @@ from datetime import datetime
 from qeel.core.strategy_engine import StrategyEngine
 from qeel.examples.exchange_clients.exchange_api import ExchangeAPIClient  # ユーザ実装
 from qeel.io.base import BaseIO
-from qeel.order_creators.equal_weight import EqualWeightOrderCreator, EqualWeightParams
+from qeel.entry_order_creators.equal_weight import EqualWeightEntryOrderCreator, EqualWeightEntryParams
+from qeel.exit_order_creators.full_exit import FullExitOrderCreator, FullExitParams
 from qeel.portfolio_constructors.top_n import TopNPortfolioConstructor, TopNConstructorParams
 from qeel.stores.context_store import ContextStore
 
@@ -465,9 +568,13 @@ io = BaseIO.from_config(config.general)
 constructor_params = TopNConstructorParams(top_n=10)
 portfolio_constructor = TopNPortfolioConstructor(params=constructor_params)
 
-# 注文生成クラスのインスタンス化（バックテストと同じ）
-order_creator_params = EqualWeightParams(capital=1_000_000.0)
-order_creator = EqualWeightOrderCreator(params=order_creator_params)
+# エントリー注文生成クラスのインスタンス化（バックテストと同じ）
+entry_order_creator_params = EqualWeightEntryParams(capital=1_000_000.0)
+entry_order_creator = EqualWeightEntryOrderCreator(params=entry_order_creator_params)
+
+# エグジット注文生成クラスのインスタンス化（バックテストと同じ）
+exit_order_creator_params = FullExitParams(exit_threshold=1.0)
+exit_order_creator = FullExitOrderCreator(params=exit_order_creator_params)
 
 # データソースのセットアップ（バックテストと同じ、S3経由）
 data_sources = {}
@@ -486,7 +593,8 @@ context_store = ContextStore(io)
 engine = StrategyEngine(
     calculator=calculator,  # バックテストと同じクラス
     portfolio_constructor=portfolio_constructor,  # バックテストと同じクラス
-    order_creator=order_creator,  # バックテストと同じクラス
+    entry_order_creator=entry_order_creator,  # バックテストと同じクラス
+    exit_order_creator=exit_order_creator,  # バックテストと同じクラス
     data_sources=data_sources,  # バックテストと同じクラス
     exchange_client=exchange_client,
     context_store=context_store,  # バックテストと同じクラス
@@ -498,8 +606,10 @@ engine = StrategyEngine(
 today = datetime.now().date()
 engine.run_step(today, "calculate_signals")  # 09:00に実行
 engine.run_step(today, "construct_portfolio")  # 10:00に実行
-engine.run_step(today, "create_orders")  # 14:00に実行
-engine.run_step(today, "submit_orders")  # 15:00に実行
+engine.run_step(today, "create_entry_orders")  # 14:00に実行
+engine.run_step(today, "create_exit_orders")  # 14:05に実行
+engine.run_step(today, "submit_entry_orders")  # 15:00に実行
+engine.run_step(today, "submit_exit_orders")  # 15:05に実行
 ```
 
 ## 次のステップ

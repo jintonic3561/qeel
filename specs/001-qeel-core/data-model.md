@@ -86,13 +86,17 @@ class MethodTimingConfig(BaseModel):
     Attributes:
         calculate_signals_offset_seconds: シグナル計算のオフセット（秒）
         select_symbols_offset_seconds: 銘柄選定のオフセット（秒）
-        create_orders_offset_seconds: 注文生成のオフセット（秒）
-        submit_orders_offset_seconds: 注文執行のオフセット（秒）
+        create_entry_orders_offset_seconds: エントリー注文生成のオフセット（秒）
+        create_exit_orders_offset_seconds: エグジット注文生成のオフセット（秒）
+        submit_entry_orders_offset_seconds: エントリー注文執行のオフセット（秒）
+        submit_exit_orders_offset_seconds: エグジット注文執行のオフセット（秒）
     """
     calculate_signals_offset_seconds: int = Field(default=0, description="シグナル計算のオフセット（秒）")
     select_symbols_offset_seconds: int = Field(default=0, description="銘柄選定のオフセット（秒）")
-    create_orders_offset_seconds: int = Field(default=0, description="注文生成のオフセット（秒）")
-    submit_orders_offset_seconds: int = Field(default=0, description="注文執行のオフセット（秒）")
+    create_entry_orders_offset_seconds: int = Field(default=0, description="エントリー注文生成のオフセット（秒）")
+    create_exit_orders_offset_seconds: int = Field(default=0, description="エグジット注文生成のオフセット（秒）")
+    submit_entry_orders_offset_seconds: int = Field(default=0, description="エントリー注文執行のオフセット（秒）")
+    submit_exit_orders_offset_seconds: int = Field(default=0, description="エグジット注文執行のオフセット（秒）")
 
 
 class LoopConfig(BaseModel):
@@ -429,7 +433,7 @@ class Context(BaseModel):
     """iterationをまたいで保持されるコンテキスト
 
     current_datetimeはiterationの開始時に設定され、iteration全体を通じて不変。
-    signals, portfolio_plan, ordersはiteration内で段階的に構築される。
+    signals, portfolio_plan, entry_orders, exit_ordersはiteration内で段階的に構築される。
     current_positionsはBaseExchangeClient.fetch_positions()から動的に取得される。
     Polars DataFrameを直接保持することで、変換コストを排除し、型安全性を確保する。
 
@@ -437,7 +441,8 @@ class Context(BaseModel):
         current_datetime: 現在のiteration日時（必須、iteration開始時に設定）
         signals: シグナルDataFrame（SignalSchema準拠、SignalCalculatorの出力）
         portfolio_plan: 構築済みポートフォリオDataFrame（PortfolioSchema準拠、PortfolioConstructorの出力）
-        orders: 注文DataFrame（OrderSchema準拠、OrderCreatorの出力）
+        entry_orders: エントリー注文DataFrame（OrderSchema準拠、EntryOrderCreatorの出力）
+        exit_orders: エグジット注文DataFrame（OrderSchema準拠、ExitOrderCreatorの出力）
         current_positions: 現在のポジションDataFrame（PositionSchema準拠、BaseExchangeClientから取得）
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -445,7 +450,8 @@ class Context(BaseModel):
     current_datetime: datetime
     signals: pl.DataFrame | None = None
     portfolio_plan: pl.DataFrame | None = None
-    orders: pl.DataFrame | None = None
+    entry_orders: pl.DataFrame | None = None
+    exit_orders: pl.DataFrame | None = None
     current_positions: pl.DataFrame | None = None
 ```
 
@@ -729,23 +735,38 @@ class PortfolioConstructorParams(BaseModel):
     pass  # ユーザが拡張
 ```
 
-### 3.3 OrderCreatorParams
+### 3.3 EntryOrderCreatorParams
 
 ```python
-class OrderCreatorParams(BaseModel):
-    """注文生成クラスのパラメータ基底クラス
+class EntryOrderCreatorParams(BaseModel):
+    """エントリー注文生成クラスのパラメータ基底クラス
 
     ユーザはこれを継承して独自パラメータを定義する。
 
     Example:
-        class EqualWeightParams(OrderCreatorParams):
+        class EqualWeightParams(EntryOrderCreatorParams):
             capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
             max_position_pct: float = Field(default=0.2, gt=0.0, le=1.0, description="1銘柄の最大ポジション比率")
     """
     pass  # ユーザが拡張
 ```
 
-### 3.4 ReturnCalculatorParams
+### 3.4 ExitOrderCreatorParams
+
+```python
+class ExitOrderCreatorParams(BaseModel):
+    """エグジット注文生成クラスのパラメータ基底クラス
+
+    ユーザはこれを継承して独自パラメータを定義する。
+
+    Example:
+        class FullExitParams(ExitOrderCreatorParams):
+            exit_threshold: float = Field(default=1.0, ge=0.0, le=1.0, description="エグジット閾値（保有比率）")
+    """
+    pass  # ユーザが拡張
+```
+
+### 3.5 ReturnCalculatorParams
 
 ```python
 class ReturnCalculatorParams(BaseModel):
@@ -772,14 +793,16 @@ Context
  ├─ current_datetime: datetime
  ├─ signals: DataFrame (SignalSchema) | None
  ├─ portfolio_plan: DataFrame (PortfolioSchema) | None
- ├─ orders: DataFrame (OrderSchema) | None
+ ├─ entry_orders: DataFrame (OrderSchema) | None
+ ├─ exit_orders: DataFrame (OrderSchema) | None
  └─ current_positions: DataFrame (PositionSchema) | None
 
 StrategyEngine
  ├─ config: Config
  ├─ calculator: BaseSignalCalculator (params: SignalCalculatorParams)
  ├─ portfolio_constructor: BasePortfolioConstructor (params: PortfolioConstructorParams)
- ├─ order_creator: BaseOrderCreator (params: OrderCreatorParams)
+ ├─ entry_order_creator: BaseEntryOrderCreator (params: EntryOrderCreatorParams)
+ ├─ exit_order_creator: BaseExitOrderCreator (params: ExitOrderCreatorParams)
  ├─ data_sources: dict[str, BaseDataSource]
  └─ context_store: BaseContextStore
 
@@ -791,7 +814,8 @@ Iteration Flow:
   OHLCV / その他データソース (DataSource)
     → Signal (SignalCalculator)
     → Portfolio DataFrame (PortfolioConstructor: 銘柄選定+メタデータ付与)
-    → Order (OrderCreator: メタデータ活用)
+    → Entry Order (EntryOrderCreator: メタデータ活用)
+    → Exit Order (ExitOrderCreator: ポジションベース)
     → FillReport (Executor)
     → Metrics (calculate_metrics)
 ```

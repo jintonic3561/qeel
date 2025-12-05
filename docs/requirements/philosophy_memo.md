@@ -1,0 +1,7 @@
+- backtest.frequency
+    - ohlcv.uniqueではなく明示的に間隔を定義。
+    - liveではohlcv historyに関わらず実行されるため、これを意識。
+- create_order, submit_orderの分岐
+    - デプロイ時にはほぼsequentialにまとめて行われる。
+    - ただし、注文データの作成はバックテスト、ライブ問わず同じロジックとして切り出せる。
+    - 注文送信のみモック、APIクライアント差し替えで対応できるので、良い設計である。
