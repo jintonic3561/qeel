@@ -17,7 +17,6 @@
       "WebSearch",
       "Bash(sed:*)",
       "Bash(git commit:*)",
-      "Bash(git add:*)",
       "Bash(uv run pytest:*)",
       "Bash(uv sync:*)",
       "Bash(uv run python -m pytest:*)"
@@ -31,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_CODE_HOOK_EVENT=Notification ./.claude/notify.sh",
+            "command": "CLAUDE_CODE_HOOK_EVENT=Notification ./.claude/hooks/notify.sh",
             "statusMessage": "Slack通知を送信中..."
           }
         ]
@@ -42,7 +41,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_CODE_HOOK_EVENT=Stop ./.claude/notify.sh",
+            "command": "./.claude/hooks/auto-format.sh",
+            "statusMessage": "変更ファイルをruff formatで整形中..."
+          },
+          {
+            "type": "command",
+            "command": "CLAUDE_CODE_HOOK_EVENT=Stop ./.claude/hooks/notify.sh",
             "statusMessage": "完了通知を送信中..."
           }
         ]
