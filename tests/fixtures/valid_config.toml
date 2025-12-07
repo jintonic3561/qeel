@@ -1,0 +1,31 @@
+# 正常な設定ファイル
+
+[general]
+storage_type = "local"
+
+[loop]
+frequency = "1d"
+start_date = "2023-01-01T00:00:00"
+end_date = "2023-12-31T23:59:59"
+
+[loop.step_timings]
+calculate_signals_offset_seconds = 32400
+construct_portfolio_offset_seconds = 32700
+create_entry_orders_offset_seconds = 33000
+create_exit_orders_offset_seconds = 33120
+submit_entry_orders_offset_seconds = 34200
+submit_exit_orders_offset_seconds = 34320
+
+[[data_sources]]
+name = "ohlcv"
+datetime_column = "timestamp"
+offset_seconds = 0
+window_seconds = 2592000
+source_type = "parquet"
+source_path = "tests/fixtures/ohlcv.parquet"
+
+[costs]
+commission_rate = 0.001
+slippage_bps = 5.0
+market_impact_model = "fixed"
+market_impact_param = 0.0

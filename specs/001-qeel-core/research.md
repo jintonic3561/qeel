@@ -55,7 +55,7 @@
 
 ### 3. toml設定ファイルのバリデーション戦略
 
-**Decision**: Pydantic `BaseSettings` またはカスタムモデルで設定を定義し、tomliで読み込み後即座にバリデーション
+**Decision**: Pydantic `BaseSettings` またはカスタムモデルで設定を定義し、tomllib（Python 3.11+標準ライブラリ）で読み込み後即座にバリデーション
 
 **Rationale**:
 - Pydanticのフィールドバリデーションで型チェック・必須項目・カスタムルール適用可能
@@ -143,8 +143,8 @@ slippage_bps = 5  # スリッページ（5bps）
 market_impact_model = "sqrt"  # "fixed" または "sqrt"
 market_impact_coef = 0.0001
 
-# 各メソッドの実行タイミング（ループ日付からのオフセット、秒数で指定）
-[loop.method_timings]
+# 各ステップの実行タイミング（ループ日付からのオフセット、秒数で指定）
+[loop.step_timings]
 calculate_signals_offset_seconds = 32400    # 09:00:00 = 9 * 3600
 construct_portfolio_offset_seconds = 32700  # 09:05:00
 create_entry_orders_offset_seconds = 33000  # 09:10:00
@@ -202,7 +202,7 @@ class Context(BaseModel):
 ### 5. バックテストと実運用の再現性保証とステップ単位実行
 
 **Decision**:
-- `StrategyEngine`が各ステップを独立して実行可能なメソッドを提供
+- `StrategyEngine`が各ステップを独立して実行可能なステップを提供
 - `BacktestRunner`が`StrategyEngine`インスタンスを保持し、ループ管理とタイミング制御を担当
 - 実運用時は外部スケジューラが`StrategyEngine.run_step`を直接呼び出し
 - 各ステップ間でコンテキストを永続化し、状態を受け渡す

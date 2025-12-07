@@ -12,7 +12,7 @@
 ## Technical Context
 
 **Language/Version**: Python 3.11+（型ヒント必須、dataclass/Pydantic活用）
-**Primary Dependencies**: Polars（データフレーム操作）、Pydantic（スキーマ定義・バリデーション）、tomli（設定読み込み）
+**Primary Dependencies**: Polars（データフレーム操作）、Pydantic（スキーマ定義・バリデーション）、tomllib（設定読み込み、Python 3.11+標準ライブラリ）
 **Storage**: ローカルファイルシステム（バックテスト時）、S3/データベース（実運用時、ユーザ実装）
 **Testing**: pytest、pytest-mock（TDD厳守、Red-Green-Refactor）
 **Target Platform**: ローカルマシン（Linux/macOS/Windows）、パッケージとして配布可能
@@ -92,7 +92,7 @@
 **Branch**: `002-core-config-and-schemas`
 - **目的**: 設定管理とスキーマバリデーションの基盤
 - **成果物**:
-  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, MethodTimingConfig, GeneralConfig）
+  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, StepTimingConfig, GeneralConfig）
   - `qeel/schemas/` - DataFrameスキーマバリデータ（OHLCVSchema, SignalSchema等）
   - `qeel/utils/workspace.py` - get_workspace()実装（環境変数QEEL_WORKSPACEからワークスペースパスを取得）
   - toml読み込み・バリデーション機能（research.mdの設定例を参照）
