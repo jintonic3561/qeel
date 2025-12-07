@@ -1,0 +1,192 @@
+"""Configuration Modelsのユニットテスト
+
+TDD: RED → GREEN → REFACTOR
+data-model.md 1.1-1.4を参照
+"""
+
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+
+# DataSourceConfig tests
+def test_data_source_config_valid() -> None:
+    """正常な設定でバリデーションパス"""
+    from qeel.config.models import DataSourceConfig
+
+    config = DataSourceConfig(
+        name="ohlcv",
+        datetime_column="timestamp",
+        offset_seconds=0,
+        window_seconds=86400,
+        source_type="parquet",
+        source_path=Path("/tmp/data.parquet"),
+    )
+    assert config.name == "ohlcv"
+    assert config.offset_seconds == 0
+    assert config.window_seconds == 86400
+
+
+def test_data_source_config_invalid_source_type() -> None:
+    """不正なsource_typeでValidationError"""
+    from qeel.config.models import DataSourceConfig
+
+    with pytest.raises(ValidationError, match="source_typeは"):
+        DataSourceConfig(
+            name="ohlcv",
+            datetime_column="timestamp",
+            offset_seconds=0,
+            window_seconds=86400,
+            source_type="invalid_type",
+            source_path=Path("/tmp/data.parquet"),
+        )
+
+
+# CostConfig tests
+def test_cost_config_defaults() -> None:
+    """デフォルト値の確認"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig()
+    assert config.commission_rate == 0.0
+    assert config.slippage_bps == 0.0
+    assert config.market_impact_model == "fixed"
+    assert config.market_impact_param == 0.0
+
+
+def test_cost_config_invalid_market_impact_model() -> None:
+    """不正なmarket_impact_modelでValidationError"""
+    from qeel.config.models import CostConfig
+
+    with pytest.raises(ValidationError, match="market_impact_modelは"):
+        CostConfig(market_impact_model="invalid_model")
+
+
+# MethodTimingConfig tests
+def test_method_timing_config_defaults() -> None:
+    """デフォルト値の確認"""
+    from qeel.config.models import MethodTimingConfig
+
+    config = MethodTimingConfig()
+    assert config.calculate_signals_offset_seconds == 0
+    assert config.construct_portfolio_offset_seconds == 0
+    assert config.create_entry_orders_offset_seconds == 0
+    assert config.create_exit_orders_offset_seconds == 0
+    assert config.submit_entry_orders_offset_seconds == 0
+    assert config.submit_exit_orders_offset_seconds == 0
+
+
+# LoopConfig tests
+def test_loop_config_frequency_parse_days() -> None:
+    """\"1d\"をtimedeltaに変換"""
+    from qeel.config.models import LoopConfig
+
+    config = LoopConfig(
+        frequency="1d",
+        start_date=datetime(2023, 1, 1),
+        end_date=datetime(2023, 12, 31),
+    )
+    assert config.frequency == timedelta(days=1)
+
+
+def test_loop_config_frequency_parse_hours() -> None:
+    """\"4h\"をtimedeltaに変換"""
+    from qeel.config.models import LoopConfig
+
+    config = LoopConfig(
+        frequency="4h",
+        start_date=datetime(2023, 1, 1),
+        end_date=datetime(2023, 12, 31),
+    )
+    assert config.frequency == timedelta(hours=4)
+
+
+def test_loop_config_frequency_parse_weeks() -> None:
+    """\"1w\"をtimedeltaに変換"""
+    from qeel.config.models import LoopConfig
+
+    config = LoopConfig(
+        frequency="1w",
+        start_date=datetime(2023, 1, 1),
+        end_date=datetime(2023, 12, 31),
+    )
+    assert config.frequency == timedelta(weeks=1)
+
+
+def test_loop_config_frequency_parse_minutes() -> None:
+    """\"30m\"をtimedeltaに変換"""
+    from qeel.config.models import LoopConfig
+
+    config = LoopConfig(
+        frequency="30m",
+        start_date=datetime(2023, 1, 1),
+        end_date=datetime(2023, 12, 31),
+    )
+    assert config.frequency == timedelta(minutes=30)
+
+
+def test_loop_config_frequency_invalid_format() -> None:
+    """不正形式でValidationError"""
+    from qeel.config.models import LoopConfig
+
+    with pytest.raises(ValidationError, match="不正なfrequency形式"):
+        LoopConfig(
+            frequency="invalid",
+            start_date=datetime(2023, 1, 1),
+            end_date=datetime(2023, 12, 31),
+        )
+
+
+def test_loop_config_end_before_start() -> None:
+    """end_date < start_dateでValidationError"""
+    from qeel.config.models import LoopConfig
+
+    with pytest.raises(ValidationError, match="end_dateはstart_dateより後である必要があります"):
+        LoopConfig(
+            frequency="1d",
+            start_date=datetime(2023, 12, 31),
+            end_date=datetime(2023, 1, 1),
+        )
+
+
+# GeneralConfig tests
+def test_general_config_local_storage() -> None:
+    """storage_type=\"local\"で正常"""
+    from qeel.config.models import GeneralConfig
+
+    config = GeneralConfig(storage_type="local")
+    assert config.storage_type == "local"
+    assert config.s3_bucket is None
+    assert config.s3_region is None
+
+
+def test_general_config_s3_storage_valid() -> None:
+    """storage_type=\"s3\"で必須項目ありで正常"""
+    from qeel.config.models import GeneralConfig
+
+    config = GeneralConfig(
+        storage_type="s3",
+        s3_bucket="my-bucket",
+        s3_region="ap-northeast-1",
+    )
+    assert config.storage_type == "s3"
+    assert config.s3_bucket == "my-bucket"
+    assert config.s3_region == "ap-northeast-1"
+
+
+def test_general_config_s3_missing_bucket() -> None:
+    """s3でbucket未設定時にValidationError"""
+    from qeel.config.models import GeneralConfig
+
+    with pytest.raises(ValidationError, match="s3_bucketは必須"):
+        GeneralConfig(storage_type="s3", s3_region="ap-northeast-1")
+
+
+def test_general_config_s3_missing_region() -> None:
+    """s3でregion未設定時にValidationError"""
+    from qeel.config.models import GeneralConfig
+
+    with pytest.raises(ValidationError, match="s3_regionは必須"):
+        GeneralConfig(storage_type="s3", s3_bucket="my-bucket")
