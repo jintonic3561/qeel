@@ -7,7 +7,7 @@
 **目的**: 設定管理とスキーマバリデーションの基盤
 
 **成果物**:
-- `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, MethodTimingConfig, GeneralConfig）
+- `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, StepTimingConfig, GeneralConfig）
 - `qeel/schemas/` - DataFrameスキーマバリデータ（OHLCVSchema, SignalSchema等）
 - `qeel/utils/workspace.py` - get_workspace()実装
 - toml読み込み・バリデーション機能
@@ -73,7 +73,7 @@
   - `test_data_source_config_invalid_source_type`: 不正なsource_typeでValidationError
   - `test_cost_config_defaults`: デフォルト値の確認
   - `test_cost_config_invalid_market_impact_model`: 不正なmarket_impact_modelでValidationError
-  - `test_method_timing_config_defaults`: デフォルト値の確認
+  - `test_step_timing_config_defaults`: デフォルト値の確認
   - `test_loop_config_frequency_parse_days`: "1d"をtimedeltaに変換
   - `test_loop_config_frequency_parse_hours`: "4h"をtimedeltaに変換
   - `test_loop_config_frequency_parse_weeks`: "1w"をtimedeltaに変換
@@ -89,7 +89,7 @@
 
 - [ ] T014 [P] src/qeel/config/models.pyにDataSourceConfigを実装（data-model.md 1.1参照）
 - [ ] T015 [P] src/qeel/config/models.pyにCostConfigを実装（data-model.md 1.2参照）
-- [ ] T016 [P] src/qeel/config/models.pyにMethodTimingConfigを実装（data-model.md 1.3参照）
+- [ ] T016 [P] src/qeel/config/models.pyにStepTimingConfigを実装（data-model.md 1.3参照）
 - [ ] T017 src/qeel/config/models.pyにLoopConfigを実装（data-model.md 1.3参照、frequencyパース含む）
 - [ ] T018 src/qeel/config/models.pyにGeneralConfigを実装（data-model.md 1.4参照）
 

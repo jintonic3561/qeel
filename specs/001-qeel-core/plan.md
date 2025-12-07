@@ -92,7 +92,7 @@
 **Branch**: `002-core-config-and-schemas`
 - **目的**: 設定管理とスキーマバリデーションの基盤
 - **成果物**:
-  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, MethodTimingConfig, GeneralConfig）
+  - `qeel/config/` - Pydantic設定モデル（Config, DataSourceConfig, CostConfig, LoopConfig, StepTimingConfig, GeneralConfig）
   - `qeel/schemas/` - DataFrameスキーマバリデータ（OHLCVSchema, SignalSchema等）
   - `qeel/utils/workspace.py` - get_workspace()実装（環境変数QEEL_WORKSPACEからワークスペースパスを取得）
   - toml読み込み・バリデーション機能（research.mdの設定例を参照）

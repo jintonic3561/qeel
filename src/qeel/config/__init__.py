@@ -9,7 +9,7 @@ from qeel.config.models import (
     DataSourceConfig,
     GeneralConfig,
     LoopConfig,
-    MethodTimingConfig,
+    StepTimingConfig,
 )
 from qeel.config.params import (
     EntryOrderCreatorParams,
@@ -23,7 +23,7 @@ __all__ = [
     "Config",
     "DataSourceConfig",
     "CostConfig",
-    "MethodTimingConfig",
+    "StepTimingConfig",
     "LoopConfig",
     "GeneralConfig",
     "SignalCalculatorParams",

@@ -83,8 +83,8 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field, field_validator
 
 
-class MethodTimingConfig(BaseModel):
-    """各メソッドの実行タイミング設定
+class StepTimingConfig(BaseModel):
+    """各ステップの実行タイミング設定
 
     Attributes:
         calculate_signals_offset_seconds: シグナル計算のオフセット（秒）
@@ -110,13 +110,13 @@ class LoopConfig(BaseModel):
         start_date: 開始日
         end_date: 終了日
         universe: 対象銘柄リスト（Noneなら全銘柄を対象）
-        method_timings: 各メソッドの実行タイミング
+        step_timings: 各ステップの実行タイミング
     """
     frequency: timedelta = Field(..., description="iteration頻度")
     start_date: datetime = Field(..., description="開始日")
     end_date: datetime = Field(..., description="終了日")
     universe: list[str] | None = Field(default=None, description="対象銘柄リスト（Noneなら全銘柄）")
-    method_timings: MethodTimingConfig = Field(default_factory=MethodTimingConfig)
+    step_timings: StepTimingConfig = Field(default_factory=StepTimingConfig)
 
     @field_validator('frequency', mode='before')
     @classmethod

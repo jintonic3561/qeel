@@ -64,12 +64,12 @@ def test_cost_config_invalid_market_impact_model() -> None:
         CostConfig(market_impact_model="invalid_model")
 
 
-# MethodTimingConfig tests
-def test_method_timing_config_defaults() -> None:
+# StepTimingConfig tests
+def test_step_timing_config_defaults() -> None:
     """デフォルト値の確認"""
-    from qeel.config.models import MethodTimingConfig
+    from qeel.config.models import StepTimingConfig
 
-    config = MethodTimingConfig()
+    config = StepTimingConfig()
     assert config.calculate_signals_offset_seconds == 0
     assert config.construct_portfolio_offset_seconds == 0
     assert config.create_entry_orders_offset_seconds == 0
