@@ -190,3 +190,73 @@ def test_general_config_s3_missing_region() -> None:
 
     with pytest.raises(ValidationError, match="s3_regionは必須"):
         GeneralConfig(storage_type="s3", s3_bucket="my-bucket")
+
+
+# Config Root Model and TOML Loading tests (Phase 4)
+def test_config_from_toml_valid() -> None:
+    """正常なTOMLファイルからConfig生成"""
+    from qeel.config.models import Config
+
+    config = Config.from_toml(Path("tests/fixtures/valid_config.toml"))
+    assert config.general.storage_type == "local"
+    assert config.loop.frequency == timedelta(days=1)
+    assert len(config.data_sources) == 1
+    assert config.data_sources[0].name == "ohlcv"
+    assert config.costs.commission_rate == 0.001
+
+
+def test_config_from_toml_missing_file() -> None:
+    """ファイル不存在時にFileNotFoundError"""
+    from qeel.config.models import Config
+
+    with pytest.raises(FileNotFoundError):
+        Config.from_toml(Path("tests/fixtures/nonexistent.toml"))
+
+
+def test_config_from_toml_invalid_toml() -> None:
+    """不正なTOML形式でエラー"""
+    from qeel.config.models import Config
+
+    # 不正なTOMLファイルを一時作成
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write("invalid toml syntax [[[")
+        invalid_path = Path(f.name)
+
+    try:
+        with pytest.raises(Exception):  # TOMLParseError等
+            Config.from_toml(invalid_path)
+    finally:
+        invalid_path.unlink()
+
+
+def test_config_from_toml_validation_error() -> None:
+    """バリデーションエラーでValidationError"""
+    from qeel.config.models import Config
+
+    with pytest.raises(ValidationError):
+        Config.from_toml(Path("tests/fixtures/invalid_config.toml"))
+
+
+def test_config_from_toml_default_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """パス未指定時にワークスペース/configs/config.tomlを参照"""
+    from qeel.config.models import Config
+
+    # ワークスペース設定
+    workspace = tmp_path
+    monkeypatch.setenv("QEEL_WORKSPACE", str(workspace))
+
+    # configs/config.tomlを作成
+    config_dir = workspace / "configs"
+    config_dir.mkdir()
+    config_file = config_dir / "config.toml"
+
+    # valid_config.tomlをコピー
+    import shutil
+
+    shutil.copy("tests/fixtures/valid_config.toml", config_file)
+
+    # パス未指定でfrom_toml()を呼び出し
+    config = Config.from_toml()
+    assert config.general.storage_type == "local"

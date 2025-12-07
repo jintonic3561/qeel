@@ -5,11 +5,18 @@ data-model.md 1.1-1.6を参照。
 """
 
 import re
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Python 3.11+ではtomllibが標準ライブラリに含まれる
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 
 class DataSourceConfig(BaseModel):
@@ -166,3 +173,43 @@ class GeneralConfig(BaseModel):
             if self.s3_region is None:
                 raise ValueError("storage_type='s3'の場合、s3_regionは必須です")
         return self
+
+
+class Config(BaseModel):
+    """Qeelの全体設定
+
+    Attributes:
+        general: General設定
+        data_sources: データソース設定リスト
+        costs: コスト設定
+        loop: ループ設定
+    """
+
+    general: GeneralConfig
+    data_sources: list[DataSourceConfig] = Field(..., min_length=1)
+    costs: CostConfig
+    loop: LoopConfig
+
+    @classmethod
+    def from_toml(cls, path: Path | None = None) -> "Config":
+        """tomlファイルから設定を読み込む
+
+        Args:
+            path: 設定ファイルのパス。Noneの場合、ワークスペース/configs/config.tomlを使用
+
+        Returns:
+            Configインスタンス
+
+        Raises:
+            FileNotFoundError: ファイルが存在しない場合
+            ValueError: TOMLパースエラーまたはバリデーションエラーの場合
+        """
+        if path is None:
+            from qeel.utils.workspace import get_workspace
+
+            workspace = get_workspace()
+            path = workspace / "configs" / "config.toml"
+
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        return cls(**data)
