@@ -143,14 +143,14 @@ slippage_bps = 5  # スリッページ（5bps）
 market_impact_model = "sqrt"  # "fixed" または "sqrt"
 market_impact_coef = 0.0001
 
-# 各メソッドの実行タイミング（ループ日付からのオフセット）
-[timing]
-calculate_signals = "09:00:00"  # シグナル計算タイミング
-select_symbols = "09:05:00"
-create_entry_orders = "09:10:00"
-create_exit_orders = "09:12:00"
-submit_entry_orders = "09:30:00"  # エントリー注文執行タイミング
-submit_exit_orders = "09:32:00"  # エグジット注文執行タイミング
+# 各メソッドの実行タイミング（ループ日付からのオフセット、秒数で指定）
+[loop.method_timings]
+calculate_signals_offset_seconds = 32400    # 09:00:00 = 9 * 3600
+construct_portfolio_offset_seconds = 32700  # 09:05:00
+create_entry_orders_offset_seconds = 33000  # 09:10:00
+create_exit_orders_offset_seconds = 33120   # 09:12:00
+submit_entry_orders_offset_seconds = 34200  # 09:30:00
+submit_exit_orders_offset_seconds = 34320   # 09:32:00
 ```
 
 **Note**: ワークスペース構造は以下の通り:

@@ -77,7 +77,10 @@ class CostConfig(BaseModel):
 ### 1.3 LoopConfig
 
 ```python
-from pydantic import BaseModel, Field
+import re
+from datetime import datetime, timedelta
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class MethodTimingConfig(BaseModel):
@@ -85,14 +88,14 @@ class MethodTimingConfig(BaseModel):
 
     Attributes:
         calculate_signals_offset_seconds: シグナル計算のオフセット（秒）
-        select_symbols_offset_seconds: 銘柄選定のオフセット（秒）
+        construct_portfolio_offset_seconds: ポートフォリオ構築のオフセット（秒）
         create_entry_orders_offset_seconds: エントリー注文生成のオフセット（秒）
         create_exit_orders_offset_seconds: エグジット注文生成のオフセット（秒）
         submit_entry_orders_offset_seconds: エントリー注文執行のオフセット（秒）
         submit_exit_orders_offset_seconds: エグジット注文執行のオフセット（秒）
     """
     calculate_signals_offset_seconds: int = Field(default=0, description="シグナル計算のオフセット（秒）")
-    select_symbols_offset_seconds: int = Field(default=0, description="銘柄選定のオフセット（秒）")
+    construct_portfolio_offset_seconds: int = Field(default=0, description="ポートフォリオ構築のオフセット（秒）")
     create_entry_orders_offset_seconds: int = Field(default=0, description="エントリー注文生成のオフセット（秒）")
     create_exit_orders_offset_seconds: int = Field(default=0, description="エグジット注文生成のオフセット（秒）")
     submit_entry_orders_offset_seconds: int = Field(default=0, description="エントリー注文執行のオフセット（秒）")
@@ -103,17 +106,44 @@ class LoopConfig(BaseModel):
     """バックテストループの設定
 
     Attributes:
-        frequency: iteration頻度（"1d", "1w", "1h"等）
+        frequency: iteration頻度（timedeltaとして保持、tomlでは"1d", "1h"等の文字列で指定）
         start_date: 開始日
         end_date: 終了日
         universe: 対象銘柄リスト（Noneなら全銘柄を対象）
         method_timings: 各メソッドの実行タイミング
     """
-    frequency: str = Field(..., description="iteration頻度")
+    frequency: timedelta = Field(..., description="iteration頻度")
     start_date: datetime = Field(..., description="開始日")
     end_date: datetime = Field(..., description="終了日")
     universe: list[str] | None = Field(default=None, description="対象銘柄リスト（Noneなら全銘柄）")
     method_timings: MethodTimingConfig = Field(default_factory=MethodTimingConfig)
+
+    @field_validator('frequency', mode='before')
+    @classmethod
+    def parse_frequency(cls, v: str | timedelta) -> timedelta:
+        """文字列形式のfrequency（"1d", "4h", "1w", "30m"）をtimedeltaに変換する
+
+        Args:
+            v: frequency値（文字列またはtimedelta）
+
+        Returns:
+            timedelta形式のfrequency
+
+        Raises:
+            ValueError: 不正な形式の場合
+        """
+        if isinstance(v, timedelta):
+            return v
+
+        match = re.match(r'^(\d+)([dhwm])$', v.lower())
+        if not match:
+            raise ValueError(
+                f"不正なfrequency形式です: {v}（有効な形式: '1d', '4h', '1w', '30m'）"
+            )
+
+        value, unit = int(match.group(1)), match.group(2)
+        unit_map = {'d': 'days', 'h': 'hours', 'w': 'weeks', 'm': 'minutes'}
+        return timedelta(**{unit_map[unit]: value})
 
     @field_validator('end_date')
     @classmethod
@@ -164,7 +194,49 @@ class GeneralConfig(BaseModel):
         return v
 ```
 
-### 1.5 Config（全体設定）
+### 1.5 Workspace Utilities
+
+```python
+import os
+from pathlib import Path
+
+
+def get_workspace() -> Path:
+    """ワークスペースディレクトリを取得する
+
+    環境変数QEEL_WORKSPACEが設定されている場合はそのパスを返し、
+    未設定の場合はカレントディレクトリを返す。
+
+    Returns:
+        ワークスペースディレクトリのPathオブジェクト
+
+    Raises:
+        ValueError: 指定されたパスが存在しないディレクトリの場合
+
+    Example:
+        # 環境変数で指定
+        $ export QEEL_WORKSPACE=/path/to/my_backtest
+        >>> get_workspace()
+        PosixPath('/path/to/my_backtest')
+
+        # 環境変数未設定（カレントディレクトリを使用）
+        >>> get_workspace()
+        PosixPath('/current/working/directory')
+    """
+    workspace_env = os.environ.get("QEEL_WORKSPACE")
+
+    if workspace_env is not None:
+        workspace = Path(workspace_env)
+        if not workspace.is_dir():
+            raise ValueError(
+                f"QEEL_WORKSPACEで指定されたパスが存在しないか、ディレクトリではありません: {workspace}"
+            )
+        return workspace
+
+    return Path.cwd()
+```
+
+### 1.6 Config（全体設定）
 
 ```python
 from pathlib import Path
@@ -172,7 +244,7 @@ from pathlib import Path
 import tomli
 from pydantic import BaseModel, Field
 
-from qeel.utils import get_workspace
+from qeel.utils.workspace import get_workspace
 
 
 class Config(BaseModel):
