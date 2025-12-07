@@ -23,14 +23,14 @@ class BaseDataSource(ABC):
 
     Attributes:
         config: DataSourceConfig（toml設定から生成）
-        io: BaseIO（IOレイヤー、データ読み込みに使用）
+        io: BaseIO | None（IOレイヤー、データ読み込みに使用。API経由等ではNone）
     """
 
-    def __init__(self, config: DataSourceConfig, io: BaseIO):
+    def __init__(self, config: DataSourceConfig, io: BaseIO | None = None):
         """
         Args:
             config: データソース設定
-            io: IOレイヤー実装（LocalIO、S3IO等）
+            io: IOレイヤー実装（LocalIO、S3IO等）。Noneの場合はIOレイヤーを使用しない
         """
         self.config = config
         self.io = io
@@ -65,6 +65,9 @@ class BaseDataSource(ABC):
 
         Returns:
             datetime列が正規化されたDataFrame
+
+        Raises:
+            KeyError: config.datetime_columnで指定された列がDataFrameに存在しない場合
         """
         if self.config.datetime_column != "datetime":
             if df[self.config.datetime_column].dtype != pl.Datetime:
@@ -204,14 +207,24 @@ class MockDataSource(BaseDataSource):
     """テスト用モックデータソース
 
     共通ヘルパーメソッドの使用例としても参照可能。
+    デフォルトで最小OHLCVスキーマ（datetime, symbol, open, high, low, close, volume）を持つ。
     """
 
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
-        # モックデータ生成
+        """モックデータを生成して返す
+
+        デフォルトで最小OHLCVスキーマ（datetime, symbol, open, high, low, close, volume）を持つ。
+        """
+        # モックデータ生成（最小OHLCVスキーマ）
+        target_symbols = symbols[:2] if len(symbols) >= 2 else symbols
         mock_data = {
-            "datetime": [start, start],
-            "symbol": symbols[:2] if len(symbols) >= 2 else symbols,
-            "close": [100.0, 200.0],
+            "datetime": [start] * len(target_symbols),
+            "symbol": target_symbols,
+            "open": [99.0, 199.0][:len(target_symbols)],
+            "high": [101.0, 201.0][:len(target_symbols)],
+            "low": [98.0, 198.0][:len(target_symbols)],
+            "close": [100.0, 200.0][:len(target_symbols)],
+            "volume": [1000, 2000][:len(target_symbols)],
         }
         df = pl.DataFrame(mock_data)
 

@@ -1,0 +1,1 @@
+/speckit.validate plan.mdの004-data-source-abcを実装する
