@@ -1,6 +1,6 @@
 description = "Verify the consistency between implemented code and design artifacts (spec, plan, tasks) for the current feature branch."
 
-prompt = """
+prompt = '''
 ---
 description: Verify the consistency between implemented code and design artifacts (spec, plan, tasks) for the current feature branch.
 ---
@@ -106,4 +106,4 @@ Output a **Concise Verification Report**. Do not dump raw logs. Use the structur
 If **CRITICAL** issues are found, advise the user to fix the code or update the spec before proceeding.
 If only **Spec Gaps** are found, advise running `/speckit.clarify` or updating the spec manually.
 If **PASS**, confirm the implementation is solid so far.
-"""
+'''
