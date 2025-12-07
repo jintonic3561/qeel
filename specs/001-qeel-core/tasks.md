@@ -213,6 +213,101 @@
 
 ---
 
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 (Setup)**: 依存なし - 即開始可能
+- **Phase 2 (Workspace)**: Phase 1完了後
+- **Phase 3 (Config Models)**: Phase 2完了後（get_workspaceに依存）
+- **Phase 4 (Config Root)**: Phase 3完了後
+- **Phase 5 (Schemas)**: Phase 1完了後（Config非依存、並列可能）
+- **Phase 6 (Params)**: Phase 1完了後（Config非依存、並列可能）
+- **Phase 7 (Integration)**: Phase 4, 5, 6完了後
+- **Phase 8 (QA)**: Phase 7完了後
+
+### Parallel Opportunities
+
+```
+Phase 1 (Setup)
+     |
+     v
+   ┌─┴─┬──────────┐
+   v   v          v
+Phase 2  Phase 5   Phase 6
+   |     (Schemas) (Params)
+   v        |        |
+Phase 3     |        |
+   |        |        |
+   v        |        |
+Phase 4     |        |
+   |        |        |
+   └────────┴────────┘
+            |
+            v
+        Phase 7 (Integration)
+            |
+            v
+        Phase 8 (QA)
+```
+
+### Within Each Phase
+
+- テストを先に作成し、失敗を確認（RED）
+- 実装してテストをパス（GREEN）
+- 必要に応じてリファクタリング（REFACTOR）
+- [P]マークのタスクは並列実行可能
+
+---
+
+## Task Summary
+
+- **Total Tasks**: 45
+- **Setup Tasks**: 10
+- **Workspace Tasks**: 2
+- **Config Model Tasks**: 6 (tests) + 5 (impl) = 11
+- **Config Root Tasks**: 5 (tests) + 3 (impl) = 8
+- **Schema Tasks**: 12 (tests) + 7 (impl) = 19... (adjusted)
+- **Param Tasks**: 5 (tests) + 5 (impl) = 10
+- **Integration Tasks**: 2 (tests) + 4 (impl) = 6
+- **QA Tasks**: 5
+
+**Parallel Opportunities**:
+- Phase 5 (Schemas) と Phase 6 (Params) は Phase 2-4 と並列実行可能
+- 各フェーズ内で [P] マークのタスクは並列実行可能
+
+---
+
+## Implementation Strategy
+
+### MVP (最小実装)
+
+1. Phase 1: Setup完了
+2. Phase 2: Workspace完了
+3. Phase 3-4: Config完了
+4. Phase 8: QA実行
+
+この時点で設定読み込み機能が動作し、後続ブランチ（003以降）の開発が可能
+
+### Full Implementation
+
+1. MVP完了後
+2. Phase 5: Schemas完了（後続ブランチでデータバリデーションに使用）
+3. Phase 6: Params完了（後続ブランチでABC実装に使用）
+4. Phase 7: Integration完了
+5. Phase 8: 最終QA
+
+---
+
+## Notes
+
+- data-model.mdの各セクション番号を参照してタスクを実装
+- 日本語コメント・docstring必須（constitution準拠）
+- 各フェーズ完了後に品質ゲートチェック（mypy, ruff, pytest）
+- 不明点はresearch.mdの設定例を参照
+
+---
+
 # Tasks: 004-data-source-abc
 
 **Input**: Design documents from `/specs/001-qeel-core/`
@@ -421,94 +516,3 @@
 - MockDataSourceは`BaseIO`を使用せず、直接モックデータを保持
 - 日本語コメント・docstring必須（constitution準拠）
 - 各フェーズ完了後に品質ゲートチェック（mypy, ruff, pytest）
-
----
-
-## Dependencies & Execution Order
-- **Phase 2 (Workspace)**: Phase 1完了後
-- **Phase 3 (Config Models)**: Phase 2完了後（get_workspaceに依存）
-- **Phase 4 (Config Root)**: Phase 3完了後
-- **Phase 5 (Schemas)**: Phase 1完了後（Config非依存、並列可能）
-- **Phase 6 (Params)**: Phase 1完了後（Config非依存、並列可能）
-- **Phase 7 (Integration)**: Phase 4, 5, 6完了後
-- **Phase 8 (QA)**: Phase 7完了後
-
-### Parallel Opportunities
-
-```
-Phase 1 (Setup)
-     |
-     v
-   ┌─┴─┬──────────┐
-   v   v          v
-Phase 2  Phase 5   Phase 6
-   |     (Schemas) (Params)
-   v        |        |
-Phase 3     |        |
-   |        |        |
-   v        |        |
-Phase 4     |        |
-   |        |        |
-   └────────┴────────┘
-            |
-            v
-        Phase 7 (Integration)
-            |
-            v
-        Phase 8 (QA)
-```
-
-### Within Each Phase
-
-- テストを先に作成し、失敗を確認（RED）
-- 実装してテストをパス（GREEN）
-- 必要に応じてリファクタリング（REFACTOR）
-- [P]マークのタスクは並列実行可能
-
----
-
-## Task Summary
-
-- **Total Tasks**: 45
-- **Setup Tasks**: 10
-- **Workspace Tasks**: 2
-- **Config Model Tasks**: 6 (tests) + 5 (impl) = 11
-- **Config Root Tasks**: 5 (tests) + 3 (impl) = 8
-- **Schema Tasks**: 12 (tests) + 7 (impl) = 19... (adjusted)
-- **Param Tasks**: 5 (tests) + 5 (impl) = 10
-- **Integration Tasks**: 2 (tests) + 4 (impl) = 6
-- **QA Tasks**: 5
-
-**Parallel Opportunities**:
-- Phase 5 (Schemas) と Phase 6 (Params) は Phase 2-4 と並列実行可能
-- 各フェーズ内で [P] マークのタスクは並列実行可能
-
----
-
-## Implementation Strategy
-
-### MVP (最小実装)
-
-1. Phase 1: Setup完了
-2. Phase 2: Workspace完了
-3. Phase 3-4: Config完了
-4. Phase 8: QA実行
-
-この時点で設定読み込み機能が動作し、後続ブランチ（003以降）の開発が可能
-
-### Full Implementation
-
-1. MVP完了後
-2. Phase 5: Schemas完了（後続ブランチでデータバリデーションに使用）
-3. Phase 6: Params完了（後続ブランチでABC実装に使用）
-4. Phase 7: Integration完了
-5. Phase 8: 最終QA
-
----
-
-## Notes
-
-- data-model.mdの各セクション番号を参照してタスクを実装
-- 日本語コメント・docstring必須（constitution準拠）
-- 各フェーズ完了後に品質ゲートチェック（mypy, ruff, pytest）
-- 不明点はresearch.mdの設定例を参照
