@@ -83,8 +83,10 @@ def test_loop_config_frequency_parse_days() -> None:
     """\"1d\"をtimedeltaに変換"""
     from qeel.config.models import LoopConfig
 
+    # NOTE: mypyは静的解析のためPydanticのbefore validatorによる
+    # str -> timedelta変換を認識できない。実行時には正しく変換される。
     config = LoopConfig(
-        frequency="1d",
+        frequency="1d",  # type: ignore[arg-type]
         start_date=datetime(2023, 1, 1),
         end_date=datetime(2023, 12, 31),
     )
@@ -96,7 +98,7 @@ def test_loop_config_frequency_parse_hours() -> None:
     from qeel.config.models import LoopConfig
 
     config = LoopConfig(
-        frequency="4h",
+        frequency="4h",  # type: ignore[arg-type]
         start_date=datetime(2023, 1, 1),
         end_date=datetime(2023, 12, 31),
     )
@@ -108,7 +110,7 @@ def test_loop_config_frequency_parse_weeks() -> None:
     from qeel.config.models import LoopConfig
 
     config = LoopConfig(
-        frequency="1w",
+        frequency="1w",  # type: ignore[arg-type]
         start_date=datetime(2023, 1, 1),
         end_date=datetime(2023, 12, 31),
     )
@@ -120,7 +122,7 @@ def test_loop_config_frequency_parse_minutes() -> None:
     from qeel.config.models import LoopConfig
 
     config = LoopConfig(
-        frequency="30m",
+        frequency="30m",  # type: ignore[arg-type]
         start_date=datetime(2023, 1, 1),
         end_date=datetime(2023, 12, 31),
     )
@@ -133,7 +135,7 @@ def test_loop_config_frequency_invalid_format() -> None:
 
     with pytest.raises(ValidationError, match="不正なfrequency形式"):
         LoopConfig(
-            frequency="invalid",
+            frequency="invalid",  # type: ignore[arg-type]
             start_date=datetime(2023, 1, 1),
             end_date=datetime(2023, 12, 31),
         )
@@ -145,7 +147,7 @@ def test_loop_config_end_before_start() -> None:
 
     with pytest.raises(ValidationError, match="end_dateはstart_dateより後である必要があります"):
         LoopConfig(
-            frequency="1d",
+            frequency="1d",  # type: ignore[arg-type]
             start_date=datetime(2023, 12, 31),
             end_date=datetime(2023, 1, 1),
         )
