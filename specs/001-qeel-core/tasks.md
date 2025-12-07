@@ -28,7 +28,7 @@
 
 **Purpose**: プロジェクト構造の確立とツールチェーンの設定
 
-- [ ] T001 pyproject.tomlにqeelパッケージ設定と依存関係を追加（pydantic, polars, tomli）
+- [ ] T001 pyproject.tomlにqeelパッケージ設定と依存関係を追加（pydantic, polars）
 - [ ] T002 mypy.iniをstrictモードで設定
 - [ ] T003 [P] ruff設定をpyproject.tomlに追加
 - [ ] T004 [P] pytest設定をpyproject.tomlに追加

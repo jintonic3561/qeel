@@ -12,7 +12,7 @@
 ## Technical Context
 
 **Language/Version**: Python 3.11+（型ヒント必須、dataclass/Pydantic活用）
-**Primary Dependencies**: Polars（データフレーム操作）、Pydantic（スキーマ定義・バリデーション）、tomli（設定読み込み）
+**Primary Dependencies**: Polars（データフレーム操作）、Pydantic（スキーマ定義・バリデーション）、tomllib（設定読み込み、Python 3.11+標準ライブラリ）
 **Storage**: ローカルファイルシステム（バックテスト時）、S3/データベース（実運用時、ユーザ実装）
 **Testing**: pytest、pytest-mock（TDD厳守、Red-Green-Refactor）
 **Target Platform**: ローカルマシン（Linux/macOS/Windows）、パッケージとして配布可能

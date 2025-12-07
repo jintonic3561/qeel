@@ -239,9 +239,9 @@ def get_workspace() -> Path:
 ### 1.6 Config（全体設定）
 
 ```python
+import tomllib
 from pathlib import Path
 
-import tomli
 from pydantic import BaseModel, Field
 
 from qeel.utils.workspace import get_workspace
@@ -273,7 +273,7 @@ class Config(BaseModel):
             path = workspace / "configs" / "config.toml"
 
         with open(path, "rb") as f:
-            data = tomli.load(f)
+            data = tomllib.load(f)
         return cls(**data)
 ```
 

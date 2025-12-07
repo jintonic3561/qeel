@@ -55,7 +55,7 @@
 
 ### 3. toml設定ファイルのバリデーション戦略
 
-**Decision**: Pydantic `BaseSettings` またはカスタムモデルで設定を定義し、tomliで読み込み後即座にバリデーション
+**Decision**: Pydantic `BaseSettings` またはカスタムモデルで設定を定義し、tomllib（Python 3.11+標準ライブラリ）で読み込み後即座にバリデーション
 
 **Rationale**:
 - Pydanticのフィールドバリデーションで型チェック・必須項目・カスタムルール適用可能

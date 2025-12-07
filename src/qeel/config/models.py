@@ -5,18 +5,12 @@ data-model.md 1.1-1.6を参照。
 """
 
 import re
-import sys
+import tomllib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
-# Python 3.11+ではtomllibが標準ライブラリに含まれる
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 
 class DataSourceConfig(BaseModel):
