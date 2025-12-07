@@ -41,3 +41,27 @@ model, session情報を、プロンプトの後に表示するように修正し
 テスト
 
 [model: opus, session: 9e71488b]
+
+---
+
+stagedな変更をcommitして
+
+[model: opus, session: 9e71488b]
+
+---
+
+/speckit.implement plan.mdの004-data-source-abcを実装する。適切な粒度でコミットしながら進める。コミット前にtasks.mdにチェックを入れるのを忘れずに。
+
+[model: unknown, session: f80759b6]
+
+---
+
+devcontainer.jsonにgitlens拡張を追加して
+
+[model: unknown, session: a95859eb]
+
+---
+
+変更をすべてcommitして
+
+[model: opus, session: a95859eb]
