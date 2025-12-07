@@ -17,6 +17,7 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
+    "mypy>=1.8.0",
     "moto[s3]>=4.2.0",
 ]
 
@@ -31,6 +32,11 @@ ignore = []
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
