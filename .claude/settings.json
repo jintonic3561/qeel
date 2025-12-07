@@ -27,6 +27,17 @@
     "ask": []
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.claude/hooks/prompt-logger.sh",
+            "statusMessage": "プロンプトをログに記録中..."
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [
