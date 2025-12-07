@@ -14,6 +14,6 @@ datetime_column = "timestamp"
 offset_seconds = 0
 window_seconds = 2592000
 source_type = "parquet"
-source_path = "/tmp/ohlcv.parquet"
+source_path = "tests/fixtures/ohlcv.parquet"
 
 [costs]

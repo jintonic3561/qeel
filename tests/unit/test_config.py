@@ -22,7 +22,7 @@ def test_data_source_config_valid() -> None:
         offset_seconds=0,
         window_seconds=86400,
         source_type="parquet",
-        source_path=Path("/tmp/data.parquet"),
+        source_path=Path("tests/fixtures/ohlcv.parquet"),
     )
     assert config.name == "ohlcv"
     assert config.offset_seconds == 0
@@ -40,7 +40,7 @@ def test_data_source_config_invalid_source_type() -> None:
             offset_seconds=0,
             window_seconds=86400,
             source_type="invalid_type",
-            source_path=Path("/tmp/data.parquet"),
+            source_path=Path("tests/fixtures/ohlcv.parquet"),
         )
 
 
@@ -215,10 +215,10 @@ def test_config_from_toml_missing_file() -> None:
 
 def test_config_from_toml_invalid_toml() -> None:
     """不正なTOML形式でエラー"""
-    from qeel.config.models import Config
-
     # 不正なTOMLファイルを一時作成
     import tempfile
+
+    from qeel.config.models import Config
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
         f.write("invalid toml syntax [[[")
