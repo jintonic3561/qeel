@@ -1,0 +1,145 @@
+---
+description: Evaluate the feasibility of implementing specific features based on current design artifacts before generating tasks.
+---
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Goal
+
+Assess whether the current design artifacts (`spec.md`, `plan.md`, `data-model.md`, `contracts/`, etc.) are sufficient to proceed immediately to task generation (`/speckit.tasks`) and implementation (`/speckit.implement`) for the specified scope.
+
+This command acts as a **Quality Gate** between Planning and Implementation to prevent:
+1. Generating tasks for vague requirements.
+2. Overloading a single implementation session with too much complexity.
+3. Proceeding with minor inconsistencies that would break the build.
+
+## Operating Constraints
+
+**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured assessment report with a clear recommendation.
+
+## Execution Steps
+
+### 1. Initialize Context
+
+Run `.specify/scripts/bash/check-prerequisites.sh --json` from repo root.
+Parse `FEATURE_DIR` and load the following artifacts:
+- `spec.md` (User Stories, Requirements)
+- `plan.md` (Technical Context, Architecture)
+- `data-model.md` (Entities - if exists)
+- `contracts/` (API definitions - if exists)
+- `research.md` (Technical decisions - if exists)
+
+### 2. Scope Resolution
+
+Analyze `$ARGUMENTS` to determine the **Target Scope**:
+
+- **If `$ARGUMENTS` is empty**:
+  - Target Scope = **ALL** User Stories, Requirements, and Technical Components defined in `spec.md` and `plan.md`.
+- **If `$ARGUMENTS` contains specific features/keywords** (e.g., "login flow", "database schema", "payment API"):
+  - Map the input to specific:
+    - User Stories or Requirements in `spec.md`.
+    - Technical Components or Architectural Decisions in `plan.md`.
+  - Target Scope = The identified subset of stories/requirements/components + their dependencies (entities, APIs).
+
+### 3. Feasibility Analysis
+
+Evaluate the Target Scope against the following criteria:
+
+**A. Clarity & Completeness**
+- Are acceptance criteria defined for the target scope?
+- Are necessary data entities defined in `data-model.md`?
+- Are API signatures defined in `contracts/` (if applicable)?
+- Are there any unresolved `[NEEDS CLARIFICATION]` or `TODO` markers in the critical path?
+
+**B. Consistency**
+- Do `spec.md` requirements match `plan.md` technical constraints?
+- Are there contradictions between the data model and the UI/API requirements?
+
+**C. Complexity & Granularity**
+- **Estimated Task Count**: Roughly estimate the number of implementation tasks required.
+- **Cognitive Load**: Is the scope too large for a single developer/agent session? (Heuristic: > 20 complex tasks or > 5 modified files usually suggests splitting).
+
+### 4. Determine Outcome Category
+
+Based on the analysis, classify the result into **EXACTLY ONE** of these three scenarios:
+
+#### Scenario 1: Ready to Implement (GREEN) ✅
+- **Criteria**: Requirements are clear, dependencies exist, complexity is manageable, and no blocking issues found.
+- **Recommendation**: Proceed to `/speckit.tasks`.
+
+#### Scenario 2: Minor Refinement Needed (YELLOW) ⚠️
+- **Criteria**: Generally implementable, but small gaps exist in one or more design artifacts (e.g., missing field in `data-model.md`, vague error handling in `contracts/`, slight mismatch between `spec.md` and `plan.md`).
+- **Recommendation**: Apply specific fixes to the relevant artifacts (`spec.md`, `plan.md`, `data-model.md`, `contracts/`, etc.) before generating tasks.
+
+#### Scenario 3: Decomposition/Respecification Required (RED) 🛑
+- **Criteria**:
+  - Scope is too large/complex (e.g., "Build the entire system").
+  - High ambiguity or missing architectural decisions.
+  - Missing core domain concepts.
+- **Recommendation**: Do NOT proceed. Create a new, smaller feature branch for a sub-component using `/speckit.specify`.
+
+### 5. Generate Assessment Report
+
+Output a Markdown report (no file writes) with the following structure:
+
+## Feasibility Assessment: [Target Scope Name]
+
+**Status**: [✅ READY / ⚠️ REFINEMENT NEEDED / 🛑 TOO COMPLEX]
+
+### Analysis Findings
+
+| Category | Status | Notes |
+|----------|--------|-------|
+| Clarity | [OK/Issues] | ... |
+| Consistency | [OK/Issues] | ... |
+| Complexity | [Low/Med/High] | Est. ~X tasks |
+
+### Recommendation
+
+*(Select the section corresponding to the determined Scenario)*
+
+#### [If Scenario 1: Ready]
+The design is solid and ready for implementation.
+**Next Step**: Run the following command:
+```bash
+/speckit.tasks "$ARGUMENTS"
+```
+
+---
+
+#### [If Scenario 2: Refinement Needed]
+Implementation is possible but requires these specific fixes first to avoid errors:
+
+**Proposed Fixes**:
+1. **[File]**: [Description of change, e.g., "Add 'status' field to User entity in data-model.md"]
+2. **[File]**: [Description of change, e.g., "Update API response type in contracts/api.yaml"]
+
+**Next Step**:
+- Manually apply the fixes above OR run `/speckit.review` to request them.
+- Then run `/speckit.tasks`.
+
+---
+
+#### [If Scenario 3: Decomposition Required]
+The requested scope is too large or vague to implement reliably in one pass.
+
+**Reasons**:
+- [Reason 1, e.g., "Missing payment gateway architectural decision"]
+- [Reason 2, e.g., "Estimated tasks > 30, high risk of context loss"]
+
+**Next Step**:
+Break this down into a smaller sub-feature. Run:
+```bash
+/speckit.specify "Implement [Sub-Feature Name] for [Parent Feature]"
+```
+*(Provide a concrete suggestion for the sub-feature name)*
+
+## Context
+
+$ARGUMENTS
