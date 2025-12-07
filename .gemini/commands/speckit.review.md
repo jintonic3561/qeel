@@ -1,0 +1,62 @@
+---
+description: Evaluate user feedback, formulate a concise modification plan without applying changes, and request confirmation.
+---
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+Treat `$ARGUMENTS` as **the latest user prompt (context)** containing feedback or change requests.
+
+## Goal
+
+1.  **Validate** user points against the design and constitution.
+2.  **Identify Impact** by scanning `FEATURE_DIR/`.
+3.  **Report** a concise summary of decisions and proposed edits. **Do NOT modify any files.**
+
+## Operating Constraints
+
+**READ-ONLY / PROPOSAL-ONLY**:
+- You **MUST NOT** modify any files during this command execution.
+- You are only authorized to read files and generate a proposal report.
+
+**Mandatory References**:
+- `spec.md`, `plan.md`, `tasks.md`, `.specify/memory/constitution.md`
+
+**Constitution Authority**:
+- Violations of MUST principles are **automatically rejected**.
+
+## Execution Steps
+
+1.  **Initialize**: Run prerequisites check (`.specify/scripts/bash/check-prerequisites.sh`). Abort if files missing.
+2.  **Analyze**: Extract User Points (UP) from `$ARGUMENTS`.
+3.  **Scan**: Check `FEATURE_DIR/` for related locations (RLL) for each UP.
+4.  **Plan**: Determine if each UP is VALID (needs edit) or INVALID (reject).
+    - **CRITICAL**: Check if `spec.md` requires modification.
+5.  **Report**: Output the **Review Proposal** and stop.
+
+## Output: Review Proposal
+
+Generate a **concise** report using the following structure. Avoid long narratives.
+
+### 1. Decisions & Changes
+*List each point concisely. Use `[APPLY]` or `[REJECT]`.*
+
+- **[APPLY] (Summary of point)**
+  - **Impact**: List files to change (e.g., `plan.md`, `src/utils.ts`).
+  - **Delta**: Brief description of the change (1 line).
+
+- **[REJECT] (Summary of point)**
+  - **Reason**: Brief explanation (1 line).
+
+### 2. Spec Impact ⚠️
+*State clearly if `spec.md` changes.*
+- **Update Required**: [YES / NO]
+- **Details**: (If YES, 1 sentence describing the spec update).
+
+### 3. Confirmation
+End by explicitly asking the user to confirm execution.
+(e.g., "Shall I execute these modifications?")
