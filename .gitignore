@@ -77,3 +77,6 @@ dmypy.json
 
 # Claude
 .claude/settings.local.json
+
+# temp
+.temp/

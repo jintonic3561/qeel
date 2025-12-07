@@ -1,0 +1,1 @@
+/speckit.analyze @specs/001-qeel-core/plan.md で定義されている 005-calculator-abcの実装計画のみに対する評価を行う。
