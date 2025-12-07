@@ -95,7 +95,7 @@ def main():
     # ファイルに追記
     with open(log_file, "a", encoding="utf-8") as f:
         # 既存ファイルには区切り線を先に追加
-        if log_file.stat().st_size > 0:
+        if log_file.exists() and log_file.stat().st_size > 0:
             f.write("\n---\n\n")
         f.write(prompt)
         f.write(f"\n\n{meta_footer}\n")
