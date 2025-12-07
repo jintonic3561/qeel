@@ -34,9 +34,10 @@ Run `.specify/scripts/bash/check-prerequisites.sh --json` from repo root.
 Parse `FEATURE_DIR` and load the following artifacts:
 - `spec.md` (User Stories, Requirements)
 - `plan.md` (Technical Context, Architecture)
-- `data-model.md` (Entities - if exists)
-- `contracts/` (API definitions - if exists)
-- `research.md` (Technical decisions - if exists)
+- `data-model.md` (Entities)
+- `contracts/` (API definitions)
+- `research.md` (Technical decisions)
+- `tasks.md` (Already defined tasks  - if exists)
 
 ### 2. Scope Resolution
 
