@@ -3,6 +3,7 @@
 バックテストから実運用へのシームレスな接続を可能とするPythonバックテストライブラリ。
 """
 
+from qeel.calculators.signals.base import BaseSignalCalculator
 from qeel.config.models import Config
 from qeel.data_sources.base import BaseDataSource
 from qeel.data_sources.mock import MockDataSource
@@ -15,4 +16,5 @@ __all__ = [
     "get_workspace",
     "BaseDataSource",
     "MockDataSource",
+    "BaseSignalCalculator",
 ]

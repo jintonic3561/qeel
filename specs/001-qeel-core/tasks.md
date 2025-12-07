@@ -548,10 +548,10 @@ Phase 4     |        |
 
 **Purpose**: シグナル計算パッケージの初期化
 
-- [ ] T058 src/qeel/calculators/__init__.pyを作成（パッケージ初期化）
-- [ ] T059 [P] src/qeel/calculators/signals/__init__.pyを作成（サブパッケージ初期化）
-- [ ] T060 [P] src/qeel/examples/__init__.pyを作成（examples初期化）
-- [ ] T061 [P] src/qeel/examples/signals/__init__.pyを作成（examples/signals初期化）
+- [x] T058 src/qeel/calculators/__init__.pyを作成（パッケージ初期化）
+- [x] T059 [P] src/qeel/calculators/signals/__init__.pyを作成（サブパッケージ初期化）
+- [x] T060 [P] src/qeel/examples/__init__.pyを作成（examples初期化）
+- [x] T061 [P] src/qeel/examples/signals/__init__.pyを作成（examples/signals初期化）
 
 **Checkpoint**: パッケージ構造完成
 
@@ -567,7 +567,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T062 tests/unit/test_signal_calculator.pyを作成
+- [x] T062 tests/unit/test_signal_calculator.pyを作成
   - `test_base_signal_calculator_cannot_instantiate`: ABCは直接インスタンス化不可
   - `test_calculate_is_abstract_method`: calculate()が抽象メソッドであることを確認
   - `test_validate_output_passes_valid_signal`: 有効なSignalSchemaでバリデーションパス（テスト用スタブ経由）
@@ -579,7 +579,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T063 src/qeel/calculators/signals/base.pyにBaseSignalCalculator ABCを実装（contracts/base_signal_calculator.md参照）
+- [x] T063 src/qeel/calculators/signals/base.pyにBaseSignalCalculator ABCを実装（contracts/base_signal_calculator.md参照）
   - `__init__(self, params: SignalCalculatorParams)`: パラメータを保存
   - `calculate(self, data_sources: dict[str, pl.DataFrame]) -> pl.DataFrame`: 抽象メソッド
   - `_validate_output(self, signals: pl.DataFrame) -> pl.DataFrame`: 出力バリデーションヘルパー
@@ -594,7 +594,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T064 tests/unit/test_signal_calculator.pyにテストを追加
+- [x] T064 tests/unit/test_signal_calculator.pyにテストを追加
   - `test_moving_average_cross_params_validation`: パラメータバリデーション確認（short_window > 0, long_window > 0）
   - `test_moving_average_cross_params_short_less_than_long`: short_window >= long_windowでValidationError
   - `test_moving_average_cross_calculate_returns_signal`: モックOHLCVからシグナルを計算
@@ -604,12 +604,12 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T065 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossParamsを実装
+- [x] T065 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossParamsを実装
   - `short_window: int = Field(..., gt=0)`: 短期移動平均window
   - `long_window: int = Field(..., gt=0)`: 長期移動平均window
   - `model_validator`: short_window < long_window を検証（移動平均クロス戦略の前提条件）
 
-- [ ] T066 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossCalculatorを実装
+- [x] T066 src/qeel/examples/signals/moving_average.pyにMovingAverageCrossCalculatorを実装
   - BaseSignalCalculatorを継承
   - calculate()でOHLCVから移動平均クロスシグナルを計算
   - _validate_output()でスキーマバリデーションを実行
@@ -624,16 +624,16 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T067 tests/integration/test_signal_calculator_integration.pyを作成
+- [x] T067 tests/integration/test_signal_calculator_integration.pyを作成
   - `test_calculator_with_mock_data_source`: MockDataSourceからデータを取得し、シグナル計算を実行
   - `test_calculator_output_schema_valid_for_context`: シグナル出力がSignalSchemaに準拠し、Context.signals（006で実装予定）に設定可能な形式であることを確認
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T068 src/qeel/calculators/__init__.pyにexportを追加
-- [ ] T069 src/qeel/calculators/signals/__init__.pyにBaseSignalCalculatorをエクスポート
-- [ ] T070 src/qeel/examples/signals/__init__.pyにMovingAverageCrossCalculator, MovingAverageCrossParamsをエクスポート
-- [ ] T071 src/qeel/__init__.pyにcalculatorsモジュールを追加（必要に応じて）
+- [x] T068 src/qeel/calculators/__init__.pyにexportを追加
+- [x] T069 src/qeel/calculators/signals/__init__.pyにBaseSignalCalculatorをエクスポート
+- [x] T070 src/qeel/examples/signals/__init__.pyにMovingAverageCrossCalculator, MovingAverageCrossParamsをエクスポート
+- [x] T071 src/qeel/__init__.pyにcalculatorsモジュールを追加（必要に応じて）
 
 **Checkpoint**: `uv run pytest tests/integration/test_signal_calculator_integration.py` 全件パス
 
@@ -643,11 +643,11 @@ Phase 4     |        |
 
 **Purpose**: 品質チェックと最終確認
 
-- [ ] T072 `uv run mypy src/qeel/calculators/` で型エラーゼロを確認
-- [ ] T073 [P] `uv run mypy src/qeel/examples/` で型エラーゼロを確認
-- [ ] T074 `uv run ruff check src/qeel/calculators/ src/qeel/examples/` でリンターエラーゼロを確認
-- [ ] T075 `uv run ruff format src/qeel/calculators/ src/qeel/examples/` でフォーマット適用
-- [ ] T076 `uv run pytest` で全テストパスを確認（002, 004のテストも含む）
+- [x] T072 `uv run mypy src/qeel/calculators/` で型エラーゼロを確認
+- [x] T073 [P] `uv run mypy src/qeel/examples/` で型エラーゼロを確認
+- [x] T074 `uv run ruff check src/qeel/calculators/ src/qeel/examples/` でリンターエラーゼロを確認
+- [x] T075 `uv run ruff format src/qeel/calculators/ src/qeel/examples/` でフォーマット適用
+- [x] T076 `uv run pytest` で全テストパスを確認（002, 004のテストも含む）
 
 ---
 
