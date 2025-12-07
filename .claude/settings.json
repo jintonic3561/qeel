@@ -17,9 +17,11 @@
       "WebSearch",
       "Bash(sed:*)",
       "Bash(git commit:*)",
-      "Bash(uv run pytest:*)",
+      "Bash(gh pr create:*)",
+      "Bash(uv run:*)",
       "Bash(uv sync:*)",
-      "Bash(uv run python -m pytest:*)"
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
