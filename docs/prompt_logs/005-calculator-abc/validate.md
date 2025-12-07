@@ -1,0 +1,1 @@
+/speckit.validate @specs/001-qeel-core/plan.md で定義されている 005-calculator-abcを実装する

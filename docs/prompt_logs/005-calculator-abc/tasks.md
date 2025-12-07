@@ -1,0 +1,1 @@
+/speckit.tasks @specs/001-qeel-core/plan.md で定義されている 005-calculator-abcを実装する。既存実装を必ず参照する。既存のtasks.mdの末尾に、その他のブランチのtasksと同じフォーマットで追記する。
