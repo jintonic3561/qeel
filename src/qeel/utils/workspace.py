@@ -35,9 +35,7 @@ def get_workspace() -> Path:
     if workspace_env is not None:
         workspace = Path(workspace_env)
         if not workspace.is_dir():
-            raise ValueError(
-                f"QEEL_WORKSPACEで指定されたパスが存在しないか、ディレクトリではありません: {workspace}"
-            )
+            raise ValueError(f"QEEL_WORKSPACEで指定されたパスが存在しないか、ディレクトリではありません: {workspace}")
         return workspace
 
     return Path.cwd()
