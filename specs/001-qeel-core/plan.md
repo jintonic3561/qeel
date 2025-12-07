@@ -139,7 +139,7 @@
 - **成果物**:
   - `qeel/calculators/signals/base.py` - BaseSignalCalculator ABC
   - `qeel/examples/signals/moving_average.py` - 移動平均クロス実装例
-  - Pydanticパラメータモデル
+  - MovingAverageCrossParams（実装例用パラメータ。SignalCalculatorParamsは002で実装済み）
 - **テスト**: モックデータでcalculate()が正しく動作
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: User Story 1（シグナル計算）

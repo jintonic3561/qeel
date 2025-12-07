@@ -11,7 +11,8 @@ from abc import ABC, abstractmethod
 
 import polars as pl
 
-from qeel.schemas import SignalCalculatorParams, SignalSchema
+from qeel.config.params import SignalCalculatorParams
+from qeel.schemas.validators import SignalSchema
 
 
 class BaseSignalCalculator(ABC):
