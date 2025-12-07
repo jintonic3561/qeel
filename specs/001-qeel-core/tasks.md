@@ -243,7 +243,7 @@
 
 **Purpose**: データソースパッケージの初期化
 
-- [ ] T046 src/qeel/data_sources/__init__.pyを作成（パッケージ初期化）
+- [x] T046 src/qeel/data_sources/__init__.pyを作成（パッケージ初期化）
 
 **Checkpoint**: パッケージ構造完成
 
@@ -259,7 +259,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T047 tests/unit/test_data_sources.pyを作成
+- [x] T047 tests/unit/test_data_sources.pyを作成
   - `test_base_data_source_cannot_instantiate`: ABCは直接インスタンス化不可
   - `test_normalize_datetime_column_renames`: datetime_columnが"datetime"以外の場合リネームされる（テスト用スタブ経由）
   - `test_normalize_datetime_column_casts_to_datetime`: 型がDatetimeでない場合キャストされる
@@ -275,7 +275,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T048 src/qeel/data_sources/base.pyにBaseDataSource ABCを実装（contracts/base_data_source.md参照）
+- [x] T048 src/qeel/data_sources/base.pyにBaseDataSource ABCを実装（contracts/base_data_source.md参照）
   - `__init__(self, config: DataSourceConfig, io: BaseIO | None = None)`: ioをオプショナルに
   - `fetch(self, start, end, symbols)`: 抽象メソッド
   - `_normalize_datetime_column(self, df)`: datetime列正規化ヘルパー
@@ -292,7 +292,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T049 tests/unit/test_data_sources.pyにテストを追加
+- [x] T049 tests/unit/test_data_sources.pyにテストを追加
   - `test_mock_data_source_returns_dataframe`: fetch()がPolars DataFrameを返す
   - `test_mock_data_source_respects_symbols`: 指定されたsymbolsのデータのみ返す
   - `test_mock_data_source_respects_datetime_range`: 指定されたdatetime範囲内のデータを返す
@@ -301,7 +301,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T050 src/qeel/data_sources/mock.pyにMockDataSourceを実装（contracts/base_data_source.md参照）
+- [x] T050 src/qeel/data_sources/mock.pyにMockDataSourceを実装（contracts/base_data_source.md参照）
   - BaseDataSourceを継承
   - コンストラクタでモックデータを受け取る（または生成）
   - fetch()でフィルタリング済みDataFrameを返す
@@ -317,14 +317,14 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T051 tests/integration/test_data_source_integration.pyを作成
+- [x] T051 tests/integration/test_data_source_integration.pyを作成
   - `test_mock_data_source_with_config`: DataSourceConfigを使用してMockDataSourceを初期化し、fetch()が正常動作
   - `test_data_source_helper_chain`: ヘルパーメソッドを連鎖して使用した場合の動作確認
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T052 src/qeel/data_sources/__init__.pyにBaseDataSource, MockDataSourceをエクスポート
-- [ ] T053 src/qeel/__init__.pyにdata_sourcesモジュールを追加（必要に応じて）
+- [x] T052 src/qeel/data_sources/__init__.pyにBaseDataSource, MockDataSourceをエクスポート
+- [x] T053 src/qeel/__init__.pyにdata_sourcesモジュールを追加（必要に応じて）
 
 **Checkpoint**: `uv run pytest tests/integration/test_data_source_integration.py` 全件パス
 
@@ -334,10 +334,10 @@
 
 **Purpose**: 品質チェックと最終確認
 
-- [ ] T054 `uv run mypy src/qeel/data_sources/` で型エラーゼロを確認
-- [ ] T055 `uv run ruff check src/qeel/data_sources/` でリンターエラーゼロを確認
-- [ ] T056 `uv run ruff format src/qeel/data_sources/` でフォーマット適用
-- [ ] T057 `uv run pytest` で全テストパスを確認（002のテストも含む）
+- [x] T054 `uv run mypy src/qeel/data_sources/` で型エラーゼロを確認
+- [x] T055 `uv run ruff check src/qeel/data_sources/` でリンターエラーゼロを確認
+- [x] T056 `uv run ruff format src/qeel/data_sources/` でフォーマット適用
+- [x] T057 `uv run pytest` で全テストパスを確認（002のテストも含む）
 
 ---
 
