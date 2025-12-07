@@ -35,6 +35,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # プロジェクトメタデータと依存関係定義ファイルをコピー
 COPY pyproject.toml ./
 
+# アプリケーションコードをコピー
+COPY src/ ./src/
+
 # Python依存関係のインストール
 # --frozen: uv.lockが存在する場合はそれを使用、変更を許可しない
 # --no-dev: 本番用依存関係のみインストール（dev依存関係は除外）
@@ -51,8 +54,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # Claude Code CLIとSpeckit CLIのインストール
 # DevContainer環境で使用するツールをインストール
 
-# Claude Code CLIをnpmでグローバルインストール
+# エージェントをnpmでグローバルインストール
 RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @google/gemini-cli
 
 # Speckit CLIをuvでインストール（公式推奨の方法）
 # uv tool installでグローバルCLIツールとしてインストール
@@ -60,9 +64,6 @@ RUN uv tool install specify-cli --from git+https://github.com/github/spec-kit.gi
 
 # uv tool でインストールしたCLIツールをPATHに追加
 ENV PATH="/root/.local/bin:${PATH}"
-
-# アプリケーションコードをコピー
-COPY src/ ./src/
 
 # コンテナ起動時にbashを起動
 CMD ["/bin/bash"]
