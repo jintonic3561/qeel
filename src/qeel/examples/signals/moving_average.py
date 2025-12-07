@@ -85,8 +85,6 @@ class MovingAverageCrossCalculator(BaseSignalCalculator):
                 ]
             )
             .select(["datetime", "symbol", "signal"])
-            # NaN（ウィンドウ期間前のデータ）を除外
-            .drop_nulls()
         )
 
         # 共通バリデーションヘルパーを使用
