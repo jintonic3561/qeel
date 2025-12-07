@@ -1,3 +1,6 @@
+description = "Evaluate user feedback, formulate a concise modification plan without applying changes, and request confirmation."
+
+prompt = """
 ---
 description: Evaluate user feedback, formulate a concise modification plan without applying changes, and request confirmation.
 ---
@@ -60,3 +63,4 @@ Generate a **concise** report using the following structure. Avoid long narrativ
 ### 3. Confirmation
 End by explicitly asking the user to confirm execution.
 (e.g., "Shall I execute these modifications?")
+"""

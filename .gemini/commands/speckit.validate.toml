@@ -1,3 +1,6 @@
+description = "Evaluate the feasibility of implementing specific features based on current design artifacts before generating tasks."
+
+prompt = """
 ---
 description: Evaluate the feasibility of implementing specific features based on current design artifacts before generating tasks.
 ---
@@ -143,3 +146,4 @@ Break this down into a smaller sub-feature. Run:
 ## Context
 
 $ARGUMENTS
+"""
