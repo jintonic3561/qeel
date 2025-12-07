@@ -24,7 +24,8 @@
         "njpwerner.autodocstring",         // Python docstring自動生成
         "KevinRose.vsc-python-indent",     // Pythonインデント改善
         "charliermarsh.ruff",              // Ruff (フォーマッター+リンター)
-        "ryanluker.vscode-coverage-gutters" // テストカバレッジ表示
+        "ryanluker.vscode-coverage-gutters", // テストカバレッジ表示
+        "eamodio.gitlens"                    // Git履歴・blame表示
       ],
       // VSCode設定
       "settings": {
