@@ -59,11 +59,15 @@ class CostConfig(BaseModel):
         slippage_bps: スリッページ（ベーシスポイント）
         market_impact_model: マーケットインパクトモデル（"fixed", "linear"）
         market_impact_param: マーケットインパクトパラメータ
+        market_fill_price_type: 成行注文の約定価格タイプ（"next_open", "current_close"）
+            - "next_open": 翌バーの始値で約定（デフォルト、より現実的）
+            - "current_close": 当バーの終値で約定
     """
     commission_rate: float = Field(default=0.0, ge=0.0, description="手数料率")
     slippage_bps: float = Field(default=0.0, ge=0.0, description="スリッページ（bps）")
     market_impact_model: str = Field(default="fixed", description="マーケットインパクトモデル")
     market_impact_param: float = Field(default=0.0, ge=0.0, description="マーケットインパクトパラメータ")
+    market_fill_price_type: str = Field(default="next_open", description="成行注文の約定価格タイプ")
 
     @field_validator('market_impact_model')
     @classmethod
@@ -71,6 +75,14 @@ class CostConfig(BaseModel):
         allowed = {"fixed", "linear"}
         if v not in allowed:
             raise ValueError(f"market_impact_modelは{allowed}のいずれかである必要があります")
+        return v
+
+    @field_validator('market_fill_price_type')
+    @classmethod
+    def validate_fill_price_type(cls, v: str) -> str:
+        allowed = {"next_open", "current_close"}
+        if v not in allowed:
+            raise ValueError(f"market_fill_price_typeは{allowed}のいずれかである必要があります: {v}")
         return v
 ```
 
