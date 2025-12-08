@@ -390,6 +390,6 @@ Qeelは以下の標準実装を提供する:
 
 - `LocalIO()`: ローカルファイルシステム（ワークスペース配下）
 - `S3IO(bucket, region)`: S3ストレージ
-- `InMemoryIO()`: テスト用インメモリストレージ（Branch 002で実装）
+- `InMemoryIO()`: テスト用インメモリストレージ（Branch 006で実装）
 
 ユーザは独自実装（GCS、Azure Blob等）を自由に追加可能。
