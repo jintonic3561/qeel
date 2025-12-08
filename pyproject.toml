@@ -44,6 +44,11 @@ strict = true
 show_error_codes = true
 plugins = ["pydantic.mypy"]
 
+# boto3/botocore には型スタブがないため無視
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "moto", "moto.*"]
+ignore_missing_imports = true
+
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
