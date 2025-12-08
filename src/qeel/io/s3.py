@@ -21,19 +21,21 @@ class S3IO(BaseIO):
     S3バケットに対してファイル読み書きを行う。
     """
 
-    def __init__(self, bucket: str, region: str) -> None:
+    def __init__(self, strategy_name: str, bucket: str, region: str) -> None:
         """S3IOを初期化する
 
         Args:
             bucket: S3バケット名
             region: AWSリージョン
+            strategy_name: 戦略名（S3キープレフィックスに使用）
         """
+        self.strategy_name = strategy_name
         self.bucket = bucket
         self.region = region
         self.s3_client = boto3.client("s3", region_name=region)
 
     def get_base_path(self, subdir: str) -> str:
-        """S3キープレフィックスを返す（qeel/{subdir}/）
+        """S3キープレフィックスを返す（{strategy_name}/{subdir}/）
 
         Args:
             subdir: サブディレクトリ名
@@ -41,7 +43,7 @@ class S3IO(BaseIO):
         Returns:
             S3キープレフィックス
         """
-        return f"qeel/{subdir}"
+        return f"{self.strategy_name}/{subdir}"
 
     def get_partition_dir(self, base_path: str, target_datetime: datetime) -> str:
         """年月パーティションキープレフィックスを返す（YYYY/MM/）

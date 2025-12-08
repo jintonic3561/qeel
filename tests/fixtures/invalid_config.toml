@@ -1,6 +1,7 @@
 # バリデーションエラー用の設定ファイル
 
 [general]
+strategy_name = "test_strategy"
 storage_type = "local"
 
 [loop]

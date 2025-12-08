@@ -43,7 +43,11 @@ class BaseIO(ABC):
         elif general_config.storage_type == "s3":
             if general_config.s3_bucket is None or general_config.s3_region is None:
                 raise ValueError("storage_type='s3'の場合、s3_bucketとs3_regionは必須です")
-            return S3IO(bucket=general_config.s3_bucket, region=general_config.s3_region)
+            return S3IO(
+                strategy_name=general_config.strategy_name,
+                bucket=general_config.s3_bucket,
+                region=general_config.s3_region,
+            )
         else:
             raise ValueError(f"サポートされていないストレージタイプ: {general_config.storage_type}")
 
@@ -222,14 +226,15 @@ from qeel.io.base import BaseIO
 class S3IO(BaseIO):
     """S3ストレージIO実装"""
 
-    def __init__(self, bucket: str, region: str):
+    def __init__(self, strategy_name: str, bucket: str, region: str):
+        self.strategy_name = strategy_name
         self.bucket = bucket
         self.region = region
         self.s3_client = boto3.client('s3', region_name=region)
 
     def get_base_path(self, subdir: str) -> str:
-        """S3キープレフィックスを返す（qeel/{subdir}/）"""
-        return f"qeel/{subdir}"
+        """S3キープレフィックスを返す（{strategy_name}/{subdir}/）"""
+        return f"{self.strategy_name}/{subdir}"
 
     def get_partition_dir(self, base_path: str, target_datetime: datetime) -> str:
         """年月パーティションキープレフィックスを返す（YYYY/MM/）"""
@@ -310,7 +315,7 @@ class S3IO(BaseIO):
 
 - 入力: サブディレクトリ名（"inputs"、"outputs"等）
 - LocalIO: `$QEEL_WORKSPACE/{subdir}`を返す
-- S3IO: `qeel/{subdir}`を返す
+- S3IO: `{strategy_name}/{subdir}`を返す（strategy_nameはGeneralConfigから取得）
 
 ### get_partition_dir
 
@@ -389,7 +394,7 @@ class InMemoryIO(BaseIO):
 Qeelは以下の標準実装を提供する:
 
 - `LocalIO()`: ローカルファイルシステム（ワークスペース配下）
-- `S3IO(bucket, region)`: S3ストレージ
+- `S3IO(bucket, region, strategy_name)`: S3ストレージ
 - `InMemoryIO()`: テスト用インメモリストレージ（Branch 006で実装）
 
 ユーザは独自実装（GCS、Azure Blob等）を自由に追加可能。

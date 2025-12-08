@@ -160,13 +160,15 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class GeneralConfig(BaseModel):
-    """全体設定（ストレージタイプとS3設定）
+    """全体設定（戦略名、ストレージタイプとS3設定）
 
     Attributes:
+        strategy_name: 戦略名（S3キープレフィックスに使用、必須）
         storage_type: ストレージタイプ（"local"または"s3"）
         s3_bucket: S3バケット名（storage_type="s3"の場合必須）
         s3_region: S3リージョン（storage_type="s3"の場合必須）
     """
+    strategy_name: str = Field(..., description="戦略名（S3キープレフィックスに使用）")
     storage_type: str = Field(..., description="ストレージタイプ")
     s3_bucket: str | None = Field(default=None, description="S3バケット名")
     s3_region: str | None = Field(default=None, description="S3リージョン")

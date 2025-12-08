@@ -46,6 +46,7 @@ class BaseIO(ABC):
             if general_config.s3_bucket is None or general_config.s3_region is None:
                 raise ValueError("storage_type='s3'の場合、s3_bucketとs3_regionは必須です")
             return S3IO(
+                strategy_name=general_config.strategy_name,
                 bucket=general_config.s3_bucket,
                 region=general_config.s3_region,
             )

@@ -18,7 +18,7 @@ class TestLocalIOIntegration:
         from qeel.io.base import BaseIO
         from qeel.io.local import LocalIO
 
-        config = GeneralConfig(storage_type="local")
+        config = GeneralConfig(strategy_name="test_strategy", storage_type="local")
 
         with patch("qeel.io.local.get_workspace", return_value=tmp_path):
             io = BaseIO.from_config(config)
@@ -56,9 +56,7 @@ class TestContextStoreIntegration:
         )
         return client
 
-    def test_context_store_with_local_io(
-        self, tmp_path: Path, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_context_store_with_local_io(self, tmp_path: Path, mock_exchange_client: MagicMock) -> None:
         """LocalIOを使用したContextStoreの動作確認"""
         from qeel.io.local import LocalIO
         from qeel.stores.context_store import ContextStore
@@ -87,9 +85,7 @@ class TestContextStoreIntegration:
             assert ctx.signals is not None
             assert ctx.signals.shape[0] == 1
 
-    def test_context_store_partition_workflow(
-        self, tmp_path: Path, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_context_store_partition_workflow(self, tmp_path: Path, mock_exchange_client: MagicMock) -> None:
         """複数日付の保存・読み込みワークフロー"""
         from qeel.io.local import LocalIO
         from qeel.stores.context_store import ContextStore
@@ -106,9 +102,7 @@ class TestContextStoreIntegration:
             ]
 
             for dt in dates:
-                signals = pl.DataFrame(
-                    {"datetime": [dt], "symbol": ["AAPL"], "signal": [0.5]}
-                )
+                signals = pl.DataFrame({"datetime": [dt], "symbol": ["AAPL"], "signal": [0.5]})
                 store.save_signals(dt, signals)
 
             # パーティションディレクトリが作成されていることを確認
