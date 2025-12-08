@@ -66,3 +66,69 @@ OK, コミットして
 OK, すべての変更をadd, commitして、PRを出して
 
 [model: opus, session: 353095d2]
+
+---
+
+mypy, pyproject.tomlの変更は本当に必須？
+
+[model: opus, session: 353095d2]
+
+---
+
+motoってなに？
+
+[model: opus, session: 353095d2]
+
+---
+
+/speckit.review S3IOの実装で、get_base_pathが`qeel/{subdir}`を返すようになっているが、複数のストラテジーを開発するうえで好ましくない。GeneralConfigでstrategy_name:strを一番上に追加し、get_base_pathで`{strategy_name}/{subdir}`を返すようにすればいいと思うが、どう思う？
+
+[model: unknown, session: 9f476ae3]
+
+---
+
+お願い！デフォルト値は適用しなくてよい。指定必須とする。
+
+[model: opus, session: 9f476ae3]
+
+---
+
+commitして
+
+[model: unknown, session: 8c62a8b0]
+
+---
+
+@src/qeel/stores/context_store.py , @src/qeel/stores/in_memory.py のプロトコルは、007ブランチの実装の際に消えるはずで、006で暫定の措置のはず。そのことが007の開発者に分かるようにTODOコメントを残したい。
+
+[model: unknown, session: 6d959aeb]
+
+---
+
+それだと困るな。 @specs/001-qeel-core/plan.md を参照して、適切なコメントにして
+
+[model: opus, session: 6d959aeb]
+
+---
+
+@src/qeel/stores/context_store.py で、save_*の各実装はほとんど共通してるから、冗長じゃないか？
+
+[model: unknown, session: caab017d]
+
+---
+
+お願い！
+
+[model: opus, session: caab017d]
+
+---
+
+src, tests 配下のすべてのファイルについて品質チェックを行って
+
+[model: opus, session: caab017d]
+
+---
+
+mdを含むすべての変更をpushして
+
+[model: unknown, session: c95f9732]

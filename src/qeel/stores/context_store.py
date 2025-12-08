@@ -16,7 +16,12 @@ from qeel.models.context import Context
 
 
 class ExchangeClientProtocol(Protocol):
-    """ExchangeClientのプロトコル定義（型ヒント用）"""
+    """ExchangeClientのプロトコル定義（型ヒント用）
+
+    TODO(007): このプロトコルは007-exchange-client-and-mockブランチで
+    qeel.exchange_clients.base.BaseExchangeClientが実装された際に削除し、
+    そちらをimportして使用する。006での暫定措置。
+    """
 
     def fetch_positions(self) -> pl.DataFrame | None:
         """現在のポジションを取得する"""
@@ -45,8 +50,8 @@ class ContextStore:
         self.io = io
         self.base_path = io.get_base_path("outputs/context")
 
-    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
-        """シグナルを日付ごとにパーティショニングして保存する
+    def _save_component(self, target_datetime: datetime, data: pl.DataFrame, component_name: str) -> None:
+        """コンテキストの各要素を日付ごとにパーティショニングして保存する（内部共通処理）
 
         target_datetimeを元に年月でディレクトリ分割し、
         ファイル名に日付を含めて保存する
@@ -54,60 +59,32 @@ class ContextStore:
 
         Args:
             target_datetime: 保存する日付
-            signals: SignalSchemaに準拠したDataFrame
+            data: 保存するDataFrame
+            component_name: 要素名（signals, portfolio_plan, entry_orders, exit_orders）
 
         Raises:
             RuntimeError: 保存失敗時
         """
         partition_dir = self.io.get_partition_dir(self.base_path, target_datetime)
         date_str = target_datetime.strftime("%Y-%m-%d")
-        path = f"{partition_dir}/signals_{date_str}.parquet"
-        self.io.save(path, signals, format="parquet")
+        path = f"{partition_dir}/{component_name}_{date_str}.parquet"
+        self.io.save(path, data, format="parquet")
+
+    def save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None:
+        """シグナルを保存する"""
+        self._save_component(target_datetime, signals, "signals")
 
     def save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None:
-        """ポートフォリオ計画を日付ごとにパーティショニングして保存する
-
-        Args:
-            target_datetime: 保存する日付
-            portfolio_plan: PortfolioSchemaに準拠したDataFrame
-
-        Raises:
-            RuntimeError: 保存失敗時
-        """
-        partition_dir = self.io.get_partition_dir(self.base_path, target_datetime)
-        date_str = target_datetime.strftime("%Y-%m-%d")
-        path = f"{partition_dir}/portfolio_plan_{date_str}.parquet"
-        self.io.save(path, portfolio_plan, format="parquet")
+        """ポートフォリオ計画を保存する"""
+        self._save_component(target_datetime, portfolio_plan, "portfolio_plan")
 
     def save_entry_orders(self, target_datetime: datetime, entry_orders: pl.DataFrame) -> None:
-        """エントリー注文を日付ごとにパーティショニングして保存する
-
-        Args:
-            target_datetime: 保存する日付
-            entry_orders: OrderSchemaに準拠したDataFrame
-
-        Raises:
-            RuntimeError: 保存失敗時
-        """
-        partition_dir = self.io.get_partition_dir(self.base_path, target_datetime)
-        date_str = target_datetime.strftime("%Y-%m-%d")
-        path = f"{partition_dir}/entry_orders_{date_str}.parquet"
-        self.io.save(path, entry_orders, format="parquet")
+        """エントリー注文を保存する"""
+        self._save_component(target_datetime, entry_orders, "entry_orders")
 
     def save_exit_orders(self, target_datetime: datetime, exit_orders: pl.DataFrame) -> None:
-        """エグジット注文を日付ごとにパーティショニングして保存する
-
-        Args:
-            target_datetime: 保存する日付
-            exit_orders: OrderSchemaに準拠したDataFrame
-
-        Raises:
-            RuntimeError: 保存失敗時
-        """
-        partition_dir = self.io.get_partition_dir(self.base_path, target_datetime)
-        date_str = target_datetime.strftime("%Y-%m-%d")
-        path = f"{partition_dir}/exit_orders_{date_str}.parquet"
-        self.io.save(path, exit_orders, format="parquet")
+        """エグジット注文を保存する"""
+        self._save_component(target_datetime, exit_orders, "exit_orders")
 
     def load(self, target_datetime: datetime, exchange_client: ExchangeClientProtocol) -> Context | None:
         """指定日付のコンテキストを読み込む

@@ -14,7 +14,12 @@ from qeel.models.context import Context
 
 
 class ExchangeClientProtocol(Protocol):
-    """ExchangeClientのプロトコル定義（型ヒント用）"""
+    """ExchangeClientのプロトコル定義（型ヒント用）
+
+    TODO(007): このプロトコルは007-exchange-client-and-mockブランチで
+    qeel.exchange_clients.base.BaseExchangeClientが実装された際に削除し、
+    そちらをimportして使用する。006での暫定措置。
+    """
 
     def fetch_positions(self) -> pl.DataFrame | None:
         """現在のポジションを取得する"""

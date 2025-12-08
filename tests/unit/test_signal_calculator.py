@@ -5,11 +5,15 @@ contracts/base_signal_calculator.mdの仕様に準拠。
 """
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import polars as pl
 import pytest
 
 from qeel.config.params import SignalCalculatorParams
+
+if TYPE_CHECKING:
+    from qeel.calculators.signals.base import BaseSignalCalculator
 
 
 class TestBaseSignalCalculatorABC:
@@ -25,7 +29,6 @@ class TestBaseSignalCalculatorABC:
     def test_calculate_is_abstract_method(self) -> None:
         """calculate()が抽象メソッドであることを確認"""
         from qeel.calculators.signals.base import BaseSignalCalculator
-        import inspect
 
         # calculate メソッドが抽象メソッドとしてマークされていることを確認
         assert hasattr(BaseSignalCalculator, "calculate")
@@ -39,7 +42,7 @@ class TestValidateOutputHelper:
     protectedメソッドはテスト用スタブ経由で検証する。
     """
 
-    def _create_stub_calculator(self) -> "StubSignalCalculator":
+    def _create_stub_calculator(self) -> "BaseSignalCalculator":
         """テスト用スタブCalculatorを作成"""
         from qeel.calculators.signals.base import BaseSignalCalculator
 

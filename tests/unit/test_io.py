@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import boto3
@@ -305,7 +306,7 @@ class TestS3IO:
         return "my_strategy"
 
     @pytest.fixture
-    def mock_s3(self, s3_bucket: str, s3_region: str):
+    def mock_s3(self, s3_bucket: str, s3_region: str) -> Generator[Any, None, None]:
         """motoでS3をモック"""
         with mock_aws():
             # バケットを作成
@@ -317,7 +318,7 @@ class TestS3IO:
             yield s3_client
 
     def test_s3_io_get_base_path_returns_prefix(
-        self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
     ) -> None:
         """S3キープレフィックスを返す（{strategy_name}/{subdir}形式）"""
         from qeel.io.s3 import S3IO
@@ -328,7 +329,7 @@ class TestS3IO:
         assert base_path == f"{strategy_name}/outputs"
 
     def test_s3_io_get_partition_dir_returns_prefix(
-        self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
     ) -> None:
         """年月パーティションプレフィックスを返す"""
         from qeel.io.s3 import S3IO
@@ -341,7 +342,7 @@ class TestS3IO:
 
         assert partition_dir == f"{strategy_name}/outputs/2025/01"
 
-    def test_s3_io_save_json(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_save_json(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """dict形式でS3にJSON保存"""
         from qeel.io.s3 import S3IO
 
@@ -358,7 +359,7 @@ class TestS3IO:
         loaded = json.loads(response["Body"].read().decode("utf-8"))
         assert loaded == data
 
-    def test_s3_io_save_parquet(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_save_parquet(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """DataFrame形式でS3にParquet保存"""
         from qeel.io.s3 import S3IO
 
@@ -377,7 +378,7 @@ class TestS3IO:
         assert loaded.shape == (3, 2)
 
     def test_s3_io_save_raises_unsupported_format(
-        self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
     ) -> None:
         """サポートされていないフォーマットでValueError"""
         from qeel.io.s3 import S3IO
@@ -387,7 +388,7 @@ class TestS3IO:
         with pytest.raises(ValueError, match="サポートされていないフォーマット"):
             io.save("test.csv", {"key": "value"}, format="csv")
 
-    def test_s3_io_load_json(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_load_json(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """S3からJSONを読み込み"""
         import json
 
@@ -407,7 +408,7 @@ class TestS3IO:
 
         assert loaded == data
 
-    def test_s3_io_load_parquet(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_load_parquet(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """S3からParquetを読み込み"""
         from io import BytesIO
 
@@ -427,7 +428,7 @@ class TestS3IO:
         assert loaded.shape == (3, 2)
 
     def test_s3_io_load_returns_none_when_not_exists(
-        self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
     ) -> None:
         """キーが存在しない場合None"""
         from qeel.io.s3 import S3IO
@@ -437,7 +438,7 @@ class TestS3IO:
 
         assert loaded is None
 
-    def test_s3_io_exists_returns_true(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_exists_returns_true(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """オブジェクトが存在する場合True"""
         from qeel.io.s3 import S3IO
 
@@ -447,14 +448,16 @@ class TestS3IO:
         io = S3IO(bucket=s3_bucket, region=s3_region, strategy_name=strategy_name)
         assert io.exists(path) is True
 
-    def test_s3_io_exists_returns_false(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_exists_returns_false(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """オブジェクトが存在しない場合False"""
         from qeel.io.s3 import S3IO
 
         io = S3IO(bucket=s3_bucket, region=s3_region, strategy_name=strategy_name)
         assert io.exists("nonexistent/path.json") is False
 
-    def test_s3_io_list_files_returns_all(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_list_files_returns_all(
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
+    ) -> None:
         """指定プレフィックス配下の全オブジェクトを返す"""
         from qeel.io.s3 import S3IO
 
@@ -469,7 +472,9 @@ class TestS3IO:
 
         assert len(files) == 3
 
-    def test_s3_io_list_files_with_pattern(self, mock_s3, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
+    def test_s3_io_list_files_with_pattern(
+        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
+    ) -> None:
         """パターン指定でフィルタリング"""
         from qeel.io.s3 import S3IO
 

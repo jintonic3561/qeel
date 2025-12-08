@@ -111,9 +111,7 @@ class TestContextStore:
         expected_path = "memory://outputs/context/2025/01/exit_orders_2025-01-15.parquet"
         assert io.exists(expected_path)
 
-    def test_context_store_load_returns_context(
-        self, io: InMemoryIO, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_context_store_load_returns_context(self, io: InMemoryIO, mock_exchange_client: MagicMock) -> None:
         """指定日付のコンテキストを復元"""
         from qeel.stores.context_store import ContextStore
 
@@ -121,12 +119,8 @@ class TestContextStore:
         target_datetime = datetime(2025, 1, 15)
 
         # データを保存
-        signals = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]}
-        )
-        portfolio_plan = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal_strength": [0.8]}
-        )
+        signals = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]})
+        portfolio_plan = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal_strength": [0.8]})
         store.save_signals(target_datetime, signals)
         store.save_portfolio_plan(target_datetime, portfolio_plan)
 
@@ -153,9 +147,7 @@ class TestContextStore:
 
         assert ctx is None
 
-    def test_context_store_load_partial_elements(
-        self, io: InMemoryIO, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_context_store_load_partial_elements(self, io: InMemoryIO, mock_exchange_client: MagicMock) -> None:
         """一部の要素のみ存在する場合も正常に復元"""
         from qeel.stores.context_store import ContextStore
 
@@ -163,9 +155,7 @@ class TestContextStore:
         target_datetime = datetime(2025, 1, 15)
 
         # signalsのみ保存
-        signals = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]}
-        )
+        signals = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]})
         store.save_signals(target_datetime, signals)
 
         # 読み込み
@@ -189,9 +179,7 @@ class TestContextStore:
         # 複数日付のデータを保存
         for day in [10, 15, 20]:
             dt = datetime(2025, 1, day)
-            signals = pl.DataFrame(
-                {"datetime": [dt], "symbol": ["AAPL"], "signal": [day / 100]}
-            )
+            signals = pl.DataFrame({"datetime": [dt], "symbol": ["AAPL"], "signal": [day / 100]})
             store.save_signals(dt, signals)
 
         # 最新を読み込み
@@ -219,9 +207,7 @@ class TestContextStore:
         store = ContextStore(io)
         target_datetime = datetime(2025, 1, 15)
 
-        signals = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]}
-        )
+        signals = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]})
         store.save_signals(target_datetime, signals)
 
         assert store.exists(target_datetime) is True
@@ -272,18 +258,14 @@ class TestInMemoryStore:
         )
         return client
 
-    def test_in_memory_store_save_and_load(
-        self, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_in_memory_store_save_and_load(self, mock_exchange_client: MagicMock) -> None:
         """最新コンテキストのみ保持"""
         from qeel.stores.in_memory import InMemoryStore
 
         store = InMemoryStore()
         target_datetime = datetime(2025, 1, 15)
 
-        signals = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]}
-        )
+        signals = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]})
         store.save_signals(target_datetime, signals)
 
         ctx = store.load(target_datetime, mock_exchange_client)
@@ -291,9 +273,7 @@ class TestInMemoryStore:
         assert ctx is not None
         assert ctx.signals is not None
 
-    def test_in_memory_store_overwrites_previous(
-        self, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_in_memory_store_overwrites_previous(self, mock_exchange_client: MagicMock) -> None:
         """上書き動作の確認"""
         from qeel.stores.in_memory import InMemoryStore
 
@@ -301,16 +281,12 @@ class TestInMemoryStore:
 
         # 最初のデータ
         dt1 = datetime(2025, 1, 10)
-        signals1 = pl.DataFrame(
-            {"datetime": [dt1], "symbol": ["AAPL"], "signal": [0.3]}
-        )
+        signals1 = pl.DataFrame({"datetime": [dt1], "symbol": ["AAPL"], "signal": [0.3]})
         store.save_signals(dt1, signals1)
 
         # 上書き
         dt2 = datetime(2025, 1, 15)
-        signals2 = pl.DataFrame(
-            {"datetime": [dt2], "symbol": ["GOOGL"], "signal": [0.7]}
-        )
+        signals2 = pl.DataFrame({"datetime": [dt2], "symbol": ["GOOGL"], "signal": [0.7]})
         store.save_signals(dt2, signals2)
 
         # 最新のみ保持されている
@@ -320,18 +296,14 @@ class TestInMemoryStore:
         assert ctx.signals is not None
         assert ctx.signals["symbol"][0] == "GOOGL"
 
-    def test_in_memory_store_load_latest(
-        self, mock_exchange_client: MagicMock
-    ) -> None:
+    def test_in_memory_store_load_latest(self, mock_exchange_client: MagicMock) -> None:
         """load_latestが最新を返す"""
         from qeel.stores.in_memory import InMemoryStore
 
         store = InMemoryStore()
         target_datetime = datetime(2025, 1, 15)
 
-        signals = pl.DataFrame(
-            {"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]}
-        )
+        signals = pl.DataFrame({"datetime": [target_datetime], "symbol": ["AAPL"], "signal": [0.5]})
         store.save_signals(target_datetime, signals)
 
         ctx = store.load_latest(mock_exchange_client)
