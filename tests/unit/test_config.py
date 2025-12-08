@@ -158,7 +158,8 @@ def test_general_config_local_storage() -> None:
     """storage_type=\"local\"で正常"""
     from qeel.config.models import GeneralConfig
 
-    config = GeneralConfig(storage_type="local")
+    config = GeneralConfig(strategy_name="my_strategy", storage_type="local")
+    assert config.strategy_name == "my_strategy"
     assert config.storage_type == "local"
     assert config.s3_bucket is None
     assert config.s3_region is None
@@ -169,10 +170,12 @@ def test_general_config_s3_storage_valid() -> None:
     from qeel.config.models import GeneralConfig
 
     config = GeneralConfig(
+        strategy_name="my_strategy",
         storage_type="s3",
         s3_bucket="my-bucket",
         s3_region="ap-northeast-1",
     )
+    assert config.strategy_name == "my_strategy"
     assert config.storage_type == "s3"
     assert config.s3_bucket == "my-bucket"
     assert config.s3_region == "ap-northeast-1"
@@ -183,7 +186,7 @@ def test_general_config_s3_missing_bucket() -> None:
     from qeel.config.models import GeneralConfig
 
     with pytest.raises(ValidationError, match="s3_bucketは必須"):
-        GeneralConfig(storage_type="s3", s3_region="ap-northeast-1")
+        GeneralConfig(strategy_name="my_strategy", storage_type="s3", s3_region="ap-northeast-1")
 
 
 def test_general_config_s3_missing_region() -> None:
@@ -191,7 +194,7 @@ def test_general_config_s3_missing_region() -> None:
     from qeel.config.models import GeneralConfig
 
     with pytest.raises(ValidationError, match="s3_regionは必須"):
-        GeneralConfig(storage_type="s3", s3_bucket="my-bucket")
+        GeneralConfig(strategy_name="my_strategy", storage_type="s3", s3_bucket="my-bucket")
 
 
 # Config Root Model and TOML Loading tests (Phase 4)

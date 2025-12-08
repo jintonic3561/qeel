@@ -5,6 +5,7 @@ data-model.mdとcontracts/base_data_source.mdを参照
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -29,7 +30,7 @@ class TestBaseDataSourceCannotInstantiate:
             offset_seconds=0,
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
         with pytest.raises(TypeError):
@@ -55,9 +56,7 @@ class ConcreteDataSource:
                 super().__init__(config=config)
                 self._mock_data = mock_data
 
-            def fetch(
-                self, start: datetime, end: datetime, symbols: list[str]
-            ) -> pl.DataFrame:
+            def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
                 if self._mock_data is None:
                     return pl.DataFrame()
                 return self._mock_data
@@ -81,7 +80,7 @@ class TestNormalizeDatetimeColumn:
             offset_seconds=0,
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
     @pytest.fixture
@@ -93,12 +92,10 @@ class TestNormalizeDatetimeColumn:
             offset_seconds=0,
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
-    def test_normalize_datetime_column_renames(
-        self, config_with_different_datetime_column: DataSourceConfig
-    ) -> None:
+    def test_normalize_datetime_column_renames(self, config_with_different_datetime_column: DataSourceConfig) -> None:
         """datetime_columnが"datetime"以外の場合リネームされる"""
         ds = ConcreteDataSource(config=config_with_different_datetime_column)
 
@@ -183,7 +180,7 @@ class TestAdjustWindowForOffset:
             offset_seconds=3600,  # 1時間
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
     @pytest.fixture
@@ -195,7 +192,7 @@ class TestAdjustWindowForOffset:
             offset_seconds=0,
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
     @pytest.fixture
@@ -207,12 +204,10 @@ class TestAdjustWindowForOffset:
             offset_seconds=-3600,  # -1時間
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
-    def test_adjust_window_for_offset_positive(
-        self, config_with_positive_offset: DataSourceConfig
-    ) -> None:
+    def test_adjust_window_for_offset_positive(self, config_with_positive_offset: DataSourceConfig) -> None:
         """正のoffset_secondsでwindowが過去方向に調整される"""
         ds = ConcreteDataSource(config=config_with_positive_offset)
 
@@ -225,9 +220,7 @@ class TestAdjustWindowForOffset:
         assert adjusted_start == datetime(2023, 1, 1, 9, 0, 0)
         assert adjusted_end == datetime(2023, 1, 1, 10, 0, 0)
 
-    def test_adjust_window_for_offset_zero(
-        self, config_with_zero_offset: DataSourceConfig
-    ) -> None:
+    def test_adjust_window_for_offset_zero(self, config_with_zero_offset: DataSourceConfig) -> None:
         """offset_seconds=0の場合windowは変化なし"""
         ds = ConcreteDataSource(config=config_with_zero_offset)
 
@@ -239,9 +232,7 @@ class TestAdjustWindowForOffset:
         assert adjusted_start == start
         assert adjusted_end == end
 
-    def test_adjust_window_for_offset_negative(
-        self, config_with_negative_offset: DataSourceConfig
-    ) -> None:
+    def test_adjust_window_for_offset_negative(self, config_with_negative_offset: DataSourceConfig) -> None:
         """負のoffset_secondsでwindowが未来方向に調整される"""
         ds = ConcreteDataSource(config=config_with_negative_offset)
 
@@ -254,9 +245,7 @@ class TestAdjustWindowForOffset:
         assert adjusted_start == datetime(2023, 1, 1, 11, 0, 0)
         assert adjusted_end == datetime(2023, 1, 1, 12, 0, 0)
 
-    def test_adjust_window_prevents_data_leak(
-        self, config_with_positive_offset: DataSourceConfig
-    ) -> None:
+    def test_adjust_window_prevents_data_leak(self, config_with_positive_offset: DataSourceConfig) -> None:
         """offset_seconds適用後のwindowでフィルタリングした場合、未来データが含まれないことを確認"""
         ds = ConcreteDataSource(config=config_with_positive_offset)
 
@@ -283,7 +272,7 @@ class TestFilterByDatetimeAndSymbols:
             offset_seconds=0,
             window_seconds=86400,
             source_type="parquet",
-            source_path="test.parquet",
+            source_path=Path("test.parquet"),
         )
 
     @pytest.fixture
@@ -312,9 +301,7 @@ class TestFilterByDatetimeAndSymbols:
         end = datetime(2023, 1, 1, 11, 30, 0)
         symbols = ["AAPL", "GOOG"]
 
-        result = ds.instance._filter_by_datetime_and_symbols(
-            sample_dataframe, start, end, symbols
-        )
+        result = ds.instance._filter_by_datetime_and_symbols(sample_dataframe, start, end, symbols)
 
         # 10:00のAAPLとGOOG、11:00のAAPLのみ
         assert len(result) == 2
@@ -332,9 +319,7 @@ class TestFilterByDatetimeAndSymbols:
         end = datetime(2023, 1, 2, 23, 59, 59)
         symbols = ["AAPL"]
 
-        result = ds.instance._filter_by_datetime_and_symbols(
-            sample_dataframe, start, end, symbols
-        )
+        result = ds.instance._filter_by_datetime_and_symbols(sample_dataframe, start, end, symbols)
 
         assert len(result) == 0
 
@@ -348,9 +333,7 @@ class TestFilterByDatetimeAndSymbols:
         end = datetime(2023, 1, 1, 23, 59, 59)
         symbols: list[str] = []
 
-        result = ds.instance._filter_by_datetime_and_symbols(
-            sample_dataframe, start, end, symbols
-        )
+        result = ds.instance._filter_by_datetime_and_symbols(sample_dataframe, start, end, symbols)
 
         assert len(result) == 0
 
@@ -376,7 +359,7 @@ class TestMockDataSource:
             offset_seconds=0,
             window_seconds=86400,
             source_type="custom",
-            source_path="mock",
+            source_path=Path("mock"),
         )
 
     @pytest.fixture
@@ -399,9 +382,7 @@ class TestMockDataSource:
             }
         )
 
-    def test_mock_data_source_returns_dataframe(
-        self, config: DataSourceConfig, mock_data: pl.DataFrame
-    ) -> None:
+    def test_mock_data_source_returns_dataframe(self, config: DataSourceConfig, mock_data: pl.DataFrame) -> None:
         """fetch()がPolars DataFrameを返す"""
         from qeel.data_sources.mock import MockDataSource
 
@@ -416,9 +397,7 @@ class TestMockDataSource:
         assert isinstance(result, pl.DataFrame)
         assert len(result) > 0
 
-    def test_mock_data_source_respects_symbols(
-        self, config: DataSourceConfig, mock_data: pl.DataFrame
-    ) -> None:
+    def test_mock_data_source_respects_symbols(self, config: DataSourceConfig, mock_data: pl.DataFrame) -> None:
         """指定されたsymbolsのデータのみ返す"""
         from qeel.data_sources.mock import MockDataSource
 
@@ -434,9 +413,7 @@ class TestMockDataSource:
         assert len(result) == 2
         assert all(s == "AAPL" for s in result["symbol"].to_list())
 
-    def test_mock_data_source_respects_datetime_range(
-        self, config: DataSourceConfig, mock_data: pl.DataFrame
-    ) -> None:
+    def test_mock_data_source_respects_datetime_range(self, config: DataSourceConfig, mock_data: pl.DataFrame) -> None:
         """指定されたdatetime範囲内のデータを返す"""
         from qeel.data_sources.mock import MockDataSource
 

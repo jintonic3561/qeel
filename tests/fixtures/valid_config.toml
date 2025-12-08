@@ -1,6 +1,7 @@
 # 正常な設定ファイル
 
 [general]
+strategy_name = "test_strategy"
 storage_type = "local"
 
 [loop]

@@ -5,6 +5,7 @@ contracts/base_data_source.mdを参照。
 """
 
 from datetime import datetime
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -26,7 +27,7 @@ class TestMockDataSourceWithConfig:
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
             source_type="custom",
-            source_path="mock",
+            source_path=Path("mock"),
         )
 
     @pytest.fixture
@@ -49,9 +50,7 @@ class TestMockDataSourceWithConfig:
             }
         )
 
-    def test_mock_data_source_with_config(
-        self, config: DataSourceConfig, mock_data: pl.DataFrame
-    ) -> None:
+    def test_mock_data_source_with_config(self, config: DataSourceConfig, mock_data: pl.DataFrame) -> None:
         """DataSourceConfigを使用してMockDataSourceを初期化し、fetch()が正常動作"""
         ds = MockDataSource(config=config, data=mock_data)
 
@@ -82,12 +81,10 @@ class TestDataSourceHelperChain:
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
             source_type="custom",
-            source_path="mock",
+            source_path=Path("mock"),
         )
 
-    def test_data_source_helper_chain(
-        self, config_with_offset: DataSourceConfig
-    ) -> None:
+    def test_data_source_helper_chain(self, config_with_offset: DataSourceConfig) -> None:
         """ヘルパーメソッドを連鎖して使用した場合の動作確認
 
         実際のデータソース実装で使用されるパターンをテスト:
@@ -108,21 +105,15 @@ class TestDataSourceHelperChain:
                 super().__init__(config=config)
                 self._raw_data = raw_data
 
-            def fetch(
-                self, start: datetime, end: datetime, symbols: list[str]
-            ) -> pl.DataFrame:
+            def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
                 # 1. offsetを考慮してwindowを調整
-                adjusted_start, adjusted_end = self._adjust_window_for_offset(
-                    start, end
-                )
+                adjusted_start, adjusted_end = self._adjust_window_for_offset(start, end)
 
                 # 2. datetime列を正規化
                 df = self._normalize_datetime_column(self._raw_data)
 
                 # 3. フィルタリング
-                df = self._filter_by_datetime_and_symbols(
-                    df, adjusted_start, adjusted_end, symbols
-                )
+                df = self._filter_by_datetime_and_symbols(df, adjusted_start, adjusted_end, symbols)
 
                 return df
 
@@ -173,9 +164,7 @@ class TestDataSourceInheritance:
         """カスタムデータソースを作成できる"""
 
         class MyCustomDataSource(BaseDataSource):
-            def fetch(
-                self, start: datetime, end: datetime, symbols: list[str]
-            ) -> pl.DataFrame:
+            def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
                 return pl.DataFrame(
                     {
                         "datetime": [start],
@@ -190,7 +179,7 @@ class TestDataSourceInheritance:
             offset_seconds=0,
             window_seconds=86400,
             source_type="custom",
-            source_path="custom",
+            source_path=Path("custom"),
         )
 
         ds = MyCustomDataSource(config=config)

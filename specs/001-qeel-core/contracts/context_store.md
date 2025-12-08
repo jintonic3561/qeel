@@ -173,15 +173,34 @@ class ContextStore:
     def _find_latest_datetime(self) -> datetime | None:
         """保存されているファイルから最新日付を探索
 
-        実装詳細は省略（IOレイヤーを使ってパーティション探索）
+        io.list_files()を使用してパーティション配下のファイルを探索し、
+        ファイル名から日付を抽出して最新のものを返す。
+
+        実装方針:
+        1. io.list_files(base_path, pattern="signals_*.parquet")で全signalsファイルを取得
+        2. ファイル名から日付をパース（signals_YYYY-MM-DD.parquet形式）
+        3. 最新の日付を返す
         """
-        # TODO: 実装
-        ...
+        import re
+
+        files = self.io.list_files(self.base_path, pattern="signals_*.parquet")
+        if not files:
+            return None
+
+        dates: list[datetime] = []
+        date_pattern = re.compile(r"signals_(\d{4}-\d{2}-\d{2})\.parquet$")
+        for file_path in files:
+            match = date_pattern.search(file_path)
+            if match:
+                dates.append(datetime.strptime(match.group(1), "%Y-%m-%d"))
+
+        return max(dates) if dates else None
 ```
 
 ## テスタビリティ
 
 - `InMemoryStore` をテスト用に実装可能（日付パーティショニングなし、最新のみ保持）:
+- ContextStoreはABCではなく単一実装のため、InMemoryStoreはContextStoreと同じインターフェースを持つ独立した実装として提供する
 
 ```python
 from datetime import datetime
@@ -189,11 +208,14 @@ from datetime import datetime
 import polars as pl
 
 from qeel.models import Context
-from qeel.stores import BaseContextStore
 
 
-class InMemoryStore(BaseContextStore):
-    """テスト用インメモリストア（最新のコンテキストのみ保持）"""
+class InMemoryStore:
+    """テスト用インメモリストア（最新のコンテキストのみ保持）
+
+    ContextStoreと同じインターフェースを持つが、永続化せず最新のコンテキストのみ保持する。
+    単体テストやインテグレーションテストで使用することを想定。
+    """
 
     def __init__(self):
         self._signals: pl.DataFrame | None = None
