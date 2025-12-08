@@ -768,9 +768,9 @@ Phase 4     |        |
 
 **Purpose**: IOパッケージとコンテキスト管理パッケージの初期化
 
-- [ ] T077 src/qeel/io/__init__.pyを作成（パッケージ初期化）
-- [ ] T078 [P] src/qeel/models/__init__.pyを作成（パッケージ初期化）
-- [ ] T079 [P] src/qeel/stores/__init__.pyを作成（パッケージ初期化）
+- [x] T077 src/qeel/io/__init__.pyを作成（パッケージ初期化）
+- [x] T078 [P] src/qeel/models/__init__.pyを作成（パッケージ初期化）
+- [x] T079 [P] src/qeel/stores/__init__.pyを作成（パッケージ初期化）
 
 **Checkpoint**: パッケージ構造完成
 
@@ -782,7 +782,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T080 tests/unit/test_context.pyを作成
+- [x] T080 tests/unit/test_context.pyを作成
   - `test_context_requires_current_datetime`: current_datetimeは必須
   - `test_context_optional_fields_default_none`: signals, portfolio_plan, entry_orders, exit_orders, current_positionsはデフォルトNone
   - `test_context_accepts_polars_dataframe`: Polars DataFrameを保持可能
@@ -791,7 +791,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T081 src/qeel/models/context.pyにContextを実装（data-model.md 2.7参照）
+- [x] T081 src/qeel/models/context.pyにContextを実装（data-model.md 2.7参照）
   - `current_datetime: datetime`（必須）
   - `signals: pl.DataFrame | None`
   - `portfolio_plan: pl.DataFrame | None`
@@ -809,7 +809,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T082 tests/unit/test_io.pyを作成
+- [x] T082 tests/unit/test_io.pyを作成
   - `test_base_io_cannot_instantiate`: ABCは直接インスタンス化不可
   - `test_from_config_returns_local_io`: storage_type="local"でLocalIOを返す
   - `test_from_config_returns_s3_io`: storage_type="s3"でS3IOを返す
@@ -819,7 +819,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T083 src/qeel/io/base.pyにBaseIO ABCを実装（contracts/base_io.md参照）
+- [x] T083 src/qeel/io/base.pyにBaseIO ABCを実装（contracts/base_io.md参照）
   - `from_config(cls, general_config: GeneralConfig) -> BaseIO`: ファクトリメソッド
   - `get_base_path(self, subdir: str) -> str`: 抽象メソッド
   - `get_partition_dir(self, base_path: str, target_datetime: datetime) -> str`: 抽象メソッド
@@ -838,7 +838,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T084 tests/unit/test_io.pyにテストを追加
+- [x] T084 tests/unit/test_io.pyにテストを追加
   - `test_local_io_get_base_path_returns_workspace_subdir`: ワークスペース配下のパスを返す
   - `test_local_io_get_partition_dir_creates_directory`: 年月パーティションディレクトリを作成して返す
   - `test_local_io_save_json`: dict形式でJSONファイルに保存
@@ -857,7 +857,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T085 src/qeel/io/local.pyにLocalIOを実装（contracts/base_io.md参照）
+- [x] T085 src/qeel/io/local.pyにLocalIOを実装（contracts/base_io.md参照）
   - BaseIOを継承
   - get_workspace()を使用してベースパス取得
   - JSON/Parquet形式のsave/load
@@ -873,11 +873,11 @@ Phase 4     |        |
 
 **Prerequisites**: pyproject.tomlにboto3, moto依存関係を追加済みであること
 
-- [ ] T086-pre pyproject.tomlにboto3, moto依存関係を追加（S3テスト用）
+- [x] T086-pre pyproject.tomlにboto3, moto依存関係を追加（S3テスト用）
 
 ### Tests (TDD: RED)
 
-- [ ] T086 tests/unit/test_io.pyにテストを追加（motoを使用）
+- [x] T086 tests/unit/test_io.pyにテストを追加（motoを使用）
   - `test_s3_io_get_base_path_returns_prefix`: S3キープレフィックスを返す
   - `test_s3_io_get_partition_dir_returns_prefix`: 年月パーティションプレフィックスを返す
   - `test_s3_io_save_json`: dict形式でS3にJSON保存
@@ -893,7 +893,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T087 src/qeel/io/s3.pyにS3IOを実装（contracts/base_io.md参照）
+- [x] T087 src/qeel/io/s3.pyにS3IOを実装（contracts/base_io.md参照）
   - BaseIOを継承
   - boto3クライアントを使用
   - BytesIO経由でParquet読み書き
@@ -909,7 +909,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T088 tests/unit/test_io.pyにテストを追加
+- [x] T088 tests/unit/test_io.pyにテストを追加
   - `test_in_memory_io_save_and_load_json`: dict形式で保存・読み込み
   - `test_in_memory_io_save_and_load_dataframe`: DataFrame形式で保存・読み込み
   - `test_in_memory_io_exists`: 存在確認
@@ -917,7 +917,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T089 src/qeel/io/in_memory.pyにInMemoryIOを実装（contracts/base_io.md参照）
+- [x] T089 src/qeel/io/in_memory.pyにInMemoryIOを実装（contracts/base_io.md参照）
   - BaseIOを継承
   - 内部dictにデータを保持
   - テスト用のシンプルな実装
@@ -932,7 +932,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T090 tests/unit/test_context_store.pyを作成
+- [x] T090 tests/unit/test_context_store.pyを作成
   - `test_context_store_save_signals`: シグナルを日付パーティショニングで保存
   - `test_context_store_save_portfolio_plan`: ポートフォリオ計画を保存
   - `test_context_store_save_entry_orders`: エントリー注文を保存
@@ -948,7 +948,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T091 src/qeel/stores/context_store.pyにContextStoreを実装（contracts/context_store.md参照）
+- [x] T091 src/qeel/stores/context_store.pyにContextStoreを実装（contracts/context_store.md参照）
   - `__init__(self, io: BaseIO)`
   - `save_signals(self, target_datetime: datetime, signals: pl.DataFrame) -> None`
   - `save_portfolio_plan(self, target_datetime: datetime, portfolio_plan: pl.DataFrame) -> None`
@@ -969,7 +969,7 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T092 tests/unit/test_context_store.pyにテストを追加
+- [x] T092 tests/unit/test_context_store.pyにテストを追加
   - `test_in_memory_store_save_and_load`: 最新コンテキストのみ保持
   - `test_in_memory_store_overwrites_previous`: 上書き動作の確認
   - `test_in_memory_store_load_latest`: load_latestが最新を返す
@@ -977,7 +977,7 @@ Phase 4     |        |
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T093 src/qeel/stores/in_memory.pyにInMemoryStoreを実装（contracts/context_store.md参照）
+- [x] T093 src/qeel/stores/in_memory.pyにInMemoryStoreを実装（contracts/context_store.md参照）
   - ContextStoreと同じインターフェース
   - 最新のコンテキストのみ保持
   - パーティショニングなし
@@ -992,17 +992,17 @@ Phase 4     |        |
 
 ### Tests (TDD: RED)
 
-- [ ] T094 tests/integration/test_io_integration.pyを作成
+- [x] T094 tests/integration/test_io_integration.pyを作成
   - `test_local_io_with_config`: GeneralConfig(storage_type="local")からLocalIOを取得し、save/load/list_filesが正常動作
   - `test_context_store_with_local_io`: LocalIOを使用したContextStoreの動作確認
   - `test_context_store_partition_workflow`: 複数日付の保存・読み込みワークフロー
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T095 src/qeel/io/__init__.pyにBaseIO, LocalIO, S3IO, InMemoryIOをエクスポート
-- [ ] T096 src/qeel/models/__init__.pyにContextをエクスポート
-- [ ] T097 src/qeel/stores/__init__.pyにContextStore, InMemoryStoreをエクスポート
-- [ ] T098 src/qeel/__init__.pyにio, models, storesモジュールを追加
+- [x] T095 src/qeel/io/__init__.pyにBaseIO, LocalIO, S3IO, InMemoryIOをエクスポート
+- [x] T096 src/qeel/models/__init__.pyにContextをエクスポート
+- [x] T097 src/qeel/stores/__init__.pyにContextStore, InMemoryStoreをエクスポート
+- [x] T098 src/qeel/__init__.pyにio, models, storesモジュールを追加
 
 **Checkpoint**: `uv run pytest tests/integration/test_io_integration.py` 全件パス
 
@@ -1012,12 +1012,12 @@ Phase 4     |        |
 
 **Purpose**: 品質チェックと最終確認
 
-- [ ] T099 `uv run mypy src/qeel/io/` で型エラーゼロを確認
-- [ ] T100 [P] `uv run mypy src/qeel/models/` で型エラーゼロを確認
-- [ ] T101 [P] `uv run mypy src/qeel/stores/` で型エラーゼロを確認
-- [ ] T102 `uv run ruff check src/qeel/io/ src/qeel/models/ src/qeel/stores/` でリンターエラーゼロを確認
-- [ ] T103 `uv run ruff format src/qeel/io/ src/qeel/models/ src/qeel/stores/` でフォーマット適用
-- [ ] T104 `uv run pytest` で全テストパスを確認（002, 004, 005のテストも含む）
+- [x] T099 `uv run mypy src/qeel/io/` で型エラーゼロを確認
+- [x] T100 [P] `uv run mypy src/qeel/models/` で型エラーゼロを確認
+- [x] T101 [P] `uv run mypy src/qeel/stores/` で型エラーゼロを確認
+- [x] T102 `uv run ruff check src/qeel/io/ src/qeel/models/ src/qeel/stores/` でリンターエラーゼロを確認
+- [x] T103 `uv run ruff format src/qeel/io/ src/qeel/models/ src/qeel/stores/` でフォーマット適用
+- [x] T104 `uv run pytest` で全テストパスを確認（002, 004, 005のテストも含む）
 
 ---
 
