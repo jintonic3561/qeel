@@ -661,6 +661,19 @@ class BaseIO(ABC):
         """
         ...
 
+    @abstractmethod
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定パス配下のファイル一覧を取得する
+
+        Args:
+            path: 検索対象ディレクトリパス
+            pattern: ファイル名のフィルタパターン（例: "signals_*.parquet"）
+
+        Returns:
+            マッチしたファイルパスのリスト
+        """
+        ...
+
 
 class LocalIO(BaseIO):
     """ローカルファイルシステムIO実装"""
@@ -710,6 +723,19 @@ class LocalIO(BaseIO):
     def exists(self, path: str) -> bool:
         """ファイルの存在確認"""
         return Path(path).exists()
+
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定パス配下のファイル一覧を取得"""
+        import fnmatch
+
+        dir_path = Path(path)
+        if not dir_path.exists():
+            return []
+
+        files = [str(f) for f in dir_path.rglob("*") if f.is_file()]
+        if pattern:
+            files = [f for f in files if fnmatch.fnmatch(Path(f).name, pattern)]
+        return sorted(files)
 
 
 class S3IO(BaseIO):
@@ -769,6 +795,25 @@ class S3IO(BaseIO):
             return True
         except self.s3_client.exceptions.ClientError:
             return False
+
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定プレフィックス配下のオブジェクト一覧を取得"""
+        import fnmatch
+
+        paginator = self.s3_client.get_paginator('list_objects_v2')
+        files: list[str] = []
+
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=path):
+            for obj in page.get('Contents', []):
+                key = obj['Key']
+                if pattern:
+                    filename = key.split('/')[-1]
+                    if fnmatch.fnmatch(filename, pattern):
+                        files.append(key)
+                else:
+                    files.append(key)
+
+        return sorted(files)
 ```
 
 ---

@@ -115,6 +115,19 @@ class BaseIO(ABC):
             ファイルが存在する場合True
         """
         ...
+
+    @abstractmethod
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定パス配下のファイル一覧を取得する
+
+        Args:
+            path: 検索対象ディレクトリパス（LocalIOの場合はローカルパス、S3IOの場合はキープレフィックス）
+            pattern: ファイル名のフィルタパターン（例: "signals_*.parquet"）。Noneの場合は全ファイル
+
+        Returns:
+            マッチしたファイルパスのリスト（フルパス）。存在しない場合は空リスト
+        """
+        ...
 ```
 
 ## 実装例
@@ -179,6 +192,19 @@ class LocalIO(BaseIO):
     def exists(self, path: str) -> bool:
         """ファイルの存在確認"""
         return Path(path).exists()
+
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定パス配下のファイル一覧を取得"""
+        import fnmatch
+
+        dir_path = Path(path)
+        if not dir_path.exists():
+            return []
+
+        files = [str(f) for f in dir_path.rglob("*") if f.is_file()]
+        if pattern:
+            files = [f for f in files if fnmatch.fnmatch(Path(f).name, pattern)]
+        return sorted(files)
 ```
 
 ### S3IO（S3ストレージ）
@@ -250,6 +276,25 @@ class S3IO(BaseIO):
             return True
         except self.s3_client.exceptions.ClientError:
             return False
+
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """指定プレフィックス配下のオブジェクト一覧を取得"""
+        import fnmatch
+
+        paginator = self.s3_client.get_paginator('list_objects_v2')
+        files: list[str] = []
+
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=path):
+            for obj in page.get('Contents', []):
+                key = obj['Key']
+                if pattern:
+                    filename = key.split('/')[-1]
+                    if fnmatch.fnmatch(filename, pattern):
+                        files.append(key)
+                else:
+                    files.append(key)
+
+        return sorted(files)
 ```
 
 ## 契約事項
@@ -295,6 +340,14 @@ class S3IO(BaseIO):
 - 出力: ファイルが存在する場合True
 - 高速に動作すること（実際の読み込みは行わない）
 
+### list_files
+
+- 入力: 検索対象パス、ファイル名パターン（オプション）
+- 出力: マッチしたファイルパスのリスト（フルパス）、存在しない場合は空リスト
+- LocalIO: `Path.rglob()`で再帰的に検索
+- S3IO: `list_objects_v2`のpaginatorで検索
+- パターンは`fnmatch`形式（例: `"signals_*.parquet"`）
+
 ## テスタビリティ
 
 InMemoryIOをテスト用に実装可能:
@@ -320,6 +373,15 @@ class InMemoryIO(BaseIO):
 
     def exists(self, path: str) -> bool:
         return path in self.storage
+
+    def list_files(self, path: str, pattern: str | None = None) -> list[str]:
+        """インメモリストレージからファイル一覧を取得"""
+        import fnmatch
+
+        files = [k for k in self.storage.keys() if k.startswith(path)]
+        if pattern:
+            files = [f for f in files if fnmatch.fnmatch(f.split('/')[-1], pattern)]
+        return sorted(files)
 ```
 
 ## 標準実装
