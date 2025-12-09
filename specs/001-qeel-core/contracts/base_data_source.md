@@ -133,15 +133,23 @@ class ParquetDataSource(BaseDataSource):
 
     BaseDataSourceの共通ヘルパーメソッドとIOレイヤーを活用することで、
     簡潔で可読性の高い実装が可能。
+
+    source_pathの指定方法:
+        - 単一ファイル: "ohlcv.parquet"
+        - globパターン: "ohlcv/*.parquet", "ohlcv/**/*.parquet"
+        - Hiveパーティショニング: "ohlcv/" (year=2024/month=01/形式を自動認識)
+
+    ローカル/S3の両方に対応（IOレイヤーが抽象化）。
     """
 
     def fetch(self, start: datetime, end: datetime, symbols: list[str]) -> pl.DataFrame:
         # IOレイヤー経由でParquetファイルを読み込み
+        # globパターン、Hiveパーティショニングは自動的にPolarsが処理
         base_path = self.io.get_base_path("inputs")
         full_path = f"{base_path}/{self.config.source_path}"
         df = self.io.load(full_path, format="parquet")
 
-        if df is None:
+        if df is None or df.is_empty():
             raise ValueError(f"データソースが見つかりません: {full_path}")
 
         # 共通ヘルパーメソッドを使用した前処理
@@ -277,8 +285,36 @@ class MockDataSource(BaseDataSource):
 
 ユーザは独自のデータソース（API、データベース等）を自由に実装可能。ヘルパーメソッドは任意で利用可能であり、強制ではない。
 
-## テスト用実装
+## 標準実装
 
-Qeelは以下のテスト用実装を提供する：
+Qeelは以下の標準実装を提供する：
 
+- `ParquetDataSource`: Parquetファイルからデータを読み込む標準実装
+  - 単一ファイル、globパターン、Hiveパーティショニングに対応
+  - ローカル/S3の両方に対応（IOレイヤーが抽象化）
 - `MockDataSource`: テスト用モックデータ（共通ヘルパーメソッド使用例として参照可能）
+
+### source_pathの指定例
+
+```toml
+# 単一ファイル
+[[data_sources]]
+name = "ohlcv"
+source_path = "ohlcv.parquet"
+
+# globパターン（複数ファイル）
+[[data_sources]]
+name = "ohlcv"
+source_path = "ohlcv/*.parquet"
+
+# 再帰的globパターン
+[[data_sources]]
+name = "ohlcv"
+source_path = "ohlcv/**/*.parquet"
+
+# Hiveパーティショニング（ディレクトリ指定で自動認識）
+[[data_sources]]
+name = "ohlcv"
+source_path = "ohlcv/"
+# inputs/ohlcv/year=2024/month=01/data.parquet 形式を自動認識
+```

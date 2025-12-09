@@ -178,18 +178,33 @@ class LocalIO(BaseIO):
         else:
             raise ValueError(f"サポートされていないフォーマット: {format}")
 
+    def _is_glob_pattern(self, path: str) -> bool:
+        """パスがglobパターンを含むか判定"""
+        return "*" in path or "?" in path or "[" in path
+
     def load(self, path: str, format: str) -> dict | pl.DataFrame | None:
-        """ローカルファイルから読み込み"""
-        file_path = Path(path)
-        if not file_path.exists():
-            return None
+        """ローカルファイルから読み込み
+
+        parquet形式の場合、globパターン（*, ?, []）をサポート。
+        Polarsのread_parquetに直接委譲し、複数ファイルの自動結合やHiveパーティショニングに対応。
+        """
+        is_glob = self._is_glob_pattern(path)
 
         if format == "json":
+            file_path = Path(path)
+            if not file_path.exists():
+                return None
             import json
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         elif format == "parquet":
-            return pl.read_parquet(file_path)
+            # globパターンの場合は存在チェックをスキップし、Polarsに委譲
+            if not is_glob:
+                file_path = Path(path)
+                if not file_path.exists():
+                    return None
+            # Polarsはglobパターン、Hiveパーティショニングをネイティブサポート
+            return pl.read_parquet(path)
         else:
             raise ValueError(f"サポートされていないフォーマット: {format}")
 
@@ -224,13 +239,19 @@ from qeel.io.base import BaseIO
 
 
 class S3IO(BaseIO):
-    """S3ストレージIO実装"""
+    """S3ストレージIO実装
+
+    parquet形式の読み込みはPolarsのネイティブS3サポートを使用し、
+    globパターンやHiveパーティショニングに対応。
+    """
 
     def __init__(self, strategy_name: str, bucket: str, region: str):
         self.strategy_name = strategy_name
         self.bucket = bucket
         self.region = region
         self.s3_client = boto3.client('s3', region_name=region)
+        # PolarsのネイティブS3読み込み用storage_options
+        self._storage_options = {"aws_region": region}
 
     def get_base_path(self, subdir: str) -> str:
         """S3キープレフィックスを返す（{strategy_name}/{subdir}/）"""
@@ -257,22 +278,34 @@ class S3IO(BaseIO):
 
         self.s3_client.put_object(Bucket=self.bucket, Key=path, Body=body)
 
-    def load(self, path: str, format: str) -> dict | pl.DataFrame | None:
-        """S3から読み込み"""
-        try:
-            response = self.s3_client.get_object(Bucket=self.bucket, Key=path)
-            body = response['Body'].read()
+    def _is_glob_pattern(self, path: str) -> bool:
+        """パスがglobパターンを含むか判定"""
+        return "*" in path or "?" in path or "[" in path
 
-            if format == "json":
+    def _to_s3_uri(self, path: str) -> str:
+        """S3キーをs3://形式のURIに変換"""
+        return f"s3://{self.bucket}/{path}"
+
+    def load(self, path: str, format: str) -> dict | pl.DataFrame | None:
+        """S3から読み込み
+
+        parquet形式の場合、PolarsのネイティブS3サポートを使用し、
+        globパターン（*, ?, []）やHiveパーティショニングに対応。
+        """
+        if format == "json":
+            try:
+                response = self.s3_client.get_object(Bucket=self.bucket, Key=path)
+                body = response['Body'].read()
                 import json
                 return json.loads(body.decode('utf-8'))
-            elif format == "parquet":
-                buffer = BytesIO(body)
-                return pl.read_parquet(buffer)
-            else:
-                raise ValueError(f"サポートされていないフォーマット: {format}")
-        except self.s3_client.exceptions.NoSuchKey:
-            return None
+            except self.s3_client.exceptions.NoSuchKey:
+                return None
+        elif format == "parquet":
+            # PolarsのネイティブS3サポートを使用（glob、Hiveパーティショニング対応）
+            s3_uri = self._to_s3_uri(path)
+            return pl.read_parquet(s3_uri, storage_options=self._storage_options)
+        else:
+            raise ValueError(f"サポートされていないフォーマット: {format}")
 
     def exists(self, path: str) -> bool:
         """S3オブジェクトの存在確認"""
@@ -336,7 +369,12 @@ class S3IO(BaseIO):
 
 - 入力: パス、フォーマット（"json"または"parquet"）
 - 出力: 読み込んだデータ（dictまたはDataFrame）、存在しない場合はNone
-- ファイルが存在しない場合は例外をraiseせず、Noneを返す
+- **parquet形式はglobパターン対応**: `*`, `?`, `[]`を含むパスをPolarsに直接委譲
+  - 例: `data/*.parquet`, `data/**/*.parquet`, `year=202[0-5]/*.parquet`
+  - Hiveパーティショニング（`year=2024/month=01/`形式）も自動認識
+  - S3の場合は`s3://bucket/path`形式でPolarsのネイティブS3サポートを使用
+- 単一ファイルが存在しない場合は例外をraiseせず、Noneを返す
+- globパターンでマッチするファイルがない場合は空のDataFrameまたは例外（Polarsの挙動に依存）
 - ファイルが破損している場合はRuntimeErrorをraise
 
 ### exists
