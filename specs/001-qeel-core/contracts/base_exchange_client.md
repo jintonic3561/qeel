@@ -349,7 +349,11 @@ class MockExchangeClient(BaseExchangeClient):
         return self._validate_fills(all_fills)
 
     def fetch_positions(self) -> pl.DataFrame:
-        """約定履歴から現在のポジションを計算する"""
+        """約定履歴から現在のポジションを計算する
+
+        ショートポジション（マイナス数量）を許容。
+        平均取得単価はロングなら買いの加重平均、ショートなら売りの加重平均。
+        """
         if not self.fill_history:
             return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
 
@@ -364,7 +368,7 @@ class MockExchangeClient(BaseExchangeClient):
                   .then(pl.col("filled_quantity"))
                   .otherwise(-pl.col("filled_quantity"))
                   .alias("signed_quantity"),
-                # 約定金額（加重平均計算用）
+                # 買い約定金額（ロングの加重平均計算用）
                 pl.when(pl.col("side") == "buy")
                   .then(pl.col("filled_quantity") * pl.col("filled_price"))
                   .otherwise(pl.lit(0.0))
@@ -373,19 +377,38 @@ class MockExchangeClient(BaseExchangeClient):
                   .then(pl.col("filled_quantity"))
                   .otherwise(pl.lit(0.0))
                   .alias("buy_quantity"),
+                # 売り約定金額（ショートの加重平均計算用）
+                pl.when(pl.col("side") == "sell")
+                  .then(pl.col("filled_quantity") * pl.col("filled_price"))
+                  .otherwise(pl.lit(0.0))
+                  .alias("sell_value"),
+                pl.when(pl.col("side") == "sell")
+                  .then(pl.col("filled_quantity"))
+                  .otherwise(pl.lit(0.0))
+                  .alias("sell_quantity"),
             ])
             .group_by("symbol")
             .agg([
                 pl.col("signed_quantity").sum().alias("quantity"),
                 pl.col("buy_value").sum().alias("total_buy_value"),
                 pl.col("buy_quantity").sum().alias("total_buy_quantity"),
+                pl.col("sell_value").sum().alias("total_sell_value"),
+                pl.col("sell_quantity").sum().alias("total_sell_quantity"),
             ])
             .filter(pl.col("quantity") != 0)
             .with_columns([
-                # 平均取得単価（買いのみの加重平均）
-                pl.when(pl.col("total_buy_quantity") > 0)
-                  .then(pl.col("total_buy_value") / pl.col("total_buy_quantity"))
-                  .otherwise(pl.lit(0.0))
+                # 平均取得単価: ロング（正）は買いの加重平均、ショート（負）は売りの加重平均
+                pl.when(pl.col("quantity") > 0)
+                  .then(
+                      pl.when(pl.col("total_buy_quantity") > 0)
+                        .then(pl.col("total_buy_value") / pl.col("total_buy_quantity"))
+                        .otherwise(pl.lit(0.0))
+                  )
+                  .otherwise(
+                      pl.when(pl.col("total_sell_quantity") > 0)
+                        .then(pl.col("total_sell_value") / pl.col("total_sell_quantity"))
+                        .otherwise(pl.lit(0.0))
+                  )
                   .alias("avg_price"),
             ])
             .select(["symbol", "quantity", "avg_price"])
@@ -547,6 +570,8 @@ class ExchangeAPIClient(BaseExchangeClient):
 - 出力: `PositionSchema` に準拠したDataFrame
 - バックテスト: 約定履歴から計算した現在のポジションを返す
 - 実運用: 取引所APIから現在のポジションを取得
+- **ショートポジション対応**: 売り約定が買い約定を上回る場合、負の数量（マイナス）で表現。数量ゼロのポジションは除外
+- **平均取得単価**: ロング（正の数量）は買いの加重平均、ショート（負の数量）は売りの加重平均
 
 ### MockExchangeClient固有メソッド
 
