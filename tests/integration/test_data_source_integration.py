@@ -5,7 +5,6 @@ contracts/base_data_source.mdを参照。
 """
 
 from datetime import datetime
-from pathlib import Path
 
 import polars as pl
 import pytest
@@ -26,8 +25,9 @@ class TestMockDataSourceWithConfig:
             datetime_column="datetime",
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("mock"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="mock",
         )
 
     @pytest.fixture
@@ -80,8 +80,9 @@ class TestDataSourceHelperChain:
             datetime_column="timestamp",  # datetime以外の列名
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("mock"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="mock",
         )
 
     def test_data_source_helper_chain(self, config_with_offset: DataSourceConfig) -> None:
@@ -178,8 +179,9 @@ class TestDataSourceInheritance:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("custom"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="custom",
         )
 
         ds = MyCustomDataSource(config=config)

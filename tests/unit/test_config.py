@@ -21,26 +21,29 @@ def test_data_source_config_valid() -> None:
         datetime_column="timestamp",
         offset_seconds=0,
         window_seconds=86400,
-        source_type="parquet",
-        source_path=Path("tests/fixtures/ohlcv.parquet"),
+        module="qeel.data_sources.mock",
+        class_name="MockDataSource",
+        source_path="tests/fixtures/ohlcv.parquet",
     )
     assert config.name == "ohlcv"
     assert config.offset_seconds == 0
     assert config.window_seconds == 86400
+    assert config.module == "qeel.data_sources.mock"
+    assert config.class_name == "MockDataSource"
 
 
-def test_data_source_config_invalid_source_type() -> None:
-    """不正なsource_typeでValidationError"""
+def test_data_source_config_missing_module() -> None:
+    """module未設定でValidationError"""
     from qeel.config.models import DataSourceConfig
 
-    with pytest.raises(ValidationError, match="source_typeは"):
+    with pytest.raises(ValidationError, match="module"):
         DataSourceConfig(
             name="ohlcv",
             datetime_column="timestamp",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="invalid_type",
-            source_path=Path("tests/fixtures/ohlcv.parquet"),
+            class_name="MockDataSource",
+            source_path="tests/fixtures/ohlcv.parquet",
         )
 
 

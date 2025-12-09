@@ -22,7 +22,8 @@ name = "ohlcv"
 datetime_column = "timestamp"
 offset_seconds = 0
 window_seconds = 2592000
-source_type = "parquet"
+module = "qeel.data_sources.mock"
+class_name = "MockDataSource"
 source_path = "tests/fixtures/ohlcv.parquet"
 
 [costs]

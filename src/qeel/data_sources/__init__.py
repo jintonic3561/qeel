@@ -5,6 +5,12 @@
 """
 
 from qeel.data_sources.base import BaseDataSource
+from qeel.data_sources.loader import OHLCVValidatingDataSource, load_data_sources
 from qeel.data_sources.mock import MockDataSource
 
-__all__ = ["BaseDataSource", "MockDataSource"]
+__all__ = [
+    "BaseDataSource",
+    "MockDataSource",
+    "OHLCVValidatingDataSource",
+    "load_data_sources",
+]

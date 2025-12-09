@@ -5,7 +5,6 @@ data-model.mdとcontracts/base_data_source.mdを参照
 """
 
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -29,8 +28,9 @@ class TestBaseDataSourceCannotInstantiate:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
         with pytest.raises(TypeError):
@@ -79,8 +79,9 @@ class TestNormalizeDatetimeColumn:
             datetime_column="timestamp",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     @pytest.fixture
@@ -91,8 +92,9 @@ class TestNormalizeDatetimeColumn:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     def test_normalize_datetime_column_renames(self, config_with_different_datetime_column: DataSourceConfig) -> None:
@@ -179,8 +181,9 @@ class TestAdjustWindowForOffset:
             datetime_column="datetime",
             offset_seconds=3600,  # 1時間
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     @pytest.fixture
@@ -191,8 +194,9 @@ class TestAdjustWindowForOffset:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     @pytest.fixture
@@ -203,8 +207,9 @@ class TestAdjustWindowForOffset:
             datetime_column="datetime",
             offset_seconds=-3600,  # -1時間
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     def test_adjust_window_for_offset_positive(self, config_with_positive_offset: DataSourceConfig) -> None:
@@ -271,8 +276,9 @@ class TestFilterByDatetimeAndSymbols:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="parquet",
-            source_path=Path("test.parquet"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="test.parquet",
         )
 
     @pytest.fixture
@@ -358,8 +364,9 @@ class TestMockDataSource:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("mock"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="mock",
         )
 
     @pytest.fixture
