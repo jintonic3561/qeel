@@ -33,6 +33,8 @@ class S3IO(BaseIO):
         self.bucket = bucket
         self.region = region
         self.s3_client = boto3.client("s3", region_name=region)
+        # PolarsのネイティブS3読み込み用storage_options
+        self._storage_options = {"aws_region": region}
 
     def get_base_path(self, subdir: str) -> str:
         """S3キープレフィックスを返す（{strategy_name}/{subdir}/）
@@ -85,8 +87,33 @@ class S3IO(BaseIO):
 
         self.s3_client.put_object(Bucket=self.bucket, Key=path, Body=body)
 
+    def _is_glob_pattern(self, path: str) -> bool:
+        """パスがglobパターンを含むか判定する
+
+        Args:
+            path: 判定対象のパス
+
+        Returns:
+            globパターン(*, ?, [)を含む場合True
+        """
+        return "*" in path or "?" in path or "[" in path
+
+    def _to_s3_uri(self, path: str) -> str:
+        """S3キーをs3://形式のURIに変換する
+
+        Args:
+            path: S3キー
+
+        Returns:
+            s3://bucket/path形式のURI
+        """
+        return f"s3://{self.bucket}/{path}"
+
     def load(self, path: str, format: str) -> dict[str, object] | pl.DataFrame | None:
         """S3から読み込み
+
+        parquet形式の場合、PolarsのネイティブS3サポートを使用し、
+        globパターン(*, ?, [])やHiveパーティショニングに対応。
 
         Args:
             path: S3キー
@@ -98,21 +125,21 @@ class S3IO(BaseIO):
         Raises:
             ValueError: サポートされていないフォーマット
         """
-        try:
-            response = self.s3_client.get_object(Bucket=self.bucket, Key=path)
-            body = response["Body"].read()
-
-            if format == "json":
+        if format == "json":
+            try:
+                response = self.s3_client.get_object(Bucket=self.bucket, Key=path)
+                body = response["Body"].read()
                 return json.loads(body.decode("utf-8"))  # type: ignore[no-any-return]
-            elif format == "parquet":
-                buffer = BytesIO(body)
-                return pl.read_parquet(buffer)
-            else:
-                raise ValueError(f"サポートされていないフォーマット: {format}")
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchKey":
-                return None
-            raise
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "NoSuchKey":
+                    return None
+                raise
+        elif format == "parquet":
+            # PolarsのネイティブS3サポートを使用（glob、Hiveパーティショニング対応）
+            s3_uri = self._to_s3_uri(path)
+            return pl.read_parquet(s3_uri, storage_options=self._storage_options)
+        else:
+            raise ValueError(f"サポートされていないフォーマット: {format}")
 
     def exists(self, path: str) -> bool:
         """S3オブジェクトの存在確認

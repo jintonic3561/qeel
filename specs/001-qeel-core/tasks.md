@@ -53,14 +53,14 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T105 tests/unit/test_config.pyに以下のテストを追加:
+- [x] T105 tests/unit/test_config.pyに以下のテストを追加:
   - `test_cost_config_market_fill_price_type_default`: デフォルト値が"next_open"であることを確認
   - `test_cost_config_market_fill_price_type_current_close`: "current_close"でバリデーションパス
   - `test_cost_config_market_fill_price_type_invalid`: 不正な値でValidationError
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T106 src/qeel/config/models.pyのCostConfigに`market_fill_price_type`フィールドを追加
+- [x] T106 src/qeel/config/models.pyのCostConfigに`market_fill_price_type`フィールドを追加
   - デフォルト値: "next_open"
   - バリデータ: {"next_open", "current_close"}のいずれかを許可
   - data-model.md 1.2に準拠
@@ -75,7 +75,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T107 tests/unit/test_io.pyに以下のテストを追加:
+- [x] T107 tests/unit/test_io.pyに以下のテストを追加:
   - `test_local_io_is_glob_pattern_asterisk`: "*"を含むパスでTrueを返す
   - `test_local_io_is_glob_pattern_question`: "?"を含むパスでTrueを返す
   - `test_local_io_is_glob_pattern_bracket`: "["を含むパスでTrueを返す
@@ -84,9 +84,9 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T108 src/qeel/io/local.pyに`_is_glob_pattern()`メソッドを追加
+- [x] T108 src/qeel/io/local.pyに`_is_glob_pattern()`メソッドを追加
   - "*", "?", "["のいずれかを含む場合Trueを返す
-- [ ] T109 src/qeel/io/local.pyの`load()`メソッドを修正
+- [x] T109 src/qeel/io/local.pyの`load()`メソッドを修正
   - parquet形式かつglobパターンの場合、存在チェックをスキップ
   - Polarsの`read_parquet()`に直接委譲（contracts/base_io.md準拠）
 
@@ -100,18 +100,18 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T110 tests/unit/test_io.pyに以下のテストを追加（モックboto3使用）:
+- [x] T110 tests/unit/test_io.pyに以下のテストを追加（モックboto3使用）:
   - `test_s3_io_storage_options_initialized`: `_storage_options`が正しく初期化される
   - `test_s3_io_to_s3_uri`: `_to_s3_uri()`が正しいURI形式を返す
   - `test_s3_io_load_parquet_uses_native_s3`: parquet形式でPolarsネイティブS3読み込みを使用（モック確認）
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T111 src/qeel/io/s3.pyの`__init__()`に`_storage_options`を追加
+- [x] T111 src/qeel/io/s3.pyの`__init__()`に`_storage_options`を追加
   - `{"aws_region": region}`形式
-- [ ] T112 src/qeel/io/s3.pyに`_to_s3_uri()`メソッドを追加
+- [x] T112 src/qeel/io/s3.pyに`_to_s3_uri()`メソッドを追加
   - `f"s3://{self.bucket}/{path}"`形式でURIを返す
-- [ ] T113 src/qeel/io/s3.pyの`load()`メソッドを修正
+- [x] T113 src/qeel/io/s3.pyの`load()`メソッドを修正
   - parquet形式の場合、`pl.read_parquet(s3_uri, storage_options=self._storage_options)`を使用
   - contracts/base_io.md準拠
 
@@ -125,7 +125,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T114 tests/unit/test_data_sources.pyにTestParquetDataSourceクラスを追加:
+- [x] T114 tests/unit/test_data_sources.pyにTestParquetDataSourceクラスを追加:
   - `test_parquet_data_source_fetch_returns_dataframe`: fetch()がDataFrameを返す
   - `test_parquet_data_source_uses_io_layer`: IOレイヤー経由でデータを読み込む
   - `test_parquet_data_source_applies_helpers`: ヘルパーメソッド（_normalize_datetime_column等）を適用
@@ -133,17 +133,17 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T115 src/qeel/data_sources/parquet.pyを新規作成
+- [x] T115 src/qeel/data_sources/parquet.pyを新規作成
   - `ParquetDataSource`クラスを実装
   - contracts/base_data_source.mdの実装例に準拠
   - IOレイヤー経由でParquetファイルを読み込み
   - 共通ヘルパーメソッドを使用した前処理
 
-- [ ] T116 src/qeel/data_sources/__init__.pyに`ParquetDataSource`をエクスポート
+- [x] T116 src/qeel/data_sources/__init__.pyに`ParquetDataSource`をエクスポート
 
 ### Integration Test
 
-- [ ] T117 tests/integration/test_data_source_integration.pyにParquetDataSource統合テストを追加:
+- [x] T117 tests/integration/test_data_source_integration.pyにParquetDataSource統合テストを追加:
   - `test_parquet_data_source_with_local_io`: LocalIOと連携してParquetを読み込み
   - `test_parquet_data_source_with_glob_pattern`: globパターンでの読み込み確認
 
@@ -153,9 +153,9 @@
 
 ## Phase 5: 品質ゲート確認
 
-- [ ] T118 `uv run mypy src/qeel/` 型エラーゼロ
-- [ ] T119 `uv run ruff check src/qeel/` リンターエラーゼロ
-- [ ] T120 `uv run pytest tests/` 全テストパス
+- [x] T118 `uv run mypy src/qeel/` 型エラーゼロ
+- [x] T119 `uv run ruff check src/qeel/` リンターエラーゼロ
+- [x] T120 `uv run pytest tests/` 全テストパス
 
 **Final Checkpoint**: 007ブランチ前提条件修正完了、007本体実装に進行可能
 

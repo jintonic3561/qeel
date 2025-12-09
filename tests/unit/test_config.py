@@ -59,6 +59,30 @@ def test_cost_config_defaults() -> None:
     assert config.market_impact_param == 0.0
 
 
+def test_cost_config_market_fill_price_type_default() -> None:
+    """market_fill_price_typeのデフォルト値がnext_openであることを確認"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig()
+    assert config.market_fill_price_type == "next_open"
+
+
+def test_cost_config_market_fill_price_type_current_close() -> None:
+    """market_fill_price_type=current_closeでバリデーションパス"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig(market_fill_price_type="current_close")
+    assert config.market_fill_price_type == "current_close"
+
+
+def test_cost_config_market_fill_price_type_invalid() -> None:
+    """不正なmarket_fill_price_typeでValidationError"""
+    from qeel.config.models import CostConfig
+
+    with pytest.raises(ValidationError, match="market_fill_price_typeは"):
+        CostConfig(market_fill_price_type="invalid_type")
+
+
 def test_cost_config_invalid_market_impact_model() -> None:
     """不正なmarket_impact_modelでValidationError"""
     from qeel.config.models import CostConfig

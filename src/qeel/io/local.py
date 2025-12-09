@@ -73,8 +73,22 @@ class LocalIO(BaseIO):
         else:
             raise ValueError(f"サポートされていないフォーマット: {format}")
 
+    def _is_glob_pattern(self, path: str) -> bool:
+        """パスがglobパターンを含むか判定する
+
+        Args:
+            path: 判定対象のパス
+
+        Returns:
+            globパターン(*, ?, [)を含む場合True
+        """
+        return "*" in path or "?" in path or "[" in path
+
     def load(self, path: str, format: str) -> dict[str, object] | pl.DataFrame | None:
         """ローカルファイルから読み込み
+
+        parquet形式の場合、globパターン(*, ?, [])をサポート。
+        Polarsのread_parquetに直接委譲し、複数ファイルの自動結合やHiveパーティショニングに対応。
 
         Args:
             path: 読み込み元パス
@@ -86,15 +100,22 @@ class LocalIO(BaseIO):
         Raises:
             ValueError: サポートされていないフォーマット
         """
-        file_path = Path(path)
-        if not file_path.exists():
-            return None
+        is_glob = self._is_glob_pattern(path)
 
         if format == "json":
+            file_path = Path(path)
+            if not file_path.exists():
+                return None
             with open(file_path, encoding="utf-8") as f:
                 return json.load(f)  # type: ignore[no-any-return]
         elif format == "parquet":
-            return pl.read_parquet(file_path)
+            # globパターンの場合は存在チェックをスキップし、Polarsに委譲
+            if not is_glob:
+                file_path = Path(path)
+                if not file_path.exists():
+                    return None
+            # Polarsはglobパターン、Hiveパーティショニングをネイティブサポート
+            return pl.read_parquet(path)
         else:
             raise ValueError(f"サポートされていないフォーマット: {format}")
 

@@ -5,6 +5,7 @@ data-model.mdとcontracts/base_data_source.mdを参照
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -472,3 +473,149 @@ class TestMockDataSource:
         # 最小OHLCVスキーマを確認
         expected_columns = {"datetime", "symbol", "open", "high", "low", "close", "volume"}
         assert expected_columns.issubset(set(result.columns))
+
+
+# =============================================================================
+# ParquetDataSource Tests (T114)
+# =============================================================================
+
+
+class TestParquetDataSource:
+    """ParquetDataSourceのテスト
+
+    Parquetファイルからデータを読み込む標準実装のテスト。
+    contracts/base_data_source.md参照。
+    """
+
+    @pytest.fixture
+    def config(self) -> DataSourceConfig:
+        """テスト用設定"""
+        return DataSourceConfig(
+            name="ohlcv",
+            datetime_column="datetime",
+            offset_seconds=0,
+            window_seconds=86400,
+            module="qeel.data_sources.parquet",
+            class_name="ParquetDataSource",
+            source_path="ohlcv.parquet",
+        )
+
+    @pytest.fixture
+    def sample_data(self) -> pl.DataFrame:
+        """サンプルデータ"""
+        return pl.DataFrame(
+            {
+                "datetime": [
+                    datetime(2023, 1, 1, 9, 0, 0),
+                    datetime(2023, 1, 1, 10, 0, 0),
+                    datetime(2023, 1, 1, 11, 0, 0),
+                    datetime(2023, 1, 2, 9, 0, 0),
+                ],
+                "symbol": ["AAPL", "GOOG", "AAPL", "MSFT"],
+                "open": [99.0, 199.0, 100.0, 299.0],
+                "high": [101.0, 201.0, 102.0, 301.0],
+                "low": [98.0, 198.0, 99.0, 298.0],
+                "close": [100.0, 200.0, 101.0, 300.0],
+                "volume": [1000, 2000, 1100, 3000],
+            }
+        )
+
+    def test_parquet_data_source_fetch_returns_dataframe(
+        self, config: DataSourceConfig, sample_data: pl.DataFrame, tmp_path: Path
+    ) -> None:
+        """fetch()がPolars DataFrameを返す"""
+        from unittest.mock import patch
+
+        from qeel.data_sources.parquet import ParquetDataSource
+        from qeel.io.in_memory import InMemoryIO
+
+        # InMemoryIOを使用してParquetファイルをシミュレート
+        io = InMemoryIO()
+        base_path = io.get_base_path("inputs")
+        full_path = f"{base_path}/{config.source_path}"
+        io.save(full_path, sample_data, format="parquet")
+
+        ds = ParquetDataSource(config=config, io=io)
+
+        result = ds.fetch(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            end=datetime(2023, 1, 2, 23, 59, 59),
+            symbols=["AAPL", "GOOG", "MSFT"],
+        )
+
+        assert isinstance(result, pl.DataFrame)
+        assert len(result) > 0
+
+    def test_parquet_data_source_uses_io_layer(self, config: DataSourceConfig, sample_data: pl.DataFrame) -> None:
+        """IOレイヤー経由でデータを読み込む"""
+        from qeel.data_sources.parquet import ParquetDataSource
+        from qeel.io.in_memory import InMemoryIO
+
+        io = InMemoryIO()
+        base_path = io.get_base_path("inputs")
+        full_path = f"{base_path}/{config.source_path}"
+        io.save(full_path, sample_data, format="parquet")
+
+        ds = ParquetDataSource(config=config, io=io)
+
+        result = ds.fetch(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            end=datetime(2023, 1, 2, 23, 59, 59),
+            symbols=["AAPL", "GOOG", "MSFT"],
+        )
+
+        # IOレイヤーからデータを取得できたことを確認
+        assert isinstance(result, pl.DataFrame)
+        assert len(result) == 4
+
+    def test_parquet_data_source_applies_helpers(self, sample_data: pl.DataFrame) -> None:
+        """ヘルパーメソッド(_normalize_datetime_column等)を適用"""
+        from qeel.data_sources.parquet import ParquetDataSource
+        from qeel.io.in_memory import InMemoryIO
+
+        # datetime列を"timestamp"としてテスト
+        config = DataSourceConfig(
+            name="ohlcv",
+            datetime_column="timestamp",  # datetimeではない列名
+            offset_seconds=0,
+            window_seconds=86400,
+            module="qeel.data_sources.parquet",
+            class_name="ParquetDataSource",
+            source_path="ohlcv.parquet",
+        )
+
+        # データを"timestamp"列名で保存
+        data_with_timestamp = sample_data.rename({"datetime": "timestamp"})
+
+        io = InMemoryIO()
+        base_path = io.get_base_path("inputs")
+        full_path = f"{base_path}/{config.source_path}"
+        io.save(full_path, data_with_timestamp, format="parquet")
+
+        ds = ParquetDataSource(config=config, io=io)
+
+        result = ds.fetch(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            end=datetime(2023, 1, 2, 23, 59, 59),
+            symbols=["AAPL", "GOOG", "MSFT"],
+        )
+
+        # datetime列に正規化されていることを確認
+        assert "datetime" in result.columns
+        assert "timestamp" not in result.columns
+
+    def test_parquet_data_source_raises_on_missing(self, config: DataSourceConfig) -> None:
+        """データが存在しない場合ValueErrorをraise"""
+        from qeel.data_sources.parquet import ParquetDataSource
+        from qeel.io.in_memory import InMemoryIO
+
+        io = InMemoryIO()  # 空のIO
+
+        ds = ParquetDataSource(config=config, io=io)
+
+        with pytest.raises(ValueError, match="データソースが見つかりません"):
+            ds.fetch(
+                start=datetime(2023, 1, 1, 0, 0, 0),
+                end=datetime(2023, 1, 2, 23, 59, 59),
+                symbols=["AAPL"],
+            )
