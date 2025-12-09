@@ -346,24 +346,24 @@ class TestLocalIO:
 class TestS3IO:
     """S3IOのテスト（motoでAWS APIをモック）"""
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def s3_bucket(self) -> str:
         """テスト用バケット名"""
         return "test-bucket"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def s3_region(self) -> str:
         """テスト用リージョン"""
         return "ap-northeast-1"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def strategy_name(self) -> str:
         """テスト用戦略名"""
         return "my_strategy"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def mock_s3(self, s3_bucket: str, s3_region: str) -> Generator[Any, None, None]:
-        """motoでS3をモック"""
+        """motoでS3をモック（クラス全体で1回だけ初期化）"""
         with mock_aws():
             # バケットを作成
             s3_client = boto3.client("s3", region_name=s3_region)
@@ -557,9 +557,7 @@ class TestS3IO:
         assert hasattr(io, "_storage_options")
         assert io._storage_options == {"aws_region": s3_region}
 
-    def test_s3_io_to_s3_uri(
-        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
-    ) -> None:
+    def test_s3_io_to_s3_uri(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """_to_s3_uri()が正しいURI形式を返す"""
         from qeel.io.s3 import S3IO
 
@@ -570,9 +568,7 @@ class TestS3IO:
 
         assert uri == f"s3://{s3_bucket}/{path}"
 
-    def test_s3_io_is_glob_pattern(
-        self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str
-    ) -> None:
+    def test_s3_io_is_glob_pattern(self, mock_s3: Any, s3_bucket: str, s3_region: str, strategy_name: str) -> None:
         """_is_glob_pattern()がglobパターンを正しく判定する"""
         from qeel.io.s3 import S3IO
 
