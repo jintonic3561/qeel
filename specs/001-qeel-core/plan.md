@@ -119,18 +119,22 @@
 ---
 
 **Branch**: `004-data-source-abc`
-- **目的**: データソースABCと共通ヘルパーメソッド、テスト用実装
+- **目的**: データソースABCと共通ヘルパーメソッド、テスト用実装、データソースローダー
 - **成果物**:
   - `qeel/data_sources/base.py` - BaseDataSource ABC
     - `_normalize_datetime_column()`: datetime列の正規化
     - `_adjust_window_for_offset()`: offset_secondsによるwindow調整（リーク防止）
     - `_filter_by_datetime_and_symbols()`: datetime範囲と銘柄でフィルタリング
+  - `qeel/data_sources/parquet.py` - ParquetDataSource（標準実装、globパターン対応）
   - `qeel/data_sources/mock.py` - MockDataSource（テスト用）
-- **テスト**: モックデータでfetch()が正しく動作、ヘルパーメソッドの動作確認
+  - `qeel/data_sources/loader.py` - データソースローダー
+    - `load_data_sources(config, io)`: 設定から全データソースを一括生成
+    - ohlcvデータソースにはOHLCVSchemaバリデーションを自動適用
+- **テスト**: モックデータでfetch()が正しく動作、ヘルパーメソッドの動作確認、load_data_sources()のテスト、OHLCVバリデーションのテスト
 - **依存**: `002-core-config-and-schemas`
 - **User Story**: N/A（基盤、User Story 1で使用）
 - **責任範囲**: DataSourceConfigを受け取り、実際のデータ取得を実装。設定スキーマは002で定義済み。共通前処理をヘルパーメソッドとして提供し、ユーザは任意に利用可能
-- **備考**: 任意のスキーマを許容し、強制的なバリデーションを行わない。ユーザは独自のデータソース（Parquet、API、データベース等）を自由に実装可能
+- **備考**: ohlcv以外のデータソースは任意のスキーマを許容し、強制的なバリデーションを行わない。ユーザは独自のデータソース（Parquet、API、データベース等）を自由に実装可能
 
 ---
 
@@ -375,8 +379,9 @@ src/qeel/
 ├── data_sources/
 │   ├── __init__.py
 │   ├── base.py            # BaseDataSource ABC
-│   ├── parquet.py         # ParquetDataSource（標準実装）
-│   └── mock.py            # MockDataSource（テスト用）
+│   ├── parquet.py         # ParquetDataSource（標準実装、globパターン対応）
+│   ├── mock.py            # MockDataSource（テスト用）
+│   └── loader.py          # load_data_sources()、OHLCVバリデーション
 ├── calculators/
 │   ├── __init__.py
 │   ├── signals/

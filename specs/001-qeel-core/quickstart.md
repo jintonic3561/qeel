@@ -79,6 +79,7 @@ $QEEL_WORKSPACE/
 ```toml
 # General設定
 [general]
+strategy_name = "my_strategy"
 storage_type = "local"  # "local" または "s3"
 
 # ループ管理設定
@@ -87,14 +88,15 @@ frequency = "1d"
 start_date = "2023-01-01T00:00:00"
 end_date = "2023-12-31T23:59:59"
 
-# データソース定義
+# データソース定義（ohlcvは必須）
 [[data_sources]]
-name = "ohlcv"
+name = "ohlcv"  # 必須: この名前のデータソースが必ず必要
 datetime_column = "datetime"
 offset_seconds = 0
 window_seconds = 2592000  # 30日 = 30 * 24 * 3600秒
-source_type = "parquet"
-source_path = "inputs/ohlcv.parquet"  # ワークスペースからの相対パス
+module = "qeel.data_sources.parquet"  # データソースクラスのモジュール
+class_name = "ParquetDataSource"  # データソースクラス名
+source_path = "inputs/ohlcv.parquet"  # ワークスペースからの相対パス（globパターン対応）
 
 # コスト設定
 [costs]
@@ -191,7 +193,7 @@ from pathlib import Path
 from my_signal import MovingAverageCrossCalculator, MovingAverageCrossParams
 
 from qeel.config import Config
-from qeel.data_sources.parquet import ParquetDataSource
+from qeel.data_sources.loader import load_data_sources
 from qeel.core.strategy_engine import StrategyEngine
 from qeel.core.backtest_runner import BacktestRunner
 from qeel.exchange_clients.mock import MockExchangeClient
@@ -225,12 +227,9 @@ def main():
     exit_order_creator_params = FullExitParams(exit_threshold=1.0)
     exit_order_creator = FullExitOrderCreator(params=exit_order_creator_params)
 
-    # データソースのセットアップ
-    data_sources = {}
-    for ds_config in config.data_sources:
-        if ds_config.source_type == "parquet":
-            data_sources[ds_config.name] = ParquetDataSource(ds_config, io)
-        # カスタムソースタイプも追加可能
+    # データソースのセットアップ（設定から一括ロード）
+    # ohlcvデータソースにはOHLCVSchemaバリデーションが自動適用される
+    data_sources = load_data_sources(config, io)
 
     # 執行クラス（バックテストではモック）
     exchange_client = MockExchangeClient(config.costs)
@@ -547,7 +546,9 @@ runner = BacktestRunner(engine=engine, config=config)
 ```python
 from datetime import datetime
 
+from qeel.config import Config
 from qeel.core.strategy_engine import StrategyEngine
+from qeel.data_sources.loader import load_data_sources
 from qeel.examples.exchange_clients.exchange_api import ExchangeAPIClient  # ユーザ実装
 from qeel.io.base import BaseIO
 from qeel.entry_order_creators.equal_weight import EqualWeightEntryOrderCreator, EqualWeightEntryParams
@@ -576,12 +577,8 @@ entry_order_creator = EqualWeightEntryOrderCreator(params=entry_order_creator_pa
 exit_order_creator_params = FullExitParams(exit_threshold=1.0)
 exit_order_creator = FullExitOrderCreator(params=exit_order_creator_params)
 
-# データソースのセットアップ（バックテストと同じ、S3経由）
-data_sources = {}
-for ds_config in config.data_sources:
-    if ds_config.source_type == "parquet":
-        data_sources[ds_config.name] = ParquetDataSource(ds_config, io)
-    # カスタムソースタイプも追加可能
+# データソースのセットアップ（設定から一括ロード、S3経由）
+data_sources = load_data_sources(config, io)
 
 # 実運用用の執行クラス
 exchange_client = ExchangeAPIClient(api_client=my_api_client)

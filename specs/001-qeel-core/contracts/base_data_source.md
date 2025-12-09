@@ -300,21 +300,62 @@ Qeelは以下の標準実装を提供する：
 # 単一ファイル
 [[data_sources]]
 name = "ohlcv"
+module = "qeel.data_sources.parquet"
+class_name = "ParquetDataSource"
 source_path = "ohlcv.parquet"
 
 # globパターン（複数ファイル）
 [[data_sources]]
 name = "ohlcv"
+module = "qeel.data_sources.parquet"
+class_name = "ParquetDataSource"
 source_path = "ohlcv/*.parquet"
 
 # 再帰的globパターン
 [[data_sources]]
 name = "ohlcv"
+module = "qeel.data_sources.parquet"
+class_name = "ParquetDataSource"
 source_path = "ohlcv/**/*.parquet"
 
 # Hiveパーティショニング（ディレクトリ指定で自動認識）
 [[data_sources]]
 name = "ohlcv"
+module = "qeel.data_sources.parquet"
+class_name = "ParquetDataSource"
 source_path = "ohlcv/"
 # inputs/ohlcv/year=2024/month=01/data.parquet 形式を自動認識
+
+# カスタムデータソース（ユーザ定義）
+[[data_sources]]
+name = "earnings"
+module = "my_project.data_sources.api"
+class_name = "EarningsAPIDataSource"
+source_path = ""  # API経由の場合は空文字列でも可
 ```
+
+## データソースローダー
+
+`qeel.data_sources.loader`モジュールは、設定から全データソースを一括生成するユーティリティ関数を提供する。
+
+```python
+from qeel.config import Config
+from qeel.data_sources.loader import load_data_sources
+from qeel.io.base import BaseIO
+
+config = Config.from_toml()
+io = BaseIO.from_config(config.general)
+
+# 全データソースを一括生成
+# ohlcvデータソースにはOHLCVSchemaバリデーションが自動適用される
+data_sources = load_data_sources(config, io)
+```
+
+### load_data_sources()の動作
+
+1. `config.data_sources`をループし、各`DataSourceConfig`に対して:
+   - `module`と`class_name`からクラスを動的インポート
+   - クラスをインスタンス化（`config`と`io`を渡す）
+2. `name="ohlcv"`のデータソースに対しては、OHLCVSchemaバリデーション付きラッパーで包む
+   - `fetch()`の戻り値に対して`OHLCVSchema.validate()`を自動適用
+3. `dict[str, BaseDataSource]`形式で返す（キーは`name`）
