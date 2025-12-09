@@ -8,7 +8,7 @@
 - [x] **004-data-source-abc** - データソースABCと共通ヘルパーメソッド (T046-T057)
 - [x] **005-calculator-abc** - シグナル計算ABCとサンプル実装 (T058-T076)
 - [x] **006-io-and-context-management** - IOレイヤーとコンテキスト管理 (T077-T104)
-- [ ] **007-exchange-client-and-mock** - 取引所クライアントABCとモック約定・ポジション管理 (T105-T116)
+- [x] **007-exchange-client-and-mock** - 取引所クライアントABCとモック約定・ポジション管理 (T105-T144)
 
 ## Phase 2: Core Engine（P1対応）
 
@@ -190,7 +190,7 @@
 
 **Purpose**: exchange_clientsパッケージの初期化
 
-- [ ] T121 src/qeel/exchange_clients/__init__.pyを作成（パッケージ初期化）
+- [x] T121 src/qeel/exchange_clients/__init__.pyを作成（パッケージ初期化）
 
 **Checkpoint**: パッケージ構造完成
 
@@ -202,13 +202,13 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T122 tests/unit/test_exchange_clients.pyを新規作成
+- [x] T122 tests/unit/test_exchange_clients.pyを新規作成
   - `test_base_exchange_client_cannot_instantiate`: ABCは直接インスタンス化不可
   - `test_base_exchange_client_has_abstract_methods`: submit_orders, fetch_fills, fetch_positionsが抽象メソッド
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T123 src/qeel/exchange_clients/base.pyにBaseExchangeClient ABCを実装
+- [x] T123 src/qeel/exchange_clients/base.pyにBaseExchangeClient ABCを実装
   - `_validate_orders(orders: pl.DataFrame) -> None`: OrderSchemaバリデーションヘルパー
   - `_validate_fills(fills: pl.DataFrame) -> pl.DataFrame`: FillReportSchemaバリデーションヘルパー
   - `_validate_positions(positions: pl.DataFrame) -> pl.DataFrame`: PositionSchemaバリデーションヘルパー
@@ -226,7 +226,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T124 tests/unit/test_exchange_clients.pyにTestMockExchangeClientBaseクラスを追加
+- [x] T124 tests/unit/test_exchange_clients.pyにTestMockExchangeClientBaseクラスを追加
   - `test_mock_exchange_client_init`: 正常に初期化される（CostConfig, BaseDataSourceを受け取る）
   - `test_mock_exchange_client_init_stores_data_source`: ohlcv_data_source属性にBaseDataSourceインスタンスが保持される
   - `test_mock_exchange_client_load_ohlcv`: OHLCVデータをキャッシュする
@@ -237,7 +237,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T125 src/qeel/exchange_clients/mock.pyにMockExchangeClient基盤を実装
+- [x] T125 src/qeel/exchange_clients/mock.pyにMockExchangeClient基盤を実装
   - `__init__(config: CostConfig, ohlcv_data_source: BaseDataSource)`
   - `load_ohlcv(start: datetime, end: datetime, symbols: list[str]) -> None`
   - `set_current_datetime(dt: datetime) -> None`
@@ -255,7 +255,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T126 tests/unit/test_exchange_clients.pyにTestMockExchangeClientSlippageクラスを追加
+- [x] T126 tests/unit/test_exchange_clients.pyにTestMockExchangeClientSlippageクラスを追加
   - `test_apply_slippage_buy_increases_price`: 買い注文でスリッページ適用後、価格が上昇する
   - `test_apply_slippage_sell_decreases_price`: 売り注文でスリッページ適用後、価格が下落する
   - `test_apply_slippage_zero_bps_no_change`: スリッページ0bpsの場合、価格変化なし
@@ -263,7 +263,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T127 src/qeel/exchange_clients/mock.pyに`_apply_slippage`メソッドを実装
+- [x] T127 src/qeel/exchange_clients/mock.pyに`_apply_slippage`メソッドを実装
   - `_apply_slippage(price: float, side: str) -> float`
   - 買い: +slippage（不利方向=高く買う）
   - 売り: -slippage（不利方向=安く売る）
@@ -278,7 +278,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T128 tests/unit/test_exchange_clients.pyにTestMockExchangeClientMarketOrderクラスを追加
+- [x] T128 tests/unit/test_exchange_clients.pyにTestMockExchangeClientMarketOrderクラスを追加
   - `test_process_market_order_next_open_price`: market_fill_price_type="next_open"で翌バーのopenで約定
   - `test_process_market_order_current_close_price`: market_fill_price_type="current_close"で当バーのcloseで約定
   - `test_process_market_order_applies_slippage`: スリッページが適用される
@@ -289,7 +289,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T129 src/qeel/exchange_clients/mock.pyに`_process_market_order`メソッドを実装
+- [x] T129 src/qeel/exchange_clients/mock.pyに`_process_market_order`メソッドを実装
   - `_process_market_order(symbol: str, side: str, quantity: float) -> dict | None`
   - CostConfig.market_fill_price_typeに基づき約定価格を決定
   - スリッページ適用、手数料計算
@@ -304,7 +304,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T130 tests/unit/test_exchange_clients.pyにTestMockExchangeClientLimitOrderクラスを追加
+- [x] T130 tests/unit/test_exchange_clients.pyにTestMockExchangeClientLimitOrderクラスを追加
   - `test_process_limit_order_buy_fills_when_price_above_low`: 買い指値が翌バーのlowより高い場合約定
   - `test_process_limit_order_buy_not_fills_when_price_equals_low`: 買い指値が翌バーのlowと同値の場合未約定
   - `test_process_limit_order_sell_fills_when_price_below_high`: 売り指値が翌バーのhighより低い場合約定
@@ -316,7 +316,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T131 src/qeel/exchange_clients/mock.pyに`_process_limit_order`メソッドを実装
+- [x] T131 src/qeel/exchange_clients/mock.pyに`_process_limit_order`メソッドを実装
   - `_process_limit_order(symbol: str, side: str, quantity: float, limit_price: float) -> dict | None`
   - 翌バーのhigh/lowで約定判定
   - 同値は未約定
@@ -331,7 +331,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T132 tests/unit/test_exchange_clients.pyにTestMockExchangeClientSubmitOrdersクラスを追加
+- [x] T132 tests/unit/test_exchange_clients.pyにTestMockExchangeClientSubmitOrdersクラスを追加
   - `test_submit_orders_validates_schema`: OrderSchemaバリデーションが実行される
   - `test_submit_orders_processes_market_orders`: 成行注文が正しく処理される
   - `test_submit_orders_processes_limit_orders`: 指値注文が正しく処理される
@@ -342,7 +342,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T133 src/qeel/exchange_clients/mock.pyに`submit_orders`メソッドを実装
+- [x] T133 src/qeel/exchange_clients/mock.pyに`submit_orders`メソッドを実装
   - `submit_orders(orders: pl.DataFrame) -> None`
   - `_validate_orders`を使用してスキーマバリデーション
   - 各注文をiter_rowsで処理し、市場/指値を振り分け
@@ -358,7 +358,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T134 tests/unit/test_exchange_clients.pyにTestMockExchangeClientFetchFillsクラスを追加
+- [x] T134 tests/unit/test_exchange_clients.pyにTestMockExchangeClientFetchFillsクラスを追加
   - `test_fetch_fills_returns_empty_when_no_fills`: 約定がない場合空DataFrameを返す
   - `test_fetch_fills_returns_all_pending_fills`: pending_fillsの全約定を返す
   - `test_fetch_fills_clears_pending_after_fetch`: fetch後にpending_fillsがクリアされる
@@ -368,7 +368,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T135 src/qeel/exchange_clients/mock.pyに`fetch_fills`メソッドを実装
+- [x] T135 src/qeel/exchange_clients/mock.pyに`fetch_fills`メソッドを実装
   - `fetch_fills() -> pl.DataFrame`
   - pending_fillsをconcatして返却
   - 返却後にpending_fillsをクリア
@@ -384,7 +384,7 @@
 
 ### Tests (TDD: RED)
 
-- [ ] T136 tests/unit/test_exchange_clients.pyにTestMockExchangeClientFetchPositionsクラスを追加
+- [x] T136 tests/unit/test_exchange_clients.pyにTestMockExchangeClientFetchPositionsクラスを追加
   - `test_fetch_positions_returns_empty_when_no_history`: 約定履歴がない場合空DataFrameを返す
   - `test_fetch_positions_calculates_from_buys`: 買い約定からポジション数量を計算
   - `test_fetch_positions_calculates_from_sells`: 売り約定でポジション数量が減少
@@ -397,7 +397,7 @@
 
 ### Implementation (TDD: GREEN)
 
-- [ ] T137 src/qeel/exchange_clients/mock.pyに`fetch_positions`メソッドを実装
+- [x] T137 src/qeel/exchange_clients/mock.pyに`fetch_positions`メソッドを実装
   - `fetch_positions() -> pl.DataFrame`
   - fill_historyからポジションを累積計算
   - 買いは+、売りは-として数量を符号付きに
@@ -414,8 +414,8 @@
 
 **Purpose**: モジュールエクスポートの設定
 
-- [ ] T138 src/qeel/exchange_clients/__init__.pyにBaseExchangeClient, MockExchangeClientをエクスポート
-- [ ] T139 src/qeel/__init__.pyにexchange_clientsモジュールを追加
+- [x] T138 src/qeel/exchange_clients/__init__.pyにBaseExchangeClient, MockExchangeClientをエクスポート
+- [x] T139 src/qeel/__init__.pyにexchange_clientsモジュールを追加
 
 **Checkpoint**: `from qeel.exchange_clients import BaseExchangeClient, MockExchangeClient` が成功
 
@@ -427,7 +427,7 @@
 
 ### Tests
 
-- [ ] T140 tests/integration/test_exchange_client_integration.pyを新規作成
+- [x] T140 tests/integration/test_exchange_client_integration.pyを新規作成
   - `test_mock_exchange_client_full_workflow`: load_ohlcv → set_current_datetime → submit_orders → fetch_fills → fetch_positions の一連のフロー
   - `test_mock_exchange_client_multiple_iterations`: 複数iterationでのポジション累積
   - `test_mock_exchange_client_with_parquet_data_source`: ParquetDataSourceと連携したテスト
@@ -440,10 +440,10 @@
 
 **Purpose**: 品質チェックと最終確認
 
-- [ ] T141 `uv run mypy src/qeel/exchange_clients/` で型エラーゼロを確認
-- [ ] T142 `uv run ruff check src/qeel/exchange_clients/` でリンターエラーゼロを確認
-- [ ] T143 [P] `uv run ruff format src/qeel/exchange_clients/` でフォーマット適用
-- [ ] T144 `uv run pytest tests/` で全テストパス（006までのテストも含む）
+- [x] T141 `uv run mypy src/qeel/exchange_clients/` で型エラーゼロを確認
+- [x] T142 `uv run ruff check src/qeel/exchange_clients/` でリンターエラーゼロを確認
+- [x] T143 [P] `uv run ruff format src/qeel/exchange_clients/` でフォーマット適用
+- [x] T144 `uv run pytest tests/` で全テストパス（006までのテストも含む）
 
 **Final Checkpoint**: 007ブランチ実装完了、008ブランチ（portfolio-and-orders）に進行可能
 
