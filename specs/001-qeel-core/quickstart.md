@@ -231,8 +231,8 @@ def main():
     # ohlcvデータソースにはOHLCVSchemaバリデーションが自動適用される
     data_sources = load_data_sources(config, io)
 
-    # 執行クラス（バックテストではモック）
-    exchange_client = MockExchangeClient(config.costs)
+    # 執行クラス（バックテストではモック、ohlcvデータソースを渡す）
+    exchange_client = MockExchangeClient(config.costs, data_sources["ohlcv"])
 
     # コンテキストストア
     context_store = ContextStore(io)
