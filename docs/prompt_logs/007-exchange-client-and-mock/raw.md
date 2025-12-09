@@ -60,3 +60,45 @@ tasks.mdの挿入箇所が間違えてる。006の途中に挿入してない？
 うーん…MockでOHLCVを管理するよりは、OHLCVDataSource(BaseDataSource)をインスタンスとしてもってfetchを呼ぶ方がいいと思うんだけど。
 
 [model: opus, session: 8d19f027]
+
+---
+
+/speckit.review  @specs/001-qeel-core/contracts/base_exchange_client.md で、モックにohlcv_data_sourceを渡す必要がある。しかし、これはBaseDataSourceオブジェクトを渡すことになっているだけで、OHLCVSchemaのバリデーションなどを保証できない。そこで、OHLCVDataSourceだけはabsとして実装しなくてはならないことにした方が良いのではないか。validationはヘルパーメソッドを定義してあげればいい。 @specs/001-qeel-core/contracts/base_data_source.md のParquetDataSourceの例をなくしてOHLCVDataSourceにしてしまって、これは必須だけどほかにもこのように任意のデータソースを追加できるよ、という記述をするのはどうだろう？
+
+[model: unknown, session: 60cc25ee]
+
+---
+
+お願い！
+
+[model: opus, session: 60cc25ee]
+
+---
+
+/speckit.review @specs/001-qeel-core/contracts/base_data_source.md で、ParquetDataSourceは、ローカル、s3共に、単一ファイルとパーティショニングによるglobパターンの指定をDataSourceConfigのpathで受ければ、任意のデータソースで使いまわせるか？
+
+[model: unknown, session: a53be54b]
+
+---
+
+globパターンは、そのままpl.read_parquetで扱えたように思う。polarsのドキュメントを調べて。あと、BaseIOのloadをそのまま使えるかどうかも。
+
+[model: opus, session: a53be54b]
+
+---
+
+お願い！
+
+[model: opus, session: a53be54b]
+
+---
+
+OK, on stageした。コミットして
+
+[model: opus, session: a53be54b]
+
+---
+
+すべての変更をcommitしてpushして
+
+[model: unknown, session: 36f7e31d]
