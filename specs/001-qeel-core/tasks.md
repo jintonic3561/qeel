@@ -116,19 +116,19 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T155 [P] [US1] BaseEntryOrderCreatorの単体テスト作成: `tests/unit/test_entry_order_creators.py`
+- [x] T155 [P] [US1] BaseEntryOrderCreatorの単体テスト作成: `tests/unit/test_entry_order_creators.py`
   - 入力バリデーション（`_validate_inputs`）が正しく動作することを確認
   - ABC継承のテスト（抽象メソッドの実装強制を確認）
 
 #### Implementation（TDD: Green）
 
-- [ ] T156 [US1] BaseEntryOrderCreator ABC実装: `src/qeel/entry_order_creators/base.py`
+- [x] T156 [US1] BaseEntryOrderCreator ABC実装: `src/qeel/entry_order_creators/base.py`
   - `__init__(params: EntryOrderCreatorParams)`
   - `_validate_inputs(portfolio_plan, current_positions, ohlcv)`: 入力バリデーションヘルパー
   - `create(portfolio_plan, current_positions, ohlcv) -> pl.DataFrame`: 抽象メソッド
   - contracts/base_entry_order_creator.md準拠
 
-- [ ] T157 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/entry_order_creators/__init__.py`
+- [x] T157 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/entry_order_creators/__init__.py`
 
 ---
 
@@ -138,7 +138,7 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T158 [P] [US1] EqualWeightEntryOrderCreatorの単体テスト追加: `tests/unit/test_entry_order_creators.py`
+- [x] T158 [P] [US1] EqualWeightEntryOrderCreatorの単体テスト追加: `tests/unit/test_entry_order_creators.py`
   - パラメータ（capital, rebalance_threshold）の動作確認
   - 等ウェイト配分で注文が生成されることを確認
   - 成行注文（order_type="market", price=None）が生成されることを確認
@@ -148,17 +148,17 @@
 
 #### Implementation（TDD: Green）
 
-- [ ] T159 [US1] EqualWeightEntryParams実装: `src/qeel/entry_order_creators/equal_weight.py`
+- [x] T159 [US1] EqualWeightEntryParams実装: `src/qeel/entry_order_creators/equal_weight.py`
   - `capital: float = Field(default=1_000_000.0, gt=0.0)`
   - `rebalance_threshold: float = Field(default=0.05, ge=0.0, le=1.0)`
 
-- [ ] T160 [US1] EqualWeightEntryOrderCreator実装: `src/qeel/entry_order_creators/equal_weight.py`
+- [x] T160 [US1] EqualWeightEntryOrderCreator実装: `src/qeel/entry_order_creators/equal_weight.py`
   - `create(portfolio_plan, current_positions, ohlcv)`: 等ウェイト注文生成
   - open価格で成行注文を生成
   - signal_strengthを参照して買い/売りを決定
   - contracts/base_entry_order_creator.md準拠
 
-- [ ] T161 [US1] `__init__.py`にEqualWeight関連クラスのエクスポート追加: `src/qeel/entry_order_creators/__init__.py`
+- [x] T161 [US1] `__init__.py`にEqualWeight関連クラスのエクスポート追加: `src/qeel/entry_order_creators/__init__.py`
 
 ---
 
