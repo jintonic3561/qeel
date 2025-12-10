@@ -31,9 +31,7 @@ class BasePortfolioConstructor(ABC):
         """
         self.params = params
 
-    def _validate_inputs(
-        self, signals: pl.DataFrame, current_positions: pl.DataFrame
-    ) -> None:
+    def _validate_inputs(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> None:
         """入力データの共通バリデーション
 
         サブクラスで任意に呼び出し可能なヘルパーメソッド。
@@ -67,9 +65,7 @@ class BasePortfolioConstructor(ABC):
         return PortfolioSchema.validate(portfolio)
 
     @abstractmethod
-    def construct(
-        self, signals: pl.DataFrame, current_positions: pl.DataFrame
-    ) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         """シグナルからポートフォリオを構築し、執行条件計算に必要なメタデータを含むDataFrameを返す
 
         Args:

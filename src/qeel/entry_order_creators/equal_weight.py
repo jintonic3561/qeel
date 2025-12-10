@@ -25,9 +25,7 @@ class EqualWeightEntryParams(EntryOrderCreatorParams):
     """
 
     capital: float = Field(default=1_000_000.0, gt=0.0, description="運用資金")
-    rebalance_threshold: float = Field(
-        default=0.05, ge=0.0, le=1.0, description="リバランス閾値"
-    )
+    rebalance_threshold: float = Field(default=0.05, ge=0.0, le=1.0, description="リバランス閾値")
 
 
 class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
@@ -95,13 +93,9 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
 
             # 現在のポジションを取得
             position_row = current_positions.filter(pl.col("symbol") == symbol)
-            current_quantity = (
-                position_row["quantity"][0] if position_row.height > 0 else 0.0
-            )
+            current_quantity = position_row["quantity"][0] if position_row.height > 0 else 0.0
             current_value = current_quantity * current_price
-            current_weight = (
-                current_value / self.params.capital if self.params.capital > 0 else 0.0
-            )
+            current_weight = current_value / self.params.capital if self.params.capital > 0 else 0.0
 
             # リバランス閾値チェック: 目標比率との差が閾値を超えた場合のみ注文生成
             weight_diff = abs(target_weight - current_weight)

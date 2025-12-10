@@ -20,9 +20,7 @@ class TopNConstructorParams(PortfolioConstructorParams):
     """
 
     top_n: int = Field(default=10, gt=0, description="選定する銘柄数")
-    ascending: bool = Field(
-        default=False, description="昇順ソート（Falseの場合、シグナル大きい順）"
-    )
+    ascending: bool = Field(default=False, description="昇順ソート（Falseの場合、シグナル大きい順）")
 
 
 class TopNPortfolioConstructor(BasePortfolioConstructor):
@@ -39,9 +37,7 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
 
     params: TopNConstructorParams  # 型の明示化
 
-    def construct(
-        self, signals: pl.DataFrame, current_positions: pl.DataFrame
-    ) -> pl.DataFrame:
+    def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:
         """シグナルからポートフォリオを構築する
 
         Args:

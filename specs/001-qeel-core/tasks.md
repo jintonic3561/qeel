@@ -12,7 +12,7 @@
 
 ## Phase 2: Core Engine（P1対応）
 
-- [ ] **008-portfolio-and-orders** - ポートフォリオ構築・注文生成のABCとデフォルト実装
+- [x] **008-portfolio-and-orders** - ポートフォリオ構築・注文生成のABCとデフォルト実装
 - [ ] **009-strategy-engine** - StrategyEngine実装（ステップ単位実行）
 - [ ] **010-backtest-runner** - BacktestRunner実装（ループ管理）
 - [ ] **011-metrics-calculation** - パフォーマンス指標計算
@@ -190,7 +190,7 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T165 [P] [US1] FullExitOrderCreatorの単体テスト追加: `tests/unit/test_exit_order_creators.py`
+- [x] T165 [P] [US1] FullExitOrderCreatorの単体テスト追加: `tests/unit/test_exit_order_creators.py`
   - パラメータ（exit_threshold）の動作確認
   - 保有ポジション全決済の注文が生成されることを確認
   - 成行注文（order_type="market", price=None）が生成されることを確認
@@ -202,16 +202,16 @@
 
 #### Implementation（TDD: Green）
 
-- [ ] T166 [US1] FullExitParams実装: `src/qeel/exit_order_creators/full_exit.py`
+- [x] T166 [US1] FullExitParams実装: `src/qeel/exit_order_creators/full_exit.py`
   - `exit_threshold: float = Field(default=1.0, ge=0.0, le=1.0)`
 
-- [ ] T167 [US1] FullExitOrderCreator実装: `src/qeel/exit_order_creators/full_exit.py`
+- [x] T167 [US1] FullExitOrderCreator実装: `src/qeel/exit_order_creators/full_exit.py`
   - `create(current_positions, ohlcv)`: 全決済注文生成
   - close価格で成行注文を生成
   - exit_thresholdで決済比率を調整
   - contracts/base_exit_order_creator.md準拠
 
-- [ ] T168 [US1] `__init__.py`にFullExit関連クラスのエクスポート追加: `src/qeel/exit_order_creators/__init__.py`
+- [x] T168 [US1] `__init__.py`にFullExit関連クラスのエクスポート追加: `src/qeel/exit_order_creators/__init__.py`
 
 ---
 
@@ -221,7 +221,7 @@
 
 #### Tests（TDD: Red → Green）
 
-- [ ] T169 [US1] 統合テスト作成: `tests/integration/test_portfolio_order_integration.py`
+- [x] T169 [US1] 統合テスト作成: `tests/integration/test_portfolio_order_integration.py`
   - TopNPortfolioConstructor → EqualWeightEntryOrderCreator のフロー確認
   - TopNPortfolioConstructor → FullExitOrderCreator のフロー確認
   - signal_strengthメタデータがエントリー注文生成で正しく参照されることを確認
@@ -232,10 +232,10 @@
 
 **Purpose**: コード品質の確保
 
-- [ ] T170 mypy strictモードでの型チェック実行
-- [ ] T171 [P] ruff check & format実行
-- [ ] T172 [P] pytest全件パス確認
-- [ ] T173 `__init__.py`でのパブリックAPI整理
+- [x] T170 mypy strictモードでの型チェック実行
+- [x] T171 [P] ruff check & format実行
+- [x] T172 [P] pytest全件パス確認
+- [x] T173 `__init__.py`でのパブリックAPI整理
   - `src/qeel/portfolio_constructors/__init__.py`
   - `src/qeel/entry_order_creators/__init__.py`
   - `src/qeel/exit_order_creators/__init__.py`
