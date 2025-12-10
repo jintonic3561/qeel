@@ -12,6 +12,7 @@ import polars as pl
 from qeel.config import CostConfig
 from qeel.data_sources.base import BaseDataSource
 from qeel.exchange_clients.base import BaseExchangeClient
+from qeel.schemas import FillReportSchema, PositionSchema
 
 
 class MockExchangeClient(BaseExchangeClient):
@@ -277,8 +278,6 @@ class MockExchangeClient(BaseExchangeClient):
         Returns:
             FillReportSchemaに準拠したPolars DataFrame
         """
-        from qeel.schemas import FillReportSchema
-
         if not self.pending_fills:
             return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
 
@@ -295,8 +294,6 @@ class MockExchangeClient(BaseExchangeClient):
         Returns:
             PositionSchemaに準拠したPolars DataFrame
         """
-        from qeel.schemas import PositionSchema
-
         if not self.fill_history:
             return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
 
