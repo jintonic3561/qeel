@@ -5,7 +5,6 @@ MockDataSourceからデータを取得し、シグナル計算を実行する統
 """
 
 from datetime import datetime
-from pathlib import Path
 
 import polars as pl
 
@@ -51,8 +50,9 @@ class TestCalculatorWithMockDataSource:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400 * 30,  # 30日
-            source_type="custom",
-            source_path=Path("/mock/path"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="/mock/path",
         )
 
         # モックデータを作成
@@ -92,8 +92,9 @@ class TestCalculatorWithMockDataSource:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400 * 30,
-            source_type="custom",
-            source_path=Path("/mock/path"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="/mock/path",
         )
 
         mock_data = self._create_mock_data()

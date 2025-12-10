@@ -6,6 +6,7 @@ contracts/base_data_source.mdを参照。
 
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import polars as pl
 import pytest
@@ -13,6 +14,7 @@ import pytest
 from qeel.config import DataSourceConfig
 from qeel.data_sources.base import BaseDataSource
 from qeel.data_sources.mock import MockDataSource
+from qeel.data_sources.parquet import ParquetDataSource
 
 
 class TestMockDataSourceWithConfig:
@@ -26,8 +28,9 @@ class TestMockDataSourceWithConfig:
             datetime_column="datetime",
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("mock"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="mock",
         )
 
     @pytest.fixture
@@ -80,8 +83,9 @@ class TestDataSourceHelperChain:
             datetime_column="timestamp",  # datetime以外の列名
             offset_seconds=3600,  # 1時間オフセット
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("mock"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="mock",
         )
 
     def test_data_source_helper_chain(self, config_with_offset: DataSourceConfig) -> None:
@@ -178,8 +182,9 @@ class TestDataSourceInheritance:
             datetime_column="datetime",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="custom",
-            source_path=Path("custom"),
+            module="qeel.data_sources.mock",
+            class_name="MockDataSource",
+            source_path="custom",
         )
 
         ds = MyCustomDataSource(config=config)
@@ -192,3 +197,111 @@ class TestDataSourceInheritance:
         assert len(result) == 1
         assert result["symbol"][0] == "TEST"
         assert result["value"][0] == 42.0
+
+
+# =============================================================================
+# ParquetDataSource Integration Tests (T117)
+# =============================================================================
+
+
+class TestParquetDataSourceWithLocalIO:
+    """ParquetDataSourceとLocalIOの統合テスト"""
+
+    @pytest.fixture
+    def sample_data(self) -> pl.DataFrame:
+        """サンプルデータ"""
+        return pl.DataFrame(
+            {
+                "datetime": [
+                    datetime(2023, 1, 1, 9, 0, 0),
+                    datetime(2023, 1, 1, 10, 0, 0),
+                    datetime(2023, 1, 1, 11, 0, 0),
+                    datetime(2023, 1, 2, 9, 0, 0),
+                ],
+                "symbol": ["AAPL", "GOOG", "AAPL", "MSFT"],
+                "open": [99.0, 199.0, 100.0, 299.0],
+                "high": [101.0, 201.0, 102.0, 301.0],
+                "low": [98.0, 198.0, 99.0, 298.0],
+                "close": [100.0, 200.0, 101.0, 300.0],
+                "volume": [1000, 2000, 1100, 3000],
+            }
+        )
+
+    def test_parquet_data_source_with_local_io(self, sample_data: pl.DataFrame, tmp_path: Path) -> None:
+        """ParquetDataSourceがLocalIOと連携してParquetを読み込む"""
+        from qeel.io.local import LocalIO
+
+        # ワークスペースをtmp_pathに設定
+        with patch("qeel.io.local.get_workspace", return_value=tmp_path):
+            io = LocalIO()
+
+            # Parquetファイルを保存
+            inputs_dir = tmp_path / "inputs"
+            inputs_dir.mkdir(parents=True, exist_ok=True)
+            parquet_path = inputs_dir / "ohlcv.parquet"
+            sample_data.write_parquet(parquet_path)
+
+            # 設定
+            config = DataSourceConfig(
+                name="ohlcv",
+                datetime_column="datetime",
+                offset_seconds=0,
+                window_seconds=86400,
+                module="qeel.data_sources.parquet",
+                class_name="ParquetDataSource",
+                source_path="ohlcv.parquet",
+            )
+
+            # ParquetDataSourceでfetch
+            ds = ParquetDataSource(config=config, io=io)
+            result = ds.fetch(
+                start=datetime(2023, 1, 1, 0, 0, 0),
+                end=datetime(2023, 1, 2, 23, 59, 59),
+                symbols=["AAPL", "GOOG", "MSFT"],
+            )
+
+            assert isinstance(result, pl.DataFrame)
+            assert len(result) == 4
+            assert set(result["symbol"].to_list()) == {"AAPL", "GOOG", "MSFT"}
+
+    def test_parquet_data_source_with_glob_pattern(self, sample_data: pl.DataFrame, tmp_path: Path) -> None:
+        """ParquetDataSourceがglobパターンで複数ファイルを読み込む"""
+        from qeel.io.local import LocalIO
+
+        # ワークスペースをtmp_pathに設定
+        with patch("qeel.io.local.get_workspace", return_value=tmp_path):
+            io = LocalIO()
+
+            # 複数のParquetファイルを保存
+            inputs_dir = tmp_path / "inputs" / "ohlcv"
+            inputs_dir.mkdir(parents=True, exist_ok=True)
+
+            # データを2つに分割
+            df1 = sample_data.filter(pl.col("symbol") == "AAPL")
+            df2 = sample_data.filter(pl.col("symbol") != "AAPL")
+            df1.write_parquet(inputs_dir / "aapl.parquet")
+            df2.write_parquet(inputs_dir / "others.parquet")
+
+            # 設定（globパターン）
+            config = DataSourceConfig(
+                name="ohlcv",
+                datetime_column="datetime",
+                offset_seconds=0,
+                window_seconds=86400,
+                module="qeel.data_sources.parquet",
+                class_name="ParquetDataSource",
+                source_path="ohlcv/*.parquet",  # globパターン
+            )
+
+            # ParquetDataSourceでfetch
+            ds = ParquetDataSource(config=config, io=io)
+            result = ds.fetch(
+                start=datetime(2023, 1, 1, 0, 0, 0),
+                end=datetime(2023, 1, 2, 23, 59, 59),
+                symbols=["AAPL", "GOOG", "MSFT"],
+            )
+
+            assert isinstance(result, pl.DataFrame)
+            # 複数ファイルが結合される
+            assert len(result) == 4
+            assert set(result["symbol"].to_list()) == {"AAPL", "GOOG", "MSFT"}

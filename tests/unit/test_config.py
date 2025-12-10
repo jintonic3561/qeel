@@ -21,26 +21,29 @@ def test_data_source_config_valid() -> None:
         datetime_column="timestamp",
         offset_seconds=0,
         window_seconds=86400,
-        source_type="parquet",
-        source_path=Path("tests/fixtures/ohlcv.parquet"),
+        module="qeel.data_sources.mock",
+        class_name="MockDataSource",
+        source_path="tests/fixtures/ohlcv.parquet",
     )
     assert config.name == "ohlcv"
     assert config.offset_seconds == 0
     assert config.window_seconds == 86400
+    assert config.module == "qeel.data_sources.mock"
+    assert config.class_name == "MockDataSource"
 
 
-def test_data_source_config_invalid_source_type() -> None:
-    """不正なsource_typeでValidationError"""
+def test_data_source_config_missing_module() -> None:
+    """module未設定でValidationError"""
     from qeel.config.models import DataSourceConfig
 
-    with pytest.raises(ValidationError, match="source_typeは"):
+    with pytest.raises(ValidationError, match="module"):
         DataSourceConfig(
             name="ohlcv",
             datetime_column="timestamp",
             offset_seconds=0,
             window_seconds=86400,
-            source_type="invalid_type",
-            source_path=Path("tests/fixtures/ohlcv.parquet"),
+            class_name="MockDataSource",
+            source_path="tests/fixtures/ohlcv.parquet",
         )
 
 
@@ -54,6 +57,54 @@ def test_cost_config_defaults() -> None:
     assert config.slippage_bps == 0.0
     assert config.market_impact_model == "fixed"
     assert config.market_impact_param == 0.0
+
+
+def test_cost_config_market_fill_price_type_default() -> None:
+    """market_fill_price_typeのデフォルト値がnext_openであることを確認"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig()
+    assert config.market_fill_price_type == "next_open"
+
+
+def test_cost_config_market_fill_price_type_current_close() -> None:
+    """market_fill_price_type=current_closeでバリデーションパス"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig(market_fill_price_type="current_close")
+    assert config.market_fill_price_type == "current_close"
+
+
+def test_cost_config_market_fill_price_type_invalid() -> None:
+    """不正なmarket_fill_price_typeでValidationError"""
+    from qeel.config.models import CostConfig
+
+    with pytest.raises(ValidationError, match="market_fill_price_typeは"):
+        CostConfig(market_fill_price_type="invalid_type")
+
+
+def test_cost_config_limit_fill_bar_type_default() -> None:
+    """limit_fill_bar_typeのデフォルト値がnext_barであることを確認"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig()
+    assert config.limit_fill_bar_type == "next_bar"
+
+
+def test_cost_config_limit_fill_bar_type_current_bar() -> None:
+    """limit_fill_bar_type=current_barでバリデーションパス"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig(limit_fill_bar_type="current_bar")
+    assert config.limit_fill_bar_type == "current_bar"
+
+
+def test_cost_config_limit_fill_bar_type_invalid() -> None:
+    """不正なlimit_fill_bar_typeでValidationError"""
+    from qeel.config.models import CostConfig
+
+    with pytest.raises(ValidationError, match="limit_fill_bar_typeは"):
+        CostConfig(limit_fill_bar_type="invalid_type")
 
 
 def test_cost_config_invalid_market_impact_model() -> None:

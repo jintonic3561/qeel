@@ -15,6 +15,8 @@ from qeel.models.context import Context
 from qeel.stores.context_store import ContextStore
 from qeel.stores.in_memory import InMemoryStore
 from qeel.utils.workspace import get_workspace
+from qeel.exchange_clients.base import BaseExchangeClient
+from qeel.exchange_clients.mock import MockExchangeClient
 
 __version__ = "0.1.0"
 
@@ -31,4 +33,6 @@ __all__ = [
     "Context",
     "ContextStore",
     "InMemoryStore",
+    "BaseExchangeClient",
+    "MockExchangeClient",
 ]

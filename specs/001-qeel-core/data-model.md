@@ -16,7 +16,7 @@
 ```python
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class DataSourceConfig(BaseModel):
@@ -29,23 +29,17 @@ class DataSourceConfig(BaseModel):
             - 取得windowを調整することでオフセットを適用
             - 例: offset_seconds=3600の場合、window(start, end)は(start-1h, end-1h)に調整される
         window_seconds: 取得するデータのwindow（秒）
-        source_type: ソースタイプ（"parquet", "custom"）
-        source_path: データソースのパス（ローカルファイルまたはURI）
+        module: データソースクラスのモジュールパス（例: "qeel.data_sources.parquet"）
+        class_name: データソースクラス名（例: "ParquetDataSource"）
+        source_path: データソースのパス（ローカルファイルまたはURI、globパターン対応）
     """
     name: str = Field(..., description="データソース識別子")
     datetime_column: str = Field(..., description="datetime列名")
     offset_seconds: int = Field(default=0, description="利用可能時刻オフセット（秒）")
     window_seconds: int = Field(..., gt=0, description="取得window（秒）")
-    source_type: str = Field(..., description="ソースタイプ")
-    source_path: Path = Field(..., description="ソースパス")
-
-    @field_validator('source_type')
-    @classmethod
-    def validate_source_type(cls, v: str) -> str:
-        allowed = {"parquet", "custom"}
-        if v not in allowed:
-            raise ValueError(f"source_typeは{allowed}のいずれかである必要があります: {v}")
-        return v
+    module: str = Field(..., description="データソースクラスのモジュールパス")
+    class_name: str = Field(..., description="データソースクラス名")
+    source_path: str = Field(..., description="ソースパス（globパターン対応）")
 ```
 
 ### 1.2 CostConfig
@@ -59,11 +53,19 @@ class CostConfig(BaseModel):
         slippage_bps: スリッページ（ベーシスポイント）
         market_impact_model: マーケットインパクトモデル（"fixed", "linear"）
         market_impact_param: マーケットインパクトパラメータ
+        market_fill_price_type: 成行注文の約定価格タイプ（"next_open", "current_close"）
+            - "next_open": 翌バーの始値で約定（デフォルト、より現実的）
+            - "current_close": 当バーの終値で約定
+        limit_fill_bar_type: 指値注文の約定判定バータイプ（"next_bar", "current_bar"）
+            - "next_bar": 翌バーのhigh/lowで約定判定（デフォルト）
+            - "current_bar": 当バーのhigh/lowで約定判定
     """
     commission_rate: float = Field(default=0.0, ge=0.0, description="手数料率")
     slippage_bps: float = Field(default=0.0, ge=0.0, description="スリッページ（bps）")
     market_impact_model: str = Field(default="fixed", description="マーケットインパクトモデル")
     market_impact_param: float = Field(default=0.0, ge=0.0, description="マーケットインパクトパラメータ")
+    market_fill_price_type: str = Field(default="next_open", description="成行注文の約定価格タイプ")
+    limit_fill_bar_type: str = Field(default="next_bar", description="指値注文の約定判定バータイプ")
 
     @field_validator('market_impact_model')
     @classmethod
@@ -71,6 +73,22 @@ class CostConfig(BaseModel):
         allowed = {"fixed", "linear"}
         if v not in allowed:
             raise ValueError(f"market_impact_modelは{allowed}のいずれかである必要があります")
+        return v
+
+    @field_validator('market_fill_price_type')
+    @classmethod
+    def validate_fill_price_type(cls, v: str) -> str:
+        allowed = {"next_open", "current_close"}
+        if v not in allowed:
+            raise ValueError(f"market_fill_price_typeは{allowed}のいずれかである必要があります: {v}")
+        return v
+
+    @field_validator('limit_fill_bar_type')
+    @classmethod
+    def validate_limit_fill_bar_type(cls, v: str) -> str:
+        allowed = {"next_bar", "current_bar"}
+        if v not in allowed:
+            raise ValueError(f"limit_fill_bar_typeは{allowed}のいずれかである必要があります: {v}")
         return v
 ```
 
@@ -254,7 +272,7 @@ class Config(BaseModel):
 
     Attributes:
         general: General設定
-        data_sources: データソース設定リスト
+        data_sources: データソース設定リスト（ohlcvは必須）
         costs: コスト設定
         loop: ループ設定
     """
@@ -262,6 +280,14 @@ class Config(BaseModel):
     data_sources: list[DataSourceConfig] = Field(..., min_length=1)
     costs: CostConfig
     loop: LoopConfig
+
+    @model_validator(mode="after")
+    def validate_ohlcv_required(self) -> "Config":
+        """ohlcvデータソースが必須であることを検証する"""
+        names = [ds.name for ds in self.data_sources]
+        if "ohlcv" not in names:
+            raise ValueError("data_sourcesには'ohlcv'という名前のデータソースが必須です")
+        return self
 
     @classmethod
     def from_toml(cls, path: Path | None = None) -> "Config":
