@@ -132,3 +132,33 @@ OK, on stageした。コミットして
 commitして
 
 [model: unknown, session: 11b1e64b]
+
+---
+
+PRにコメントが付いてるんだけど、取得できる？
+
+[model: unknown, session: 8dbd4d05]
+
+---
+
+指値注文のバー設定以外を修正して。
+
+[model: opus, session: 8dbd4d05]
+
+---
+
+OK. commitして。それから、該当するPRコメントを解決済みにできる？
+
+[model: opus, session: 8dbd4d05]
+
+---
+
+全部のコメントをもう一回取ってきて。import位置が不正だというコメントがいくつかある。
+
+[model: opus, session: 8dbd4d05]
+
+---
+
+rawもcommitして、pushして
+
+[model: unknown, session: b2904d95]
