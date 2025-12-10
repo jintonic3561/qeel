@@ -283,8 +283,7 @@ class MockExchangeClient(BaseExchangeClient):
     def fetch_positions(self) -> pl.DataFrame:
         """約定履歴から現在のポジションを計算する
 
-        ショートポジション（マイナス数量）を許容。
-        平均取得単価はロングなら買いの加重平均、ショートなら売りの加重平均。
+        時系列順に約定を処理し、平均取得単価を正しく更新する。
 
         Returns:
             PositionSchemaに準拠したPolars DataFrame
@@ -294,66 +293,70 @@ class MockExchangeClient(BaseExchangeClient):
         if not self.fill_history:
             return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
 
-        all_fills = pl.concat(self.fill_history)
+        # 全約定を結合し、タイムスタンプ順にソート
+        all_fills = pl.concat(self.fill_history).sort("timestamp")
 
-        # ポジションを累積計算（加重平均価格を計算）
-        positions = (
-            all_fills.with_columns(
-                [
-                    # 買いは+、売りは-として数量を符号付きに
-                    pl.when(pl.col("side") == "buy")
-                    .then(pl.col("filled_quantity"))
-                    .otherwise(-pl.col("filled_quantity"))
-                    .alias("signed_quantity"),
-                    # 買い約定金額（ロングの加重平均計算用）
-                    pl.when(pl.col("side") == "buy")
-                    .then(pl.col("filled_quantity") * pl.col("filled_price"))
-                    .otherwise(pl.lit(0.0))
-                    .alias("buy_value"),
-                    pl.when(pl.col("side") == "buy")
-                    .then(pl.col("filled_quantity"))
-                    .otherwise(pl.lit(0.0))
-                    .alias("buy_quantity"),
-                    # 売り約定金額（ショートの加重平均計算用）
-                    pl.when(pl.col("side") == "sell")
-                    .then(pl.col("filled_quantity") * pl.col("filled_price"))
-                    .otherwise(pl.lit(0.0))
-                    .alias("sell_value"),
-                    pl.when(pl.col("side") == "sell")
-                    .then(pl.col("filled_quantity"))
-                    .otherwise(pl.lit(0.0))
-                    .alias("sell_quantity"),
-                ]
-            )
-            .group_by("symbol")
-            .agg(
-                [
-                    pl.col("signed_quantity").sum().alias("quantity"),
-                    pl.col("buy_value").sum().alias("total_buy_value"),
-                    pl.col("buy_quantity").sum().alias("total_buy_quantity"),
-                    pl.col("sell_value").sum().alias("total_sell_value"),
-                    pl.col("sell_quantity").sum().alias("total_sell_quantity"),
-                ]
-            )
-            .filter(pl.col("quantity") != 0)
-            .with_columns(
-                [
-                    # 平均取得単価: ロング（正）は買いの加重平均、ショート（負）は売りの加重平均
-                    pl.when(pl.col("quantity") > 0)
-                    .then(
-                        pl.when(pl.col("total_buy_quantity") > 0)
-                        .then(pl.col("total_buy_value") / pl.col("total_buy_quantity"))
-                        .otherwise(pl.lit(0.0))
-                    )
-                    .otherwise(
-                        pl.when(pl.col("total_sell_quantity") > 0)
-                        .then(pl.col("total_sell_value") / pl.col("total_sell_quantity"))
-                        .otherwise(pl.lit(0.0))
-                    )
-                    .alias("avg_price"),
-                ]
-            )
-            .select(["symbol", "quantity", "avg_price"])
-        )
+        # iter_rows(named=True) は遅いため、to_dicts() で一括変換してから処理する
+        fill_rows = all_fills.to_dicts()
 
-        return self._validate_positions(positions)
+        # 銘柄ごとのポジション状態管理
+        # key: symbol, value: {"quantity": float, "avg_price": float}
+        positions_map: dict[str, dict[str, float]] = {}
+
+        for row in fill_rows:
+            symbol = row["symbol"]
+            side = row["side"]
+            price = row["filled_price"]
+            qty = row["filled_quantity"]
+
+            # 符号付き数量（買い: +, 売り: -）
+            signed_qty = qty if side == "buy" else -qty
+
+            if symbol not in positions_map:
+                positions_map[symbol] = {"quantity": 0.0, "avg_price": 0.0}
+
+            pos = positions_map[symbol]
+            current_qty = pos["quantity"]
+            current_avg = pos["avg_price"]
+
+            if current_qty == 0:
+                # ポジションなし -> 新規エントリー
+                pos["quantity"] = signed_qty
+                pos["avg_price"] = price
+
+            elif (current_qty > 0 and signed_qty > 0) or (current_qty < 0 and signed_qty < 0):
+                # 積み増し（同方向） -> 加重平均価格を更新
+                new_qty = current_qty + signed_qty
+                total_value = (current_qty * current_avg) + (signed_qty * price)
+                pos["quantity"] = new_qty
+                pos["avg_price"] = total_value / new_qty
+
+            elif (current_qty > 0 > signed_qty) or (current_qty < 0 < signed_qty):
+                # 決済方向（逆方向）
+                if abs(current_qty) > abs(signed_qty):
+                    # 一部決済 -> 平均単価は変わらず、数量のみ減少
+                    pos["quantity"] += signed_qty
+                elif abs(current_qty) == abs(signed_qty):
+                    # 全決済 -> ポジション解消
+                    pos["quantity"] = 0.0
+                    pos["avg_price"] = 0.0
+                else:
+                    # ドテン（決済して逆方向へ）
+                    # 残りの数量分が新規ポジションとなる
+                    remaining_qty = signed_qty + current_qty  # 符号付きの残数量
+                    pos["quantity"] = remaining_qty
+                    pos["avg_price"] = price  # 新規分の価格になる
+
+        # 結果をリスト化
+        result_data = []
+        for symbol, data in positions_map.items():
+            # 数量が0でない（ポジションがある）ものだけ抽出
+            if data["quantity"] != 0:
+                result_data.append({"symbol": symbol, "quantity": data["quantity"], "avg_price": data["avg_price"]})
+
+        if not result_data:
+            return pl.DataFrame(schema=PositionSchema.REQUIRED_COLUMNS)
+
+        positions_df = pl.DataFrame(result_data)
+
+        return self._validate_positions(positions_df)
