@@ -4,6 +4,7 @@
 OHLCVデータはBaseDataSource経由で取得する。
 """
 
+import uuid
 from datetime import datetime
 
 import polars as pl
@@ -68,6 +69,11 @@ class MockExchangeClient(BaseExchangeClient):
 
         Returns:
             翌バーのOHLCVデータ（1行）、または存在しない場合None
+
+        TODO: 取引日の判定が正確でない可能性がある。
+              current_datetimeより後の最初のバーを単純に取得しているが、
+              休場日・祝日・取引時間外を考慮していない。
+              See: https://github.com/jintonic3561/qeel/issues/11
         """
         if self.ohlcv_cache is None or self.current_datetime is None:
             return None
@@ -91,6 +97,11 @@ class MockExchangeClient(BaseExchangeClient):
 
         Returns:
             当バーのOHLCVデータ（1行）、または存在しない場合None
+
+        TODO: 取引日の判定が正確でない可能性がある。
+              current_datetime以前の最新バーを単純に取得しているが、
+              休場日・祝日・取引時間外を考慮していない。
+              See: https://github.com/jintonic3561/qeel/issues/11
         """
         if self.ohlcv_cache is None or self.current_datetime is None:
             return None
@@ -138,8 +149,6 @@ class MockExchangeClient(BaseExchangeClient):
         Returns:
             約定情報の辞書、または約定不可の場合None
         """
-        import uuid
-
         # 約定価格の基準を取得
         if self.config.market_fill_price_type == "next_open":
             bar = self._get_next_bar(symbol)
@@ -189,8 +198,6 @@ class MockExchangeClient(BaseExchangeClient):
         Returns:
             約定情報の辞書、または約定不可の場合None
         """
-        import uuid
-
         next_bar = self._get_next_bar(symbol)
         if next_bar is None:
             return None  # 翌バーがない場合は約定不可

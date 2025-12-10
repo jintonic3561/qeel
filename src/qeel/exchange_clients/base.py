@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 
 import polars as pl
 
+from qeel.schemas import FillReportSchema, OrderSchema, PositionSchema
+
 
 class BaseExchangeClient(ABC):
     """取引所クライアント抽象基底クラス
@@ -27,8 +29,6 @@ class BaseExchangeClient(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import OrderSchema
-
         OrderSchema.validate(orders)
 
     def _validate_fills(self, fills: pl.DataFrame) -> pl.DataFrame:
@@ -46,8 +46,6 @@ class BaseExchangeClient(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import FillReportSchema
-
         return FillReportSchema.validate(fills)
 
     def _validate_positions(self, positions: pl.DataFrame) -> pl.DataFrame:
@@ -65,8 +63,6 @@ class BaseExchangeClient(ABC):
         Raises:
             ValueError: スキーマ違反の場合
         """
-        from qeel.schemas import PositionSchema
-
         return PositionSchema.validate(positions)
 
     @abstractmethod
