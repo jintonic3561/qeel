@@ -5,6 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 import polars as pl
 
@@ -79,8 +80,12 @@ class BaseExchangeClient(ABC):
         ...
 
     @abstractmethod
-    def fetch_fills(self) -> pl.DataFrame:
-        """約定情報を取得する
+    def fetch_fills(self, start: datetime, end: datetime) -> pl.DataFrame:
+        """指定期間の約定情報を取得する
+
+        Args:
+            start: 取得開始日時
+            end: 取得終了日時
 
         Returns:
             FillReportSchemaに準拠したPolars DataFrame

@@ -8,6 +8,7 @@
 
 ```python
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 import polars as pl
 
@@ -86,8 +87,12 @@ class BaseExchangeClient(ABC):
         ...
 
     @abstractmethod
-    def fetch_fills(self) -> pl.DataFrame:
-        """約定情報を取得する
+    def fetch_fills(self, start: datetime, end: datetime) -> pl.DataFrame:
+        """指定期間の約定情報を取得する
+
+        Args:
+            start: 取得開始日時
+            end: 取得終了日時
 
         Returns:
             FillReportSchemaに準拠したPolars DataFrame
@@ -151,8 +156,7 @@ class MockExchangeClient(BaseExchangeClient):
         self.ohlcv_data_source = ohlcv_data_source
         self.ohlcv_cache: pl.DataFrame | None = None  # OHLCVデータキャッシュ
         self.current_datetime: datetime | None = None  # 現在のiteration日時
-        self.pending_fills: list[pl.DataFrame] = []  # 約定情報（fetch_fills用）
-        self.fill_history: list[pl.DataFrame] = []  # ポジション計算用
+        self.fill_history: list[pl.DataFrame] = []  # 約定履歴（fetch_fills, fetch_positions用）
 
     def load_ohlcv(self, start: datetime, end: datetime, symbols: list[str]) -> None:
         """OHLCVデータをDataSourceから読み込みキャッシュする
@@ -335,18 +339,30 @@ class MockExchangeClient(BaseExchangeClient):
 
         if fills_data:
             fills = pl.DataFrame(fills_data)
-            self.pending_fills.append(fills)
             self.fill_history.append(fills)
 
-    def fetch_fills(self) -> pl.DataFrame:
-        """約定情報を取得する"""
-        if not self.pending_fills:
+    def fetch_fills(self, start: datetime, end: datetime) -> pl.DataFrame:
+        """指定期間の約定情報を取得する
+
+        Args:
+            start: 取得開始日時
+            end: 取得終了日時
+
+        Returns:
+            期間内の約定情報（FillReportSchema準拠）
+        """
+        if not self.fill_history:
             return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
 
-        all_fills = pl.concat(self.pending_fills)
-        self.pending_fills.clear()
+        all_fills = pl.concat(self.fill_history)
+        filtered = all_fills.filter(
+            (pl.col("timestamp") >= start) & (pl.col("timestamp") <= end)
+        )
 
-        return self._validate_fills(all_fills)
+        if filtered.height == 0:
+            return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
+
+        return self._validate_fills(filtered)
 
     def fetch_positions(self) -> pl.DataFrame:
         """約定履歴から現在のポジションを計算する
@@ -480,18 +496,30 @@ class ExchangeAPIClient(BaseExchangeClient):
                     )
                 raise RuntimeError(f"注文送信エラー: {e}")
 
-    def fetch_fills(self) -> pl.DataFrame:
-        # 約定情報をAPIから取得（with_retryでexponential backoff）
-        fills_data = []
-        for order_id in self.submitted_order_ids:
-            try:
-                fill = with_retry(
-                    func=lambda: self.api_client.get_fill(order_id),
-                    max_attempts=3,
-                    timeout=10.0,
-                    backoff_factor=2.0,
-                )
-                fills_data.append({
+    def fetch_fills(self, start: datetime, end: datetime) -> pl.DataFrame:
+        """指定期間の約定情報をAPIから取得する
+
+        Args:
+            start: 取得開始日時
+            end: 取得終了日時
+
+        Returns:
+            期間内の約定情報（FillReportSchema準拠）
+        """
+        try:
+            # 取引所APIから期間指定で約定履歴を取得
+            fills_response = with_retry(
+                func=lambda: self.api_client.get_fills(start=start, end=end),
+                max_attempts=3,
+                timeout=10.0,
+                backoff_factor=2.0,
+            )
+
+            if not fills_response:
+                return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
+
+            fills_data = [
+                {
                     "order_id": fill.order_id,
                     "symbol": fill.symbol,
                     "side": fill.side,
@@ -499,25 +527,23 @@ class ExchangeAPIClient(BaseExchangeClient):
                     "filled_price": fill.filled_price,
                     "commission": fill.commission,
                     "timestamp": fill.timestamp,
-                })
-            except Exception as e:
-                if self.slack_webhook_url:
-                    send_slack_notification(
-                        webhook_url=self.slack_webhook_url,
-                        message=f"約定情報取得エラー: {e}",
-                        level="error",
-                    )
-                raise RuntimeError(f"約定情報取得エラー: {e}")
+                }
+                for fill in fills_response
+            ]
 
-        self.submitted_order_ids.clear()
+            fills = pl.DataFrame(fills_data)
 
-        if not fills_data:
-            return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
+            # 共通バリデーションヘルパーを使用
+            return self._validate_fills(fills)
 
-        fills = pl.DataFrame(fills_data)
-
-        # 共通バリデーションヘルパーを使用
-        return self._validate_fills(fills)
+        except Exception as e:
+            if self.slack_webhook_url:
+                send_slack_notification(
+                    webhook_url=self.slack_webhook_url,
+                    message=f"約定情報取得エラー: {e}",
+                    level="error",
+                )
+            raise RuntimeError(f"約定情報取得エラー: {e}")
 
     def fetch_positions(self) -> pl.DataFrame:
         """取引所APIからポジションを取得"""
@@ -561,9 +587,10 @@ class ExchangeAPIClient(BaseExchangeClient):
 
 ### fetch_fills
 
+- 入力: `start: datetime`, `end: datetime`（取得期間）
 - 出力: `FillReportSchema` に準拠したDataFrame
-- バックテスト: モック約定情報を返す
-- 実運用: 実際の約定情報をAPIから取得
+- バックテスト: `fill_history`から期間でフィルタして返す
+- 実運用: 取引所APIから期間指定で約定履歴を取得
 
 ### fetch_positions
 

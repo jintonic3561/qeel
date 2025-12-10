@@ -38,7 +38,6 @@ class MockExchangeClient(BaseExchangeClient):
         self.ohlcv_data_source = ohlcv_data_source
         self.ohlcv_cache: pl.DataFrame | None = None
         self.current_datetime: datetime | None = None
-        self.pending_fills: list[pl.DataFrame] = []
         self.fill_history: list[pl.DataFrame] = []
 
     def load_ohlcv(self, start: datetime, end: datetime, symbols: list[str]) -> None:
@@ -269,22 +268,28 @@ class MockExchangeClient(BaseExchangeClient):
 
         if fills_data:
             fills = pl.DataFrame(fills_data)
-            self.pending_fills.append(fills)
             self.fill_history.append(fills)
 
-    def fetch_fills(self) -> pl.DataFrame:
-        """約定情報を取得する
+    def fetch_fills(self, start: datetime, end: datetime) -> pl.DataFrame:
+        """指定期間の約定情報を取得する
+
+        Args:
+            start: 取得開始日時
+            end: 取得終了日時
 
         Returns:
-            FillReportSchemaに準拠したPolars DataFrame
+            期間内の約定情報（FillReportSchema準拠）
         """
-        if not self.pending_fills:
+        if not self.fill_history:
             return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
 
-        all_fills = pl.concat(self.pending_fills)
-        self.pending_fills.clear()
+        all_fills = pl.concat(self.fill_history)
+        filtered = all_fills.filter((pl.col("timestamp") >= start) & (pl.col("timestamp") <= end))
 
-        return self._validate_fills(all_fills)
+        if filtered.height == 0:
+            return pl.DataFrame(schema=FillReportSchema.REQUIRED_COLUMNS)
+
+        return self._validate_fills(filtered)
 
     def fetch_positions(self) -> pl.DataFrame:
         """約定履歴から現在のポジションを計算する

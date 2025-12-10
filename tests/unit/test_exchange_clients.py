@@ -1,11 +1,11 @@
 """取引所クライアントのユニットテスト"""
 
+from abc import ABC
 from datetime import datetime
 from unittest.mock import MagicMock
 
 import polars as pl
 import pytest
-from abc import ABC
 
 from qeel.config import CostConfig
 from qeel.data_sources.base import BaseDataSource
@@ -95,9 +95,7 @@ def cost_config() -> CostConfig:
 class TestMockExchangeClientBase:
     """MockExchangeClient基盤のテスト"""
 
-    def test_mock_exchange_client_init(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_mock_exchange_client_init(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """MockExchangeClientが正常に初期化される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -107,7 +105,6 @@ class TestMockExchangeClientBase:
         assert client.ohlcv_data_source == mock_data_source
         assert client.ohlcv_cache is None
         assert client.current_datetime is None
-        assert client.pending_fills == []
         assert client.fill_history == []
 
     def test_mock_exchange_client_init_stores_data_source(
@@ -169,9 +166,7 @@ class TestMockExchangeClientBase:
 
         assert client.current_datetime == dt
 
-    def test_mock_exchange_client_get_next_bar(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_mock_exchange_client_get_next_bar(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """翌バーのOHLCVを取得する"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -191,9 +186,7 @@ class TestMockExchangeClientBase:
         assert next_bar["datetime"][0] == datetime(2024, 1, 2, 9, 0)
         assert next_bar["open"][0] == 105.0
 
-    def test_mock_exchange_client_get_current_bar(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_mock_exchange_client_get_current_bar(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """当バーのOHLCVを取得する"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -217,9 +210,7 @@ class TestMockExchangeClientBase:
 class TestMockExchangeClientSlippage:
     """MockExchangeClientスリッページ計算のテスト"""
 
-    def test_apply_slippage_buy_increases_price(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_apply_slippage_buy_increases_price(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """買い注文でスリッページ適用後、価格が上昇する"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -232,9 +223,7 @@ class TestMockExchangeClientSlippage:
         assert slipped_price > base_price
         assert slipped_price == pytest.approx(100.1, rel=1e-6)
 
-    def test_apply_slippage_sell_decreases_price(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_apply_slippage_sell_decreases_price(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """売り注文でスリッページ適用後、価格が下落する"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -247,9 +236,7 @@ class TestMockExchangeClientSlippage:
         assert slipped_price < base_price
         assert slipped_price == pytest.approx(99.9, rel=1e-6)
 
-    def test_apply_slippage_zero_bps_no_change(
-        self, mock_data_source: MagicMock
-    ) -> None:
+    def test_apply_slippage_zero_bps_no_change(self, mock_data_source: MagicMock) -> None:
         """スリッページ0bpsの場合、価格変化なし"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -264,9 +251,7 @@ class TestMockExchangeClientSlippage:
         assert buy_price == base_price
         assert sell_price == base_price
 
-    def test_apply_slippage_calculation_formula(
-        self, mock_data_source: MagicMock
-    ) -> None:
+    def test_apply_slippage_calculation_formula(self, mock_data_source: MagicMock) -> None:
         """計算式が正しい（price * (1 ± slippage_bps/10000)）"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -288,9 +273,7 @@ class TestMockExchangeClientSlippage:
 class TestMockExchangeClientMarketOrder:
     """MockExchangeClient成行注文処理のテスト"""
 
-    def test_process_market_order_next_open_price(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_process_market_order_next_open_price(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """market_fill_price_type="next_open"で翌バーのopenで約定"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -307,9 +290,7 @@ class TestMockExchangeClientMarketOrder:
         assert fill["filled_price"] == pytest.approx(expected_price, rel=1e-6)
         assert fill["timestamp"] == datetime(2024, 1, 2, 9, 0)
 
-    def test_process_market_order_current_close_price(
-        self, mock_data_source: MagicMock
-    ) -> None:
+    def test_process_market_order_current_close_price(self, mock_data_source: MagicMock) -> None:
         """market_fill_price_type="current_close"で当バーのcloseで約定"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -330,9 +311,7 @@ class TestMockExchangeClientMarketOrder:
         assert fill["filled_price"] == pytest.approx(expected_price, rel=1e-6)
         assert fill["timestamp"] == datetime(2024, 1, 1, 9, 0)
 
-    def test_process_market_order_applies_slippage(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_process_market_order_applies_slippage(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """スリッページが適用される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -382,9 +361,7 @@ class TestMockExchangeClientMarketOrder:
 
         assert fill is None
 
-    def test_process_market_order_fill_structure(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_process_market_order_fill_structure(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """約定情報の構造が正しい"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -572,9 +549,7 @@ class TestMockExchangeClientLimitOrder:
 class TestMockExchangeClientSubmitOrders:
     """MockExchangeClient submit_ordersのテスト"""
 
-    def test_submit_orders_validates_schema(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_submit_orders_validates_schema(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """OrderSchemaバリデーションが実行される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -588,9 +563,7 @@ class TestMockExchangeClientSubmitOrders:
         with pytest.raises(ValueError, match="必須列が不足"):
             client.submit_orders(invalid_orders)
 
-    def test_submit_orders_processes_market_orders(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_submit_orders_processes_market_orders(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """成行注文が正しく処理される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -610,13 +583,10 @@ class TestMockExchangeClientSubmitOrders:
 
         client.submit_orders(orders)
 
-        # pending_fillsに約定情報が追加される
-        assert len(client.pending_fills) == 1
+        # fill_historyに約定情報が追加される
         assert len(client.fill_history) == 1
 
-    def test_submit_orders_processes_limit_orders(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_submit_orders_processes_limit_orders(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """指値注文が正しく処理される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -636,12 +606,9 @@ class TestMockExchangeClientSubmitOrders:
 
         client.submit_orders(orders)
 
-        assert len(client.pending_fills) == 1
         assert len(client.fill_history) == 1
 
-    def test_submit_orders_processes_mixed_orders(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_submit_orders_processes_mixed_orders(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """成行と指値の混合注文が処理される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -662,40 +629,10 @@ class TestMockExchangeClientSubmitOrders:
         client.submit_orders(orders)
 
         # 成行は約定、指値(114.0 < high115.0)も約定
-        assert len(client.pending_fills) == 1
-        assert client.pending_fills[0].height == 2
+        assert len(client.fill_history) == 1
+        assert client.fill_history[0].height == 2
 
-    def test_submit_orders_stores_fills_in_pending(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
-        """約定情報がpending_fillsに追加される"""
-        from qeel.exchange_clients.mock import MockExchangeClient
-
-        client = MockExchangeClient(cost_config, mock_data_source)
-        client.load_ohlcv(datetime(2024, 1, 1), datetime(2024, 1, 5), ["AAPL"])
-        client.set_current_datetime(datetime(2024, 1, 1, 9, 0))
-
-        orders = pl.DataFrame(
-            {
-                "symbol": ["AAPL"],
-                "side": ["buy"],
-                "quantity": [10.0],
-                "price": [None],
-                "order_type": ["market"],
-            }
-        )
-
-        client.submit_orders(orders)
-
-        assert len(client.pending_fills) == 1
-        fills_df = client.pending_fills[0]
-        assert "order_id" in fills_df.columns
-        assert "symbol" in fills_df.columns
-        assert fills_df["symbol"][0] == "AAPL"
-
-    def test_submit_orders_stores_fills_in_history(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_submit_orders_stores_fills_in_history(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """約定情報がfill_historyに追加される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -752,7 +689,7 @@ class TestMockExchangeClientFetchFills:
 
         client = MockExchangeClient(cost_config, mock_data_source)
 
-        fills = client.fetch_fills()
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 5))
 
         assert fills.height == 0
         # スキーマの列は存在する
@@ -764,10 +701,8 @@ class TestMockExchangeClientFetchFills:
         assert "commission" in fills.columns
         assert "timestamp" in fills.columns
 
-    def test_fetch_fills_returns_all_pending_fills(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
-        """pending_fillsの全約定を返す"""
+    def test_fetch_fills_returns_fills_in_range(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
+        """指定期間内の約定のみを返す"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
         client = MockExchangeClient(cost_config, mock_data_source)
@@ -785,14 +720,13 @@ class TestMockExchangeClientFetchFills:
         )
 
         client.submit_orders(orders)
-        fills = client.fetch_fills()
+        # 約定は翌バー（2024-01-02）で発生
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 3))
 
         assert fills.height == 2
 
-    def test_fetch_fills_clears_pending_after_fetch(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
-        """fetch後にpending_fillsがクリアされる"""
+    def test_fetch_fills_can_fetch_multiple_times(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
+        """同じ期間を何度でも取得可能"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
         client = MockExchangeClient(cost_config, mock_data_source)
@@ -810,16 +744,16 @@ class TestMockExchangeClientFetchFills:
         )
 
         client.submit_orders(orders)
-        _ = client.fetch_fills()
+        fills1 = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 5))
+        fills2 = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 5))
 
-        # 再度fetchすると空になる
-        fills_again = client.fetch_fills()
-        assert fills_again.height == 0
+        # 何度でも同じ結果が取得できる
+        assert fills1.height == 1
+        assert fills2.height == 1
+        assert fills1.equals(fills2)
 
-    def test_fetch_fills_preserves_history(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
-        """fetch後もfill_historyは保持される"""
+    def test_fetch_fills_filters_by_date_range(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
+        """期間外の約定は除外される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
         client = MockExchangeClient(cost_config, mock_data_source)
@@ -837,14 +771,12 @@ class TestMockExchangeClientFetchFills:
         )
 
         client.submit_orders(orders)
-        _ = client.fetch_fills()
+        # 約定は翌バー（2024-01-02）で発生するので、2024-01-01のみの期間では取得できない
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 1, 23, 59, 59))
 
-        # fill_historyは保持される
-        assert len(client.fill_history) == 1
+        assert fills.height == 0
 
-    def test_fetch_fills_validates_schema(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_fills_validates_schema(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """FillReportSchemaバリデーションが実行される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -864,12 +796,10 @@ class TestMockExchangeClientFetchFills:
 
         client.submit_orders(orders)
         # バリデーションはエラーなく通過する
-        fills = client.fetch_fills()
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 5))
         assert fills.height == 1
 
-    def test_fetch_fills_schema_compliance(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_fills_schema_compliance(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """返却DataFrameがFillReportSchemaに準拠"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -888,7 +818,7 @@ class TestMockExchangeClientFetchFills:
         )
 
         client.submit_orders(orders)
-        fills = client.fetch_fills()
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 5))
 
         # FillReportSchemaの全列が存在
         assert fills["order_id"].dtype == pl.Utf8
@@ -919,9 +849,7 @@ class TestMockExchangeClientFetchPositions:
         assert "quantity" in positions.columns
         assert "avg_price" in positions.columns
 
-    def test_fetch_positions_calculates_from_buys(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_positions_calculates_from_buys(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """買い約定からポジション数量を計算"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -946,9 +874,7 @@ class TestMockExchangeClientFetchPositions:
         assert positions["symbol"][0] == "AAPL"
         assert positions["quantity"][0] == pytest.approx(10.0, rel=1e-6)
 
-    def test_fetch_positions_calculates_from_sells(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_positions_calculates_from_sells(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """売り約定でポジション数量が減少"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -984,9 +910,7 @@ class TestMockExchangeClientFetchPositions:
         assert positions.height == 1
         assert positions["quantity"][0] == pytest.approx(7.0, rel=1e-6)
 
-    def test_fetch_positions_calculates_avg_price(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_positions_calculates_avg_price(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """平均取得単価を正しく計算（買いの加重平均）"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -1072,9 +996,7 @@ class TestMockExchangeClientFetchPositions:
         from qeel.exchange_clients.mock import MockExchangeClient
 
         client = MockExchangeClient(cost_config, mock_data_source)
-        client.load_ohlcv(
-            datetime(2024, 1, 1), datetime(2024, 1, 5), ["AAPL", "GOOGL"]
-        )
+        client.load_ohlcv(datetime(2024, 1, 1), datetime(2024, 1, 5), ["AAPL", "GOOGL"])
         client.set_current_datetime(datetime(2024, 1, 1, 9, 0))
 
         orders = pl.DataFrame(
@@ -1095,9 +1017,7 @@ class TestMockExchangeClientFetchPositions:
         assert "AAPL" in symbols
         assert "GOOGL" in symbols
 
-    def test_fetch_positions_validates_schema(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_positions_validates_schema(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """PositionSchemaバリデーションが実行される"""
         from qeel.exchange_clients.mock import MockExchangeClient
 
@@ -1120,9 +1040,7 @@ class TestMockExchangeClientFetchPositions:
         positions = client.fetch_positions()
         assert positions.height == 1
 
-    def test_fetch_positions_allows_short_positions(
-        self, cost_config: CostConfig, mock_data_source: MagicMock
-    ) -> None:
+    def test_fetch_positions_allows_short_positions(self, cost_config: CostConfig, mock_data_source: MagicMock) -> None:
         """ショートポジション（マイナス数量）を許容し、正しく返す"""
         from qeel.exchange_clients.mock import MockExchangeClient
 

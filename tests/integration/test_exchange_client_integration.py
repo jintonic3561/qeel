@@ -163,7 +163,7 @@ class TestMockExchangeClientIntegration:
         client.submit_orders(orders)
 
         # 4. 約定を取得
-        fills = client.fetch_fills()
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
         assert fills.height == 2
         assert set(fills["symbol"].to_list()) == {"AAPL", "GOOGL"}
 
@@ -200,7 +200,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders1)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # Iteration 2: 買い追加5株
         client.set_current_datetime(datetime(2024, 1, 2, 9, 0))
@@ -214,7 +214,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders2)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # Iteration 3: 売り3株
         client.set_current_datetime(datetime(2024, 1, 3, 9, 0))
@@ -228,7 +228,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders3)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # 最終ポジション確認: 10 + 5 - 3 = 12株
         positions = client.fetch_positions()
@@ -270,7 +270,7 @@ class TestMockExchangeClientIntegration:
         )
         client.submit_orders(orders)
 
-        fills = client.fetch_fills()
+        fills = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
         assert fills.height == 1
         # 翌バー（1/2）のopen: 105.0 + slippage
         assert fills["filled_price"][0] > 105.0
@@ -288,7 +288,8 @@ class TestMockExchangeClientIntegration:
         )
         client.submit_orders(limit_orders)
 
-        fills2 = client.fetch_fills()
+        # 指値注文の約定は翌バー（2024-01-03）で発生
+        fills2 = client.fetch_fills(datetime(2024, 1, 3), datetime(2024, 1, 10))
         assert fills2.height == 1
         assert fills2["filled_price"][0] == 117.0
 
@@ -324,7 +325,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # ショートポジション確認: -10株
         positions = client.fetch_positions()
@@ -362,7 +363,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders1)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # 全株売却
         client.set_current_datetime(datetime(2024, 1, 2, 9, 0))
@@ -376,7 +377,7 @@ class TestMockExchangeClientIntegration:
             }
         )
         client.submit_orders(orders2)
-        _ = client.fetch_fills()
+        _ = client.fetch_fills(datetime(2024, 1, 1), datetime(2024, 1, 10))
 
         # ポジションなし
         positions = client.fetch_positions()

@@ -213,7 +213,7 @@
   - `_validate_fills(fills: pl.DataFrame) -> pl.DataFrame`: FillReportSchemaバリデーションヘルパー
   - `_validate_positions(positions: pl.DataFrame) -> pl.DataFrame`: PositionSchemaバリデーションヘルパー
   - `submit_orders(orders: pl.DataFrame) -> None`: 抽象メソッド
-  - `fetch_fills() -> pl.DataFrame`: 抽象メソッド
+  - `fetch_fills(start: datetime, end: datetime) -> pl.DataFrame`: 抽象メソッド
   - `fetch_positions() -> pl.DataFrame`: 抽象メソッド
 
 **Checkpoint**: `uv run pytest tests/unit/test_exchange_clients.py -k "base"` 全件パス
@@ -354,24 +354,23 @@
 
 ## Phase 13: MockExchangeClient - fetch_fills
 
-**Purpose**: 約定情報取得メソッドの実装
+**Purpose**: 期間指定による約定情報取得メソッドの実装
 
 ### Tests (TDD: RED)
 
 - [x] T134 tests/unit/test_exchange_clients.pyにTestMockExchangeClientFetchFillsクラスを追加
   - `test_fetch_fills_returns_empty_when_no_fills`: 約定がない場合空DataFrameを返す
-  - `test_fetch_fills_returns_all_pending_fills`: pending_fillsの全約定を返す
-  - `test_fetch_fills_clears_pending_after_fetch`: fetch後にpending_fillsがクリアされる
-  - `test_fetch_fills_preserves_history`: fetch後もfill_historyは保持される
+  - `test_fetch_fills_returns_fills_in_range`: 指定期間内の約定のみを返す
+  - `test_fetch_fills_can_fetch_multiple_times`: 同じ期間を何度でも取得可能
   - `test_fetch_fills_validates_schema`: FillReportSchemaバリデーションが実行される
   - `test_fetch_fills_schema_compliance`: 返却DataFrameがFillReportSchemaに準拠
 
 ### Implementation (TDD: GREEN)
 
 - [x] T135 src/qeel/exchange_clients/mock.pyに`fetch_fills`メソッドを実装
-  - `fetch_fills() -> pl.DataFrame`
-  - pending_fillsをconcatして返却
-  - 返却後にpending_fillsをクリア
+  - `fetch_fills(start: datetime, end: datetime) -> pl.DataFrame`
+  - fill_historyから期間でフィルタして返却
+  - 何度でも同じ期間の約定を取得可能
   - `_validate_fills`でスキーマバリデーション
 
 **Checkpoint**: `uv run pytest tests/unit/test_exchange_clients.py -k "fetch_fills"` 全件パス
