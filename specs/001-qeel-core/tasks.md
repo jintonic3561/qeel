@@ -52,9 +52,9 @@
 
 **Purpose**: ディレクトリ構造の作成
 
-- [ ] T145 ポートフォリオ構築用ディレクトリ作成: `src/qeel/portfolio_constructors/`
-- [ ] T146 [P] エントリー注文生成用ディレクトリ作成: `src/qeel/entry_order_creators/`
-- [ ] T147 [P] エグジット注文生成用ディレクトリ作成: `src/qeel/exit_order_creators/`
+- [x] T145 ポートフォリオ構築用ディレクトリ作成: `src/qeel/portfolio_constructors/`
+- [x] T146 [P] エントリー注文生成用ディレクトリ作成: `src/qeel/entry_order_creators/`
+- [x] T147 [P] エグジット注文生成用ディレクトリ作成: `src/qeel/exit_order_creators/`
 
 ---
 
@@ -64,21 +64,21 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T148 [P] [US1] BasePortfolioConstructorの単体テスト作成: `tests/unit/test_portfolio_constructors.py`
+- [x] T148 [P] [US1] BasePortfolioConstructorの単体テスト作成: `tests/unit/test_portfolio_constructors.py`
   - 入力バリデーション（`_validate_inputs`）が正しく動作することを確認
   - 出力バリデーション（`_validate_output`）が正しく動作することを確認
   - ABC継承のテスト（抽象メソッドの実装強制を確認）
 
 #### Implementation（TDD: Green）
 
-- [ ] T149 [US1] BasePortfolioConstructor ABC実装: `src/qeel/portfolio_constructors/base.py`
+- [x] T149 [US1] BasePortfolioConstructor ABC実装: `src/qeel/portfolio_constructors/base.py`
   - `__init__(params: PortfolioConstructorParams)`
   - `_validate_inputs(signals, current_positions)`: 入力バリデーションヘルパー
   - `_validate_output(portfolio)`: 出力バリデーションヘルパー
   - `construct(signals, current_positions) -> pl.DataFrame`: 抽象メソッド
   - contracts/base_portfolio_constructor.md準拠
 
-- [ ] T150 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/portfolio_constructors/__init__.py`
+- [x] T150 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/portfolio_constructors/__init__.py`
 
 ---
 
@@ -88,7 +88,7 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T151 [P] [US1] TopNPortfolioConstructorの単体テスト追加: `tests/unit/test_portfolio_constructors.py`
+- [x] T151 [P] [US1] TopNPortfolioConstructorの単体テスト追加: `tests/unit/test_portfolio_constructors.py`
   - パラメータ（top_n, ascending）の動作確認
   - シグナル上位N銘柄が選定されることを確認
   - signal_strengthがメタデータとして含まれることを確認
@@ -97,16 +97,16 @@
 
 #### Implementation（TDD: Green）
 
-- [ ] T152 [US1] TopNConstructorParams実装: `src/qeel/portfolio_constructors/top_n.py`
+- [x] T152 [US1] TopNConstructorParams実装: `src/qeel/portfolio_constructors/top_n.py`
   - `top_n: int = Field(default=10, gt=0)`
   - `ascending: bool = Field(default=False)`
 
-- [ ] T153 [US1] TopNPortfolioConstructor実装: `src/qeel/portfolio_constructors/top_n.py`
+- [x] T153 [US1] TopNPortfolioConstructor実装: `src/qeel/portfolio_constructors/top_n.py`
   - `construct(signals, current_positions)`: シグナル上位N銘柄選定
   - 出力に`datetime`, `symbol`, `signal_strength`を含む
   - contracts/base_portfolio_constructor.md準拠
 
-- [ ] T154 [US1] `__init__.py`にTopN関連クラスのエクスポート追加: `src/qeel/portfolio_constructors/__init__.py`
+- [x] T154 [US1] `__init__.py`にTopN関連クラスのエクスポート追加: `src/qeel/portfolio_constructors/__init__.py`
 
 ---
 
