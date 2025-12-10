@@ -168,19 +168,19 @@
 
 #### Tests（TDD: Red）
 
-- [ ] T162 [P] [US1] BaseExitOrderCreatorの単体テスト作成: `tests/unit/test_exit_order_creators.py`
+- [x] T162 [P] [US1] BaseExitOrderCreatorの単体テスト作成: `tests/unit/test_exit_order_creators.py`
   - 入力バリデーション（`_validate_inputs`）が正しく動作することを確認
   - ABC継承のテスト（抽象メソッドの実装強制を確認）
 
 #### Implementation（TDD: Green）
 
-- [ ] T163 [US1] BaseExitOrderCreator ABC実装: `src/qeel/exit_order_creators/base.py`
+- [x] T163 [US1] BaseExitOrderCreator ABC実装: `src/qeel/exit_order_creators/base.py`
   - `__init__(params: ExitOrderCreatorParams)`
   - `_validate_inputs(current_positions, ohlcv)`: 入力バリデーションヘルパー
   - `create(current_positions, ohlcv) -> pl.DataFrame`: 抽象メソッド
   - contracts/base_exit_order_creator.md準拠
 
-- [ ] T164 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/exit_order_creators/__init__.py`
+- [x] T164 [US1] `__init__.py`作成とエクスポート設定: `src/qeel/exit_order_creators/__init__.py`
 
 ---
 
