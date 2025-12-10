@@ -248,7 +248,9 @@ class MockExchangeClient(BaseExchangeClient):
 
         fills_data: list[dict[str, str | float | datetime]] = []
 
-        for row in orders.iter_rows(named=True):
+        order_rows = orders.to_dicts()
+
+        for row in order_rows:
             symbol = row["symbol"]
             side = row["side"]
             quantity = row["quantity"]

@@ -162,3 +162,57 @@ OK. commitして。それから、該当するPRコメントを解決済みに�
 rawもcommitして、pushして
 
 [model: unknown, session: b2904d95]
+
+---
+
+PRについたすべてのコメントを取得して
+
+[model: unknown, session: 05db35bf]
+
+---
+
+unresolvedなもののみに絞って
+
+[model: opus, session: 05db35bf]
+
+---
+
+82, 275, 285はすべて同じ問題だと思う。分析して、修正計画を作って
+
+[model: opus, session: 05db35bf]
+
+---
+
+お願い！ドキュメントについても修正してほしい。影響する @specs/001-qeel-core/ 配下の設計網羅して、整合的になるようによろしく
+
+[model: opus, session: 05db35bf]
+
+---
+
+お願い！
+
+[model: opus, session: 05db35bf]
+
+---
+
+stagedな変更をcommitして
+
+[model: unknown, session: a30fb99b]
+
+---
+
+prのコメントで、iter_rowsを使いたくないというやつがあったと思うので、それを確認して修正して
+
+[model: unknown, session: f256925f]
+
+---
+
+prのコメントで、iter_rowsを使いたくないというやつがあったと思うので、それを確認して修正して
+
+[model: unknown, session: 885642ab]
+
+---
+
+commitして
+
+[model: unknown, session: 04c27380]
