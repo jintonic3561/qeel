@@ -184,7 +184,11 @@ class MockExchangeClient(BaseExchangeClient):
     ) -> dict[str, str | float | datetime] | None:
         """指値注文を処理する
 
-        翌バーのhigh/lowで約定判定:
+        約定判定バーはconfig.limit_fill_bar_typeで選択:
+        - "next_bar": 翌バーのhigh/lowで約定判定（デフォルト）
+        - "current_bar": 当バーのhigh/lowで約定判定
+
+        約定条件:
         - 買い指値: limit_price > low なら約定
         - 売り指値: limit_price < high なら約定
         - 同値は未約定
@@ -198,13 +202,18 @@ class MockExchangeClient(BaseExchangeClient):
         Returns:
             約定情報の辞書、または約定不可の場合None
         """
-        next_bar = self._get_next_bar(symbol)
-        if next_bar is None:
-            return None  # 翌バーがない場合は約定不可
+        # 約定判定バーを取得
+        if self.config.limit_fill_bar_type == "current_bar":
+            bar = self._get_current_bar(symbol)
+        else:  # next_bar（デフォルト）
+            bar = self._get_next_bar(symbol)
 
-        high = next_bar["high"][0]
-        low = next_bar["low"][0]
-        fill_time = next_bar["datetime"][0]
+        if bar is None:
+            return None  # バーがない場合は約定不可
+
+        high = bar["high"][0]
+        low = bar["low"][0]
+        fill_time = bar["datetime"][0]
 
         # 約定判定（同値は未約定）
         if side == "buy":

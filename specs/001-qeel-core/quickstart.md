@@ -104,6 +104,8 @@ commission_rate = 0.001  # 0.1%
 slippage_bps = 5.0       # 5 bps
 market_impact_model = "fixed"
 market_impact_param = 0.0
+market_fill_price_type = "next_open"  # 成行注文の約定価格: "next_open" or "current_close"
+limit_fill_bar_type = "next_bar"      # 指値注文の約定判定バー: "next_bar" or "current_bar"
 ```
 
 ### 5. データファイル（inputs/ohlcv.parquet）

@@ -111,12 +111,6 @@ OK, on stageした。コミットして
 
 ---
 
-/speckit.verify 
-
-[model: unknown, session: 32889282]
-
----
-
 やったぜ。すべての変更をcommitしてPRを出して
 
 [model: opus, session: 32889282]
@@ -207,12 +201,31 @@ prのコメントで、iter_rowsを使いたくないというやつがあった
 
 ---
 
-prのコメントで、iter_rowsを使いたくないというやつがあったと思うので、それを確認して修正して
-
-[model: unknown, session: 885642ab]
-
----
-
 commitして
 
 [model: unknown, session: 04c27380]
+
+---
+
+/speckit.review PRの以下のコメントを参照して。成行の約定判定を当日/翌日で設定できるように、指値もopenを観測してから当日分で出す可能性があるので、当日か翌日を設定できた方が良いと思う。
+https://github.com/jintonic3561/qeel/pull/10#discussion_r2604728750
+
+[model: unknown, session: 3e03506b]
+
+---
+
+お願い！
+
+[model: opus, session: f3b45a05]
+
+---
+
+[costs]で検索すると、成行、指値共にドキュメント、テスト、実装でこれらが反映されていない
+
+[model: opus, session: f3b45a05]
+
+---
+
+ustagedな変更を含めてすべてcommitして、pushして
+
+[model: unknown, session: b6162d6d]

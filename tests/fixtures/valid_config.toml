@@ -31,3 +31,5 @@ commission_rate = 0.001
 slippage_bps = 5.0
 market_impact_model = "fixed"
 market_impact_param = 0.0
+market_fill_price_type = "next_open"
+limit_fill_bar_type = "next_bar"

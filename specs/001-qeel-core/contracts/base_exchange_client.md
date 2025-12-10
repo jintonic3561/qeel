@@ -138,8 +138,8 @@ class MockExchangeClient(BaseExchangeClient):
     """バックテスト用モック取引所クライアント
 
     実運用との整合性を最大化したモック実装。
-    - 成行注文: 翌バーのopen（またはconfigで当バーのclose）+スリッページで約定
-    - 指値注文: 翌バーのhigh/lowで約定判定、同値は未約定
+    - 成行注文: 翌バーのopenまたは当バーのclose+スリッページで約定
+    - 指値注文: 翌バーまたは当バーのhigh/lowで約定判定、同値は未約定
     - スリッページ: 買いは+（不利方向）、売りは-（不利方向）
     - 手数料: 約定価格×約定数量×手数料率で計算
 
@@ -270,18 +270,27 @@ class MockExchangeClient(BaseExchangeClient):
     ) -> dict | None:
         """指値注文を処理する
 
-        翌バーのhigh/lowで約定判定:
-        - 買い指値: limit_price >= low なら約定（limit_priceで約定）
-        - 売り指値: limit_price <= high なら約定（limit_priceで約定）
+        約定判定バーはconfig.limit_fill_bar_typeで選択:
+        - "next_bar": 翌バーのhigh/lowで約定判定（デフォルト）
+        - "current_bar": 当バーのhigh/lowで約定判定
+
+        約定条件:
+        - 買い指値: limit_price > low なら約定（limit_priceで約定）
+        - 売り指値: limit_price < high なら約定（limit_priceで約定）
         - 同値（limit_price == high/low）は未約定とする
         """
-        next_bar = self._get_next_bar(symbol)
-        if next_bar is None:
-            return None  # 翌バーがない場合は約定不可
+        # 約定判定バーを取得
+        if self.config.limit_fill_bar_type == "current_bar":
+            bar = self._get_current_bar(symbol)
+        else:  # next_bar（デフォルト）
+            bar = self._get_next_bar(symbol)
 
-        high = next_bar["high"][0]
-        low = next_bar["low"][0]
-        fill_time = next_bar["datetime"][0]
+        if bar is None:
+            return None  # バーがない場合は約定不可
+
+        high = bar["high"][0]
+        low = bar["low"][0]
+        fill_time = bar["datetime"][0]
 
         # 約定判定（同値は未約定）
         if side == "buy":
@@ -623,12 +632,15 @@ class ExchangeAPIClient(BaseExchangeClient):
 
 ### 指値注文の約定ロジック（バックテスト）
 
-- **約定判定**: 翌バーのhigh/lowで判定
+- **約定判定バー**: `CostConfig.limit_fill_bar_type`で選択
+  - `"next_bar"`: 翌バーのhigh/lowで約定判定（デフォルト）
+  - `"current_bar"`: 当バーのhigh/lowで約定判定
+- **約定条件**:
   - 買い指値: `limit_price > low` なら約定
   - 売り指値: `limit_price < high` なら約定
   - 同値（`limit_price == low` または `limit_price == high`）は**未約定**
 - **約定価格**: 指値価格そのもの（スリッページなし）
-- **約定時刻**: 翌バーのdatetime
+- **約定時刻**: 約定判定に使用したバーのdatetime
 
 ### 手数料計算
 

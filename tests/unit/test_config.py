@@ -83,6 +83,30 @@ def test_cost_config_market_fill_price_type_invalid() -> None:
         CostConfig(market_fill_price_type="invalid_type")
 
 
+def test_cost_config_limit_fill_bar_type_default() -> None:
+    """limit_fill_bar_typeのデフォルト値がnext_barであることを確認"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig()
+    assert config.limit_fill_bar_type == "next_bar"
+
+
+def test_cost_config_limit_fill_bar_type_current_bar() -> None:
+    """limit_fill_bar_type=current_barでバリデーションパス"""
+    from qeel.config.models import CostConfig
+
+    config = CostConfig(limit_fill_bar_type="current_bar")
+    assert config.limit_fill_bar_type == "current_bar"
+
+
+def test_cost_config_limit_fill_bar_type_invalid() -> None:
+    """不正なlimit_fill_bar_typeでValidationError"""
+    from qeel.config.models import CostConfig
+
+    with pytest.raises(ValidationError, match="limit_fill_bar_typeは"):
+        CostConfig(limit_fill_bar_type="invalid_type")
+
+
 def test_cost_config_invalid_market_impact_model() -> None:
     """不正なmarket_impact_modelでValidationError"""
     from qeel.config.models import CostConfig
