@@ -81,7 +81,7 @@ class FullExitOrderCreator(BaseExitOrderCreator):
             )
 
         orders: list[dict[str, str | float | None]] = []
-        for row in current_positions.iter_rows(named=True):
+        for row in current_positions.to_dicts():
             symbol = row["symbol"]
             quantity = row["quantity"]
 
