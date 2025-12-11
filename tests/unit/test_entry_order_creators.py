@@ -440,8 +440,10 @@ class TestEqualWeightEntryOrderCreator:
 
         assert result.height == 0
 
-    def test_symbol_without_price_data_skipped(self) -> None:
-        """価格データがない銘柄はスキップされる"""
+    def test_symbol_without_price_data_raises_error(self) -> None:
+        """価格データがない銘柄があるとValueErrorが発生する"""
+        import pytest
+
         from qeel.entry_order_creators.equal_weight import (
             EqualWeightEntryOrderCreator,
             EqualWeightEntryParams,
@@ -465,7 +467,7 @@ class TestEqualWeightEntryOrderCreator:
                 "avg_price": pl.Float64,
             },
         )
-        # AAPLの価格データのみ
+        # AAPLの価格データのみ（GOOGがない）
         ohlcv = pl.DataFrame(
             {
                 "datetime": [datetime(2024, 1, 1)],
@@ -478,10 +480,8 @@ class TestEqualWeightEntryOrderCreator:
             }
         )
 
-        result = creator.create(portfolio_plan, positions, ohlcv)
-
-        assert result.height == 1
-        assert result["symbol"][0] == "AAPL"
+        with pytest.raises(ValueError, match="OHLCVデータが見つかりません"):
+            creator.create(portfolio_plan, positions, ohlcv)
 
     def test_rebalance_threshold_skips_small_changes(self) -> None:
         """リバランス閾値以下の変動ではスキップされる"""

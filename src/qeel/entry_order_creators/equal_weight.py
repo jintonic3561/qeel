@@ -90,7 +90,9 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
                 (pl.col("symbol") == symbol) & (pl.col("datetime") == target_datetime)
             )
             if price_row.height == 0:
-                continue  # データがない銘柄はスキップ
+                raise ValueError(
+                    f"OHLCVデータが見つかりません: symbol={symbol}, datetime={target_datetime}"
+                )
 
             current_price = price_row["open"][0]
 
