@@ -241,14 +241,14 @@ def main():
 
     # StrategyEngine構築
     engine = StrategyEngine(
-        calculator=calculator,
+        config=config,
+        data_sources=data_sources,
+        signal_calculator=calculator,
         portfolio_constructor=portfolio_constructor,
         entry_order_creator=entry_order_creator,
         exit_order_creator=exit_order_creator,
-        data_sources=data_sources,
         exchange_client=exchange_client,
         context_store=context_store,
-        config=config,
     )
 
     # BacktestRunner構築
@@ -354,14 +354,14 @@ constructor_params = CustomConstructorParams(top_n=10, min_signal_threshold=0.5)
 portfolio_constructor = CustomPortfolioConstructor(params=constructor_params)
 
 engine = StrategyEngine(
-    calculator=calculator,
+    config=config,
+    data_sources=data_sources,
+    signal_calculator=calculator,
     portfolio_constructor=portfolio_constructor,  # カスタムコンストラクタ
     entry_order_creator=entry_order_creator,  # デフォルトまたはカスタム実装
     exit_order_creator=exit_order_creator,  # デフォルトまたはカスタム実装
-    data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
-    config=config,
 )
 
 runner = BacktestRunner(engine=engine, config=config)
@@ -436,14 +436,14 @@ entry_order_creator_params = CustomEntryOrderCreatorParams(capital=1_000_000.0, 
 entry_order_creator = RiskParityEntryOrderCreator(params=entry_order_creator_params)
 
 engine = StrategyEngine(
-    calculator=calculator,
+    config=config,
+    data_sources=data_sources,
+    signal_calculator=calculator,
     portfolio_constructor=portfolio_constructor,
     entry_order_creator=entry_order_creator,  # カスタムエントリー注文生成
     exit_order_creator=exit_order_creator,  # デフォルトまたはカスタム実装
-    data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
-    config=config,
 )
 
 runner = BacktestRunner(engine=engine, config=config)
@@ -528,14 +528,14 @@ exit_order_creator_params = ConditionalExitParams(stop_loss_pct=0.05, take_profi
 exit_order_creator = ConditionalExitOrderCreator(params=exit_order_creator_params)
 
 engine = StrategyEngine(
-    calculator=calculator,
+    config=config,
+    data_sources=data_sources,
+    signal_calculator=calculator,
     portfolio_constructor=portfolio_constructor,
     entry_order_creator=entry_order_creator,  # デフォルトまたはカスタム実装
     exit_order_creator=exit_order_creator,  # カスタムエグジット注文生成
-    data_sources=data_sources,
     exchange_client=exchange_client,
     context_store=context_store,
-    config=config,
 )
 
 runner = BacktestRunner(engine=engine, config=config)
@@ -549,7 +549,7 @@ runner = BacktestRunner(engine=engine, config=config)
 from datetime import datetime
 
 from qeel.config import Config
-from qeel.core.strategy_engine import StrategyEngine
+from qeel.core.strategy_engine import StepName, StrategyEngine
 from qeel.data_sources.loader import load_data_sources
 from qeel.examples.exchange_clients.exchange_api import ExchangeAPIClient  # ユーザ実装
 from qeel.io.base import BaseIO
@@ -590,25 +590,25 @@ context_store = ContextStore(io)
 
 # StrategyEngine（バックテストと同一）
 engine = StrategyEngine(
-    calculator=calculator,  # バックテストと同じクラス
+    config=config,
+    data_sources=data_sources,  # バックテストと同じクラス
+    signal_calculator=calculator,  # バックテストと同じクラス
     portfolio_constructor=portfolio_constructor,  # バックテストと同じクラス
     entry_order_creator=entry_order_creator,  # バックテストと同じクラス
     exit_order_creator=exit_order_creator,  # バックテストと同じクラス
-    data_sources=data_sources,  # バックテストと同じクラス
     exchange_client=exchange_client,
     context_store=context_store,  # バックテストと同じクラス
-    config=config,
 )
 
 # 外部スケジューラから各ステップを独立して実行
 # 例: Lambda関数やcronジョブから呼び出し
-today = datetime.now().date()
-engine.run_step(today, "calculate_signals")  # 09:00に実行
-engine.run_step(today, "construct_portfolio")  # 10:00に実行
-engine.run_step(today, "create_entry_orders")  # 14:00に実行
-engine.run_step(today, "create_exit_orders")  # 14:05に実行
-engine.run_step(today, "submit_entry_orders")  # 15:00に実行
-engine.run_step(today, "submit_exit_orders")  # 15:05に実行
+today = datetime.now()
+engine.run_step(today, StepName.CALCULATE_SIGNALS)  # 09:00に実行
+engine.run_step(today, StepName.CONSTRUCT_PORTFOLIO)  # 10:00に実行
+engine.run_step(today, StepName.CREATE_EXIT_ORDERS)  # 14:00に実行
+engine.run_step(today, StepName.CREATE_ENTRY_ORDERS)  # 14:05に実行
+engine.run_step(today, StepName.SUBMIT_EXIT_ORDERS)  # 15:00に実行
+engine.run_step(today, StepName.SUBMIT_ENTRY_ORDERS)  # 15:05に実行
 ```
 
 ## 次のステップ

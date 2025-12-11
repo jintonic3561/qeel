@@ -5,6 +5,7 @@
 
 from qeel.calculators.signals.base import BaseSignalCalculator
 from qeel.config.models import Config
+from qeel.core.strategy_engine import StepName, StrategyEngine, StrategyEngineError
 from qeel.data_sources.base import BaseDataSource
 from qeel.data_sources.mock import MockDataSource
 from qeel.exchange_clients.base import BaseExchangeClient
@@ -35,4 +36,7 @@ __all__ = [
     "InMemoryStore",
     "BaseExchangeClient",
     "MockExchangeClient",
+    "StrategyEngine",
+    "StepName",
+    "StrategyEngineError",
 ]

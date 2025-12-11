@@ -6,24 +6,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
 
 import polars as pl
 
+from qeel.exchange_clients.base import BaseExchangeClient
 from qeel.models.context import Context
-
-
-class ExchangeClientProtocol(Protocol):
-    """ExchangeClientのプロトコル定義（型ヒント用）
-
-    TODO(007): このプロトコルは007-exchange-client-and-mockブランチで
-    qeel.exchange_clients.base.BaseExchangeClientが実装された際に削除し、
-    そちらをimportして使用する。006での暫定措置。
-    """
-
-    def fetch_positions(self) -> pl.DataFrame | None:
-        """現在のポジションを取得する"""
-        ...
 
 
 class InMemoryStore:
@@ -82,7 +69,7 @@ class InMemoryStore:
         self._exit_orders = exit_orders
         self._current_datetime = target_datetime
 
-    def load(self, target_datetime: datetime, exchange_client: ExchangeClientProtocol) -> Context | None:
+    def load(self, target_datetime: datetime, exchange_client: BaseExchangeClient) -> Context | None:
         """target_datetimeは無視し、最新のコンテキストを返す
 
         Args:
@@ -107,7 +94,7 @@ class InMemoryStore:
             current_positions=current_positions,
         )
 
-    def load_latest(self, exchange_client: ExchangeClientProtocol) -> Context | None:
+    def load_latest(self, exchange_client: BaseExchangeClient) -> Context | None:
         """最新のコンテキストを返す（load()と同じ動作）
 
         Args:

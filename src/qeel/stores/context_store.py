@@ -7,25 +7,12 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Protocol
 
 import polars as pl
 
+from qeel.exchange_clients.base import BaseExchangeClient
 from qeel.io.base import BaseIO
 from qeel.models.context import Context
-
-
-class ExchangeClientProtocol(Protocol):
-    """ExchangeClientのプロトコル定義（型ヒント用）
-
-    TODO(007): このプロトコルは007-exchange-client-and-mockブランチで
-    qeel.exchange_clients.base.BaseExchangeClientが実装された際に削除し、
-    そちらをimportして使用する。006での暫定措置。
-    """
-
-    def fetch_positions(self) -> pl.DataFrame | None:
-        """現在のポジションを取得する"""
-        ...
 
 
 class ContextStore:
@@ -86,7 +73,7 @@ class ContextStore:
         """エグジット注文を保存する"""
         self._save_component(target_datetime, exit_orders, "exit_orders")
 
-    def load(self, target_datetime: datetime, exchange_client: ExchangeClientProtocol) -> Context | None:
+    def load(self, target_datetime: datetime, exchange_client: BaseExchangeClient) -> Context | None:
         """指定日付のコンテキストを読み込む
 
         Args:
@@ -133,7 +120,7 @@ class ContextStore:
             current_positions=current_positions,
         )
 
-    def load_latest(self, exchange_client: ExchangeClientProtocol) -> Context | None:
+    def load_latest(self, exchange_client: BaseExchangeClient) -> Context | None:
         """最新日付のコンテキストを読み込む
 
         Args:
