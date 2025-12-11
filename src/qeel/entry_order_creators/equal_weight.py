@@ -114,14 +114,24 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
             else:
                 signal_value = 1.0  # デフォルト値
 
-            # シグナルが正なら買い、負なら売り
-            side = "buy" if signal_value > 0 else "sell"
+            # シグナルが正ならロング、負ならショートを目標とする
+            target_position = target_quantity if signal_value > 0 else -target_quantity
+
+            # 差分計算: 目標ポジション - 現在保有数量 = 注文数量
+            order_quantity = target_position - current_quantity
+
+            # 差分がゼロなら注文不要
+            if order_quantity == 0:
+                continue
+
+            # 差分の符号に基づいてside決定（差分が正なら買い、負なら売り）
+            side = "buy" if order_quantity > 0 else "sell"
 
             orders.append(
                 {
                     "symbol": symbol,
                     "side": side,
-                    "quantity": abs(target_quantity),
+                    "quantity": abs(order_quantity),
                     "price": None,  # 成行
                     "order_type": "market",
                 }
