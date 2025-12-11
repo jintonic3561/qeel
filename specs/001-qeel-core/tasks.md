@@ -300,7 +300,7 @@
 
 - [x] T180 src/qeel/core/__init__.pyにStrategyEngine, StepName, StrategyEngineErrorをエクスポート
 - [x] T181 src/qeel/__init__.pyにcoreモジュールをエクスポート
-- [ ] T186 [P] 技術的負債解消: ExchangeClientProtocolの削除（次ブランチへ延期）
+- [x] T186 [P] 技術的負債解消: ExchangeClientProtocolの削除
   - src/qeel/stores/context_store.py: ExchangeClientProtocolを削除し、`from qeel.exchange_clients.base import BaseExchangeClient`をimport
   - src/qeel/stores/in_memory.py: 同様にExchangeClientProtocolを削除し、BaseExchangeClientをimport
   - 型ヒントを`exchange_client: BaseExchangeClient`に変更
