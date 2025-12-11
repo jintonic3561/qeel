@@ -427,22 +427,20 @@ class TestStrategyEngineSteps:
         strategy_engine: "StrategyEngine",
         mock_portfolio_constructor: MockPortfolioConstructor,
         mock_exchange_client: MockExchangeClient,
+        in_memory_store: "InMemoryStore",
     ) -> None:
         """construct_portfolioステップが正しく動作すること"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        # 前提: signalsが設定済み
-        strategy_engine._context = Context(
-            current_datetime=target_date,
-            signals=pl.DataFrame(
-                {
-                    "datetime": [datetime(2024, 1, 15)],
-                    "symbol": ["AAPL"],
-                    "signal": [1.0],
-                }
-            ).with_columns(pl.col("datetime").cast(pl.Datetime)),
-        )
+
+        # 前提: signalsがストアに保存済み
+        signals = pl.DataFrame(
+            {
+                "datetime": [datetime(2024, 1, 15)],
+                "symbol": ["AAPL"],
+                "signal": [1.0],
+            }
+        ).with_columns(pl.col("datetime").cast(pl.Datetime))
+        in_memory_store.save_signals(target_date, signals)
 
         strategy_engine.run_step(target_date, StepName.CONSTRUCT_PORTFOLIO)
 
@@ -452,28 +450,27 @@ class TestStrategyEngineSteps:
         assert mock_portfolio_constructor.last_positions is not None
 
         # Contextのportfolio_planが更新されたこと
+        assert strategy_engine._context is not None
         assert strategy_engine._context.portfolio_plan is not None
 
     def test_run_step_create_entry_orders(
         self,
         strategy_engine: "StrategyEngine",
         mock_entry_order_creator: MockEntryOrderCreator,
+        in_memory_store: "InMemoryStore",
     ) -> None:
         """create_entry_ordersステップが正しく動作すること"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        # 前提: portfolio_planが設定済み
-        strategy_engine._context = Context(
-            current_datetime=target_date,
-            portfolio_plan=pl.DataFrame(
-                {
-                    "datetime": [datetime(2024, 1, 15)],
-                    "symbol": ["AAPL"],
-                    "signal_strength": [1.0],
-                }
-            ).with_columns(pl.col("datetime").cast(pl.Datetime)),
-        )
+
+        # 前提: portfolio_planがストアに保存済み
+        portfolio_plan = pl.DataFrame(
+            {
+                "datetime": [datetime(2024, 1, 15)],
+                "symbol": ["AAPL"],
+                "signal_strength": [1.0],
+            }
+        ).with_columns(pl.col("datetime").cast(pl.Datetime))
+        in_memory_store.save_portfolio_plan(target_date, portfolio_plan)
 
         strategy_engine.run_step(target_date, StepName.CREATE_ENTRY_ORDERS)
 
@@ -483,6 +480,7 @@ class TestStrategyEngineSteps:
         assert mock_entry_order_creator.last_ohlcv is not None
 
         # Contextのentry_ordersが更新されたこと
+        assert strategy_engine._context is not None
         assert strategy_engine._context.entry_orders is not None
 
     def test_run_step_create_exit_orders(
@@ -511,12 +509,12 @@ class TestStrategyEngineSteps:
         self,
         strategy_engine: "StrategyEngine",
         mock_exchange_client: MockExchangeClient,
+        in_memory_store: "InMemoryStore",
     ) -> None:
         """submit_entry_ordersステップが正しく動作すること"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        # 前提: entry_ordersが設定済み
+
+        # 前提: entry_ordersがストアに保存済み
         entry_orders = pl.DataFrame(
             {
                 "symbol": ["AAPL"],
@@ -526,10 +524,7 @@ class TestStrategyEngineSteps:
                 "order_type": ["market"],
             }
         )
-        strategy_engine._context = Context(
-            current_datetime=target_date,
-            entry_orders=entry_orders,
-        )
+        in_memory_store.save_entry_orders(target_date, entry_orders)
 
         strategy_engine.run_step(target_date, StepName.SUBMIT_ENTRY_ORDERS)
 
@@ -541,12 +536,12 @@ class TestStrategyEngineSteps:
         self,
         strategy_engine: "StrategyEngine",
         mock_exchange_client: MockExchangeClient,
+        in_memory_store: "InMemoryStore",
     ) -> None:
         """空のentry_ordersの場合、submit_ordersが呼ばれないこと"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        # 空のentry_orders
+
+        # 空のentry_ordersをストアに保存
         entry_orders = pl.DataFrame(
             {
                 "symbol": pl.Series([], dtype=pl.Utf8),
@@ -556,10 +551,7 @@ class TestStrategyEngineSteps:
                 "order_type": pl.Series([], dtype=pl.Utf8),
             }
         )
-        strategy_engine._context = Context(
-            current_datetime=target_date,
-            entry_orders=entry_orders,
-        )
+        in_memory_store.save_entry_orders(target_date, entry_orders)
 
         strategy_engine.run_step(target_date, StepName.SUBMIT_ENTRY_ORDERS)
 
@@ -570,12 +562,12 @@ class TestStrategyEngineSteps:
         self,
         strategy_engine: "StrategyEngine",
         mock_exchange_client: MockExchangeClient,
+        in_memory_store: "InMemoryStore",
     ) -> None:
         """submit_exit_ordersステップが正しく動作すること"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        # 前提: exit_ordersが設定済み
+
+        # 前提: exit_ordersがストアに保存済み
         exit_orders = pl.DataFrame(
             {
                 "symbol": ["AAPL"],
@@ -585,10 +577,7 @@ class TestStrategyEngineSteps:
                 "order_type": ["market"],
             }
         )
-        strategy_engine._context = Context(
-            current_datetime=target_date,
-            exit_orders=exit_orders,
-        )
+        in_memory_store.save_exit_orders(target_date, exit_orders)
 
         strategy_engine.run_step(target_date, StepName.SUBMIT_EXIT_ORDERS)
 
@@ -597,7 +586,7 @@ class TestStrategyEngineSteps:
 
 
 class TestStrategyEngineRunMethods:
-    """StrategyEngine run_step/run_steps/run_all_stepsのテスト"""
+    """StrategyEngine run_step/run_stepsのテスト"""
 
     def test_run_step_dispatches_to_correct_method(
         self,
@@ -666,40 +655,66 @@ class TestStrategyEngineRunMethods:
         mock_signal_calculator: MockSignalCalculator,
     ) -> None:
         """空のリストを渡した場合は何も実行しないこと"""
-        from qeel.models.context import Context
-
         target_date = datetime(2024, 1, 15)
-        strategy_engine._context = Context(current_datetime=target_date)
 
         strategy_engine.run_steps(target_date, [])
 
         assert mock_signal_calculator.call_count == 0
 
-    def test_run_all_steps_executes_standard_order(
+    def test_run_step_auto_loads_context(
         self,
         strategy_engine: "StrategyEngine",
         mock_signal_calculator: MockSignalCalculator,
-        mock_portfolio_constructor: MockPortfolioConstructor,
-        mock_entry_order_creator: MockEntryOrderCreator,
-        mock_exit_order_creator: MockExitOrderCreator,
-        mock_exchange_client: MockExchangeClient,
     ) -> None:
-        """run_all_stepsが標準順序で全ステップを実行すること"""
-        from qeel.models.context import Context
-
+        """run_stepが自動的にcontextをロードすること"""
         target_date = datetime(2024, 1, 15)
-        strategy_engine._context = Context(current_datetime=target_date)
 
-        strategy_engine.run_all_steps(target_date)
+        # _contextがNoneの状態からrun_stepを呼ぶ
+        assert strategy_engine._context is None
 
-        # 全コンポーネントが呼ばれたこと
-        assert mock_signal_calculator.call_count == 1
-        assert mock_portfolio_constructor.call_count == 1
-        assert mock_entry_order_creator.call_count == 1
-        assert mock_exit_order_creator.call_count == 1
-        # submit_ordersは空でない注文がある場合のみ呼ばれる
-        # mock_exit_order_creatorは空のDataFrameを返すので、submit_countは1（entry_ordersのみ）
-        assert mock_exchange_client.submit_count == 1
+        strategy_engine.run_step(target_date, StepName.CALCULATE_SIGNALS)
+
+        # contextが自動的にロードされていること
+        assert strategy_engine._context is not None
+        assert strategy_engine._context.current_datetime == target_date
+
+    def test_run_step_always_reloads_context(
+        self,
+        strategy_engine: "StrategyEngine",
+        in_memory_store: "InMemoryStore",
+        mock_signal_calculator: MockSignalCalculator,
+    ) -> None:
+        """run_stepが毎回contextをリロードすること（最新状態を保証）"""
+        target_date = datetime(2024, 1, 15)
+
+        # 最初のステップ実行
+        strategy_engine.run_step(target_date, StepName.CALCULATE_SIGNALS)
+        first_context = strategy_engine._context
+
+        # signalsが保存されていることを確認
+        assert first_context is not None
+        assert first_context.signals is not None
+
+        # 新しいエンジンインスタンスを作成（別のスケジューラ呼び出しを模擬）
+        from qeel.core.strategy_engine import StrategyEngine
+
+        new_engine = StrategyEngine(
+            config=strategy_engine.config,
+            data_sources=strategy_engine.data_sources,
+            signal_calculator=strategy_engine.signal_calculator,
+            portfolio_constructor=strategy_engine.portfolio_constructor,
+            entry_order_creator=strategy_engine.entry_order_creator,
+            exit_order_creator=strategy_engine.exit_order_creator,
+            exchange_client=strategy_engine.exchange_client,
+            context_store=in_memory_store,
+        )
+
+        # 次のステップを実行 - 前のステップのsignalsが自動的にロードされる
+        new_engine.run_step(target_date, StepName.CONSTRUCT_PORTFOLIO)
+
+        # signalsがロードされていること
+        assert new_engine._context is not None
+        assert new_engine._context.signals is not None
 
 
 class TestStrategyEngineDataFetch:

@@ -603,7 +603,6 @@ engine = StrategyEngine(
 # 外部スケジューラから各ステップを独立して実行
 # 例: Lambda関数やcronジョブから呼び出し
 today = datetime.now()
-engine.load_context(today)  # コンテキストを読み込み（初回は新規作成）
 engine.run_step(today, StepName.CALCULATE_SIGNALS)  # 09:00に実行
 engine.run_step(today, StepName.CONSTRUCT_PORTFOLIO)  # 10:00に実行
 engine.run_step(today, StepName.CREATE_EXIT_ORDERS)  # 14:00に実行

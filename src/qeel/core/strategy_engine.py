@@ -183,13 +183,21 @@ class StrategyEngine:
 
     def _run_calculate_signals(self, target_date: datetime) -> None:
         """シグナル計算ステップを実行する"""
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.CALCULATE_SIGNALS,
+                target_date=target_date,
+            )
+
         try:
             data_dict = self._fetch_data_sources(target_date)
             signals = self.signal_calculator.calculate(data_dict)
 
-            if self._context is not None:
-                self._context.signals = signals
-                self.context_store.save_signals(target_date, signals)
+            self._context.signals = signals
+            self.context_store.save_signals(target_date, signals)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="シグナル計算ステップでエラーが発生しました",
@@ -200,8 +208,18 @@ class StrategyEngine:
 
     def _run_construct_portfolio(self, target_date: datetime) -> None:
         """ポートフォリオ構築ステップを実行する"""
-        if self._context is None or self._context.signals is None:
-            return
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.CONSTRUCT_PORTFOLIO,
+                target_date=target_date,
+            )
+        if self._context.signals is None:
+            raise StrategyEngineError(
+                message="signalsが設定されていません。calculate_signalsステップを先に実行してください",
+                step_name=StepName.CONSTRUCT_PORTFOLIO,
+                target_date=target_date,
+            )
 
         try:
             positions = self.exchange_client.fetch_positions()
@@ -212,6 +230,8 @@ class StrategyEngine:
 
             self._context.portfolio_plan = portfolio_plan
             self.context_store.save_portfolio_plan(target_date, portfolio_plan)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="ポートフォリオ構築ステップでエラーが発生しました",
@@ -222,8 +242,18 @@ class StrategyEngine:
 
     def _run_create_entry_orders(self, target_date: datetime) -> None:
         """エントリー注文生成ステップを実行する"""
-        if self._context is None or self._context.portfolio_plan is None:
-            return
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.CREATE_ENTRY_ORDERS,
+                target_date=target_date,
+            )
+        if self._context.portfolio_plan is None:
+            raise StrategyEngineError(
+                message="portfolio_planが設定されていません。construct_portfolioステップを先に実行してください",
+                step_name=StepName.CREATE_ENTRY_ORDERS,
+                target_date=target_date,
+            )
 
         try:
             positions = self.exchange_client.fetch_positions()
@@ -236,6 +266,8 @@ class StrategyEngine:
 
             self._context.entry_orders = entry_orders
             self.context_store.save_entry_orders(target_date, entry_orders)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="エントリー注文生成ステップでエラーが発生しました",
@@ -246,14 +278,22 @@ class StrategyEngine:
 
     def _run_create_exit_orders(self, target_date: datetime) -> None:
         """エグジット注文生成ステップを実行する"""
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.CREATE_EXIT_ORDERS,
+                target_date=target_date,
+            )
+
         try:
             positions = self.exchange_client.fetch_positions()
             ohlcv = self._fetch_ohlcv_for_step(target_date)
             exit_orders = self.exit_order_creator.create(positions, ohlcv)
 
-            if self._context is not None:
-                self._context.exit_orders = exit_orders
-                self.context_store.save_exit_orders(target_date, exit_orders)
+            self._context.exit_orders = exit_orders
+            self.context_store.save_exit_orders(target_date, exit_orders)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="エグジット注文生成ステップでエラーが発生しました",
@@ -264,12 +304,24 @@ class StrategyEngine:
 
     def _run_submit_entry_orders(self, target_date: datetime) -> None:
         """エントリー注文執行ステップを実行する"""
-        if self._context is None or self._context.entry_orders is None:
-            return
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.SUBMIT_ENTRY_ORDERS,
+                target_date=target_date,
+            )
+        if self._context.entry_orders is None:
+            raise StrategyEngineError(
+                message="entry_ordersが設定されていません。create_entry_ordersステップを先に実行してください",
+                step_name=StepName.SUBMIT_ENTRY_ORDERS,
+                target_date=target_date,
+            )
 
         try:
             if self._context.entry_orders.height > 0:
                 self.exchange_client.submit_orders(self._context.entry_orders)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="エントリー注文執行ステップでエラーが発生しました",
@@ -280,12 +332,24 @@ class StrategyEngine:
 
     def _run_submit_exit_orders(self, target_date: datetime) -> None:
         """エグジット注文執行ステップを実行する"""
-        if self._context is None or self._context.exit_orders is None:
-            return
+        if self._context is None:
+            raise StrategyEngineError(
+                message="Contextが初期化されていません",
+                step_name=StepName.SUBMIT_EXIT_ORDERS,
+                target_date=target_date,
+            )
+        if self._context.exit_orders is None:
+            raise StrategyEngineError(
+                message="exit_ordersが設定されていません。create_exit_ordersステップを先に実行してください",
+                step_name=StepName.SUBMIT_EXIT_ORDERS,
+                target_date=target_date,
+            )
 
         try:
             if self._context.exit_orders.height > 0:
                 self.exchange_client.submit_orders(self._context.exit_orders)
+        except StrategyEngineError:
+            raise
         except Exception as e:
             raise StrategyEngineError(
                 message="エグジット注文執行ステップでエラーが発生しました",
@@ -309,9 +373,11 @@ class StrategyEngine:
         if not isinstance(step_name, StepName):
             raise ValueError(f"不正なステップ名です: {step_name}")
 
+        # 常にcontextをロード（最新状態を保証）
+        self.load_context(target_date)
+
         # Contextのcurrent_datetimeを更新
-        if self._context is not None:
-            self._context.current_datetime = target_date
+        self._context.current_datetime = target_date  # type: ignore[union-attr]
 
         # ステップに応じたメソッドを呼び出し
         step_handlers = {
@@ -324,8 +390,9 @@ class StrategyEngine:
         }
 
         handler = step_handlers.get(step_name)
-        if handler:
-            handler(target_date)
+        if handler is None:
+            raise ValueError(f"ハンドラが登録されていないステップです: {step_name}")
+        handler(target_date)
 
     def run_steps(self, target_date: datetime, step_names: list[StepName]) -> None:
         """複数ステップを順番に実行する
@@ -336,30 +403,6 @@ class StrategyEngine:
         """
         for step_name in step_names:
             self.run_step(target_date, step_name)
-
-    def run_all_steps(self, target_date: datetime) -> None:
-        """全ステップを標準順序で実行する
-
-        標準順序:
-        1. calculate_signals
-        2. construct_portfolio
-        3. create_exit_orders（先に決済）
-        4. create_entry_orders
-        5. submit_exit_orders
-        6. submit_entry_orders
-
-        Args:
-            target_date: ターゲット日時
-        """
-        standard_order = [
-            StepName.CALCULATE_SIGNALS,
-            StepName.CONSTRUCT_PORTFOLIO,
-            StepName.CREATE_EXIT_ORDERS,
-            StepName.CREATE_ENTRY_ORDERS,
-            StepName.SUBMIT_EXIT_ORDERS,
-            StepName.SUBMIT_ENTRY_ORDERS,
-        ]
-        self.run_steps(target_date, standard_order)
 
     def load_context(self, target_date: datetime | None = None) -> Context:
         """コンテキストを読み込む

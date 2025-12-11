@@ -15,8 +15,17 @@ from qeel.config.params import (
     SignalCalculatorParams,
 )
 from qeel.core.strategy_engine import StepName, StrategyEngine
-from qeel.models.context import Context
 from qeel.stores.in_memory import InMemoryStore
+
+# 標準のステップ順序（run_all_steps削除に伴い定義）
+STANDARD_STEP_ORDER = [
+    StepName.CALCULATE_SIGNALS,
+    StepName.CONSTRUCT_PORTFOLIO,
+    StepName.CREATE_EXIT_ORDERS,
+    StepName.CREATE_ENTRY_ORDERS,
+    StepName.SUBMIT_EXIT_ORDERS,
+    StepName.SUBMIT_ENTRY_ORDERS,
+]
 
 # テスト用のシンプルな実装クラス
 
@@ -292,18 +301,18 @@ def strategy_engine_with_simple_components(
 class TestStrategyEngineE2E:
     """StrategyEngine E2Eテスト"""
 
-    def test_run_all_steps_generates_signals_and_orders(
+    def test_run_steps_generates_signals_and_orders(
         self,
         strategy_engine_with_simple_components: tuple[StrategyEngine, SimpleExchangeClient, InMemoryStore],
     ) -> None:
-        """run_all_stepsがシグナル・ポートフォリオ・注文を正しく生成すること"""
+        """run_stepsで全ステップ実行時にシグナル・ポートフォリオ・注文を正しく生成すること"""
         engine, exchange_client, context_store = strategy_engine_with_simple_components
         target_date = datetime(2024, 1, 2)
-        engine._context = Context(current_datetime=target_date)
 
-        engine.run_all_steps(target_date)
+        engine.run_steps(target_date, STANDARD_STEP_ORDER)
 
         # Contextの各要素が設定されていること
+        assert engine._context is not None
         assert engine._context.signals is not None
         assert "datetime" in engine._context.signals.columns
         assert "symbol" in engine._context.signals.columns
@@ -317,16 +326,15 @@ class TestStrategyEngineE2E:
         # 約定履歴に追加されていること
         assert len(exchange_client.fill_history) > 0
 
-    def test_run_all_steps_updates_positions(
+    def test_run_steps_updates_positions(
         self,
         strategy_engine_with_simple_components: tuple[StrategyEngine, SimpleExchangeClient, InMemoryStore],
     ) -> None:
-        """run_all_stepsがポジションを正しく更新すること"""
+        """run_stepsで全ステップ実行時にポジションを正しく更新すること"""
         engine, exchange_client, context_store = strategy_engine_with_simple_components
         target_date = datetime(2024, 1, 2)
-        engine._context = Context(current_datetime=target_date)
 
-        engine.run_all_steps(target_date)
+        engine.run_steps(target_date, STANDARD_STEP_ORDER)
 
         # ポジションが作成されていること
         positions = exchange_client.fetch_positions()
@@ -345,8 +353,7 @@ class TestStrategyEngineMultipleIterations:
 
         # Day 1
         day1 = datetime(2024, 1, 1)
-        engine._context = Context(current_datetime=day1)
-        engine.run_all_steps(day1)
+        engine.run_steps(day1, STANDARD_STEP_ORDER)
 
         # Day 1終了時点でポジションが存在することを確認
         positions_after_day1 = exchange_client.fetch_positions()
@@ -354,8 +361,7 @@ class TestStrategyEngineMultipleIterations:
 
         # Day 2 (エグジットしないので追加注文)
         day2 = datetime(2024, 1, 2)
-        engine._context = Context(current_datetime=day2)
-        engine.run_all_steps(day2)
+        engine.run_steps(day2, STANDARD_STEP_ORDER)
 
         positions_after_day2 = exchange_client.fetch_positions()
 
@@ -378,13 +384,14 @@ class TestStrategyEngineContextPersistence:
         """部分実行後に新しいエンジンで再開できること"""
         engine, exchange_client, context_store = strategy_engine_with_simple_components
         target_date = datetime(2024, 1, 2)
-        engine._context = Context(current_datetime=target_date)
 
         # 部分実行（シグナル計算とポートフォリオ構築のみ）
+        # run_step内で自動的にload_contextが呼ばれる
         engine.run_step(target_date, StepName.CALCULATE_SIGNALS)
         engine.run_step(target_date, StepName.CONSTRUCT_PORTFOLIO)
 
         # シグナルとポートフォリオが保存されていること
+        assert engine._context is not None
         assert engine._context.signals is not None
         assert engine._context.portfolio_plan is not None
 
@@ -401,14 +408,7 @@ class TestStrategyEngineContextPersistence:
             context_store=context_store,  # 同じストアを使用
         )
 
-        # コンテキストを復元
-        restored_context = new_engine.load_context(target_date)
-
-        # 復元されたコンテキストにシグナルとポートフォリオが含まれること
-        assert restored_context.signals is not None
-        assert restored_context.portfolio_plan is not None
-
-        # 残りのステップを実行
+        # 残りのステップを実行（run_step内で自動的にload_contextが呼ばれる）
         new_engine.run_step(target_date, StepName.CREATE_EXIT_ORDERS)
         new_engine.run_step(target_date, StepName.CREATE_ENTRY_ORDERS)
         new_engine.run_step(target_date, StepName.SUBMIT_EXIT_ORDERS)
@@ -416,6 +416,11 @@ class TestStrategyEngineContextPersistence:
 
         # 注文が実行されたこと
         assert len(exchange_client.fill_history) > 0
+
+        # 新エンジンでもsignalsとportfolio_planがロードされていること
+        assert new_engine._context is not None
+        assert new_engine._context.signals is not None
+        assert new_engine._context.portfolio_plan is not None
 
     def test_single_step_independent_execution(
         self,
@@ -425,10 +430,7 @@ class TestStrategyEngineContextPersistence:
         engine, exchange_client, context_store = strategy_engine_with_simple_components
         target_date = datetime(2024, 1, 2)
 
-        # load_contextで新規コンテキストを作成
-        engine.load_context(target_date)
-
-        # calculate_signalsのみ実行
+        # calculate_signalsのみ実行（run_step内で自動的にload_contextが呼ばれる）
         engine.run_step(target_date, StepName.CALCULATE_SIGNALS)
 
         # signalsが設定され、他の要素はNoneのままであること
