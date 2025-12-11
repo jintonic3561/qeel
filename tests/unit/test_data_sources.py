@@ -524,8 +524,6 @@ class TestParquetDataSource:
         self, config: DataSourceConfig, sample_data: pl.DataFrame, tmp_path: Path
     ) -> None:
         """fetch()がPolars DataFrameを返す"""
-        from unittest.mock import patch
-
         from qeel.data_sources.parquet import ParquetDataSource
         from qeel.io.in_memory import InMemoryIO
 

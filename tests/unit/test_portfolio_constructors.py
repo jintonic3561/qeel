@@ -215,10 +215,7 @@ class TestTopNPortfolioConstructor:
 
     def test_top_n_default_params(self) -> None:
         """デフォルトパラメータで上位10銘柄が選定される"""
-        from qeel.portfolio_constructors.top_n import (
-            TopNConstructorParams,
-            TopNPortfolioConstructor,
-        )
+        from qeel.portfolio_constructors.top_n import TopNConstructorParams
 
         params = TopNConstructorParams()
         assert params.top_n == 10
@@ -226,10 +223,7 @@ class TestTopNPortfolioConstructor:
 
     def test_top_n_custom_params(self) -> None:
         """カスタムパラメータで指定した銘柄数が選定される"""
-        from qeel.portfolio_constructors.top_n import (
-            TopNConstructorParams,
-            TopNPortfolioConstructor,
-        )
+        from qeel.portfolio_constructors.top_n import TopNConstructorParams
 
         params = TopNConstructorParams(top_n=5, ascending=True)
         assert params.top_n == 5
