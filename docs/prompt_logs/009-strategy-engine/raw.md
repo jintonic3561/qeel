@@ -30,3 +30,9 @@ C1の修正案は前者で。
 commitして
 
 [model: unknown, session: 85ab97bb]
+
+---
+
+/speckit.implement @specs/001-qeel-core/plan.md で定義されている009ブランチを実装する。適切な粒度でコミットしながら進める。コミット前にtasks.mdにチェックを入れるのを忘れずに。タスクが多いので、何段階かに分けて実装する。できるだけ後続の実装者にとってコンテキストの引継ぎが必要ないような、キリがいいところまでよろしく
+
+[model: unknown, session: 20ff3b51]
