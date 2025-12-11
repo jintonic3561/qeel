@@ -46,12 +46,18 @@ commitして
 
 ---
 
-/speckit.implement @specs/001-qeel-core/plan.md で定義されている008ブランチを実装する。適切な粒度でコミットしながら進める。コミット前にtasks.mdにチェックを入れるのを忘れずに。すでに実装済みのタスクもあるので、tasks.mdを参照して続きから実装して
-
-[model: unknown, session: b9ecf091]
-
----
-
 commitしてpushして
 
 [model: unknown, session: 3b9c6500]
+
+---
+
+/speckit.verify 
+
+[model: unknown, session: a4641921]
+
+---
+
+コミットしてPRを出して
+
+[model: opus, session: a4641921]
