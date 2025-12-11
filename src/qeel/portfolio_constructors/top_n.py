@@ -30,9 +30,12 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
     選定された銘柄のシグナル強度（signal列）をメタデータとして含めて返す。
 
     Note:
-        入力のsignals DataFrameには「signal」という名前の列が必須。
+        このデフォルト実装（TopNPortfolioConstructor）では、入力のsignals DataFrameに
+        「signal」という名前の列が必須となる。これはBasePortfolioConstructorの要件ではなく、
+        TopNPortfolioConstructor固有の要件である。
+
         複数シグナルを使用する場合は、事前に合成シグナルを「signal」列として
-        追加するか、カスタム実装を使用する。
+        追加するか、カスタム実装（BasePortfolioConstructorを継承）を使用する。
     """
 
     params: TopNConstructorParams  # 型の明示化
