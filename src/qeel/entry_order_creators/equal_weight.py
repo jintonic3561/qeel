@@ -83,9 +83,12 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
         orders: list[dict[str, str | float | None]] = []
         for row in portfolio_plan.to_dicts():
             symbol = row["symbol"]
+            target_datetime = row["datetime"]
 
-            # 現在価格取得（open価格）
-            price_row = ohlcv.filter(pl.col("symbol") == symbol)
+            # 現在価格取得（open価格）- portfolio_planのdatetimeに対応するデータを使用
+            price_row = ohlcv.filter(
+                (pl.col("symbol") == symbol) & (pl.col("datetime") == target_datetime)
+            )
             if price_row.height == 0:
                 continue  # データがない銘柄はスキップ
 
