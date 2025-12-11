@@ -88,9 +88,9 @@ class FullExitOrderCreator(BaseExitOrderCreator):
             if quantity == 0:
                 continue  # ポジションがゼロの場合はスキップ
 
-            # 現在価格取得（close価格）- OHLCVの最新データを使用
-            price_row = ohlcv.filter(pl.col("symbol") == symbol)
-            if price_row.height == 0:
+            # 銘柄存在チェック: OHLCVデータに存在しない銘柄は取引不可と判断
+            symbol_data = ohlcv.filter(pl.col("symbol") == symbol)
+            if symbol_data.height == 0:
                 continue  # データがない銘柄はスキップ
 
             # exit_thresholdに応じて決済数量を調整
