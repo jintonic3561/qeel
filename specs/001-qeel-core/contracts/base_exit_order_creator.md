@@ -95,7 +95,8 @@ class FullExitParams(ExitOrderCreatorParams):
 class FullExitOrderCreator(BaseExitOrderCreator):
     """保有ポジションの全決済注文を生成するデフォルト実装
 
-    保有している全銘柄に対して、close価格で成行決済注文を生成する。
+    保有している全銘柄に対して、成行決済注文を生成する。
+    ohlcvは利用可能だが、この実装では使用しない。
     """
 
     def create(
@@ -118,13 +119,6 @@ class FullExitOrderCreator(BaseExitOrderCreator):
 
             if quantity == 0:
                 continue  # ポジションがゼロの場合はスキップ
-
-            # 現在価格取得（close価格）
-            price_row = ohlcv.filter(pl.col("symbol") == symbol)
-            if price_row.height == 0:
-                continue  # データがない銘柄はスキップ
-
-            current_price = price_row["close"][0]
 
             # exit_thresholdに応じて決済数量を調整
             exit_quantity = abs(quantity) * self.params.exit_threshold

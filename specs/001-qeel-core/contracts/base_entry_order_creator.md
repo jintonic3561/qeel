@@ -130,11 +130,16 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
         orders = []
         for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
+            target_datetime = row["datetime"]
 
-            # 現在価格取得（open価格）
-            price_row = ohlcv.filter(pl.col("symbol") == symbol)
+            # 現在価格取得（open価格）- portfolio_planのdatetimeに対応するデータを使用
+            price_row = ohlcv.filter(
+                (pl.col("symbol") == symbol) & (pl.col("datetime") == target_datetime)
+            )
             if price_row.height == 0:
-                continue  # データがない銘柄はスキップ
+                raise ValueError(
+                    f"OHLCVデータが見つかりません: symbol={symbol}, datetime={target_datetime}"
+                )
 
             current_price = price_row["open"][0]
 
