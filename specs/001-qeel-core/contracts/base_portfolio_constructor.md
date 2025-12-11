@@ -110,6 +110,11 @@ class TopNPortfolioConstructor(BasePortfolioConstructor):
 
     シグナル値でソートし、上位N銘柄を選定する。
     選定された銘柄のシグナル強度（signal列）をメタデータとして含めて返す。
+
+    Note:
+        入力のsignals DataFrameには「signal」という名前の列が必須。
+        複数シグナルを使用する場合は、事前に合成シグナルを「signal」列として
+        追加するか、MultiSignalPortfolioConstructorなどのカスタム実装を使用する。
     """
 
     def construct(self, signals: pl.DataFrame, current_positions: pl.DataFrame) -> pl.DataFrame:

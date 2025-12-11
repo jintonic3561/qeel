@@ -194,7 +194,7 @@
 - **User Story**: User Story 1（ポートフォリオ構築、注文生成）
 - **デフォルト実装詳細**:
   - `TopNPortfolioConstructor`: シグナル上位N銘柄でポートフォリオを構築（Nはパラメータで指定、デフォルト10）。出力DataFrameには`datetime`, `symbol`, `signal_strength`（メタデータ）を含む
-  - `EqualWeightEntryOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行買い、close価格での成行売り（リバランス時）。`portfolio_plan`のメタデータ（`signal_strength`等）を参照してエントリー注文生成
+  - `EqualWeightEntryOrderCreator`: 構築済みポートフォリオに等ウェイト割り当て（1/N）、open価格での成行注文を生成。`portfolio_plan`のメタデータ（`signal_strength`等）を参照してエントリー注文生成。リバランス閾値（rebalance_threshold）を超えた場合のみ注文を生成
   - `FullExitOrderCreator`: 保有ポジションに対して全決済注文を生成。close価格での成行決済
   - 注文タイミング: toml設定の`timing.create_entry_orders_offset_seconds`, `timing.submit_entry_orders_offset_seconds`, `timing.create_exit_orders_offset_seconds`, `timing.submit_exit_orders_offset_seconds`で指定
 

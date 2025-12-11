@@ -105,6 +105,9 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
 
     選定された銘柄に対して等ウェイト（1/N）で資金を配分し、
     open価格で成行注文を生成する。
+
+    rebalance_thresholdは、現在のポジション比率と目標比率の差が閾値を超えた場合にのみ
+    リバランス注文を生成するために使用する。これにより、小さな乖離での不要な取引を抑制する。
     """
 
     def create(
@@ -122,19 +125,37 @@ class EqualWeightEntryOrderCreator(BaseEntryOrderCreator):
             return pl.DataFrame(schema=OrderSchema.REQUIRED_COLUMNS)
 
         n_symbols = portfolio_plan.height
-        target_value_per_symbol = self.params.capital / n_symbols
+        target_weight = 1.0 / n_symbols  # 目標ウェイト（等ウェイト）
 
         orders = []
         for row in portfolio_plan.iter_rows(named=True):
             symbol = row["symbol"]
+            target_datetime = row["datetime"]
 
-            # 現在価格取得（open価格）
-            price_row = ohlcv.filter(pl.col("symbol") == symbol)
+            # 現在価格取得（open価格）- portfolio_planのdatetimeに対応するデータを使用
+            price_row = ohlcv.filter(
+                (pl.col("symbol") == symbol) & (pl.col("datetime") == target_datetime)
+            )
             if price_row.height == 0:
-                continue  # データがない銘柄はスキップ
+                raise ValueError(
+                    f"OHLCVデータが見つかりません: symbol={symbol}, datetime={target_datetime}"
+                )
 
             current_price = price_row["open"][0]
-            target_quantity = target_value_per_symbol / current_price
+
+            # 現在のポジションを取得
+            position_row = current_positions.filter(pl.col("symbol") == symbol)
+            current_quantity = position_row["quantity"][0] if position_row.height > 0 else 0.0
+            current_value = current_quantity * current_price
+            current_weight = current_value / self.params.capital if self.params.capital > 0 else 0.0
+
+            # リバランス閾値チェック: 目標比率との差が閾値を超えた場合のみ注文生成
+            weight_diff = abs(target_weight - current_weight)
+            if weight_diff < self.params.rebalance_threshold:
+                continue  # 閾値未満の場合はスキップ
+
+            target_value = self.params.capital * target_weight
+            target_quantity = target_value / current_price
 
             # シグナル強度をportfolio_planから取得（メタデータとして含まれている）
             if "signal_strength" in portfolio_plan.columns:
