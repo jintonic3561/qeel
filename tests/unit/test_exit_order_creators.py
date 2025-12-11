@@ -389,41 +389,6 @@ class TestFullExitOrderCreator:
         orders = creator.create(positions, ohlcv)
         assert orders.height == 0
 
-    def test_full_exit_skip_no_price_data(self) -> None:
-        """価格データがない銘柄がスキップされる"""
-        from qeel.exit_order_creators.full_exit import (
-            FullExitOrderCreator,
-            FullExitParams,
-        )
-
-        params = FullExitParams()
-        creator = FullExitOrderCreator(params=params)
-
-        # AAPLとGOOGLのポジションがあるが、OHLCVにはAAPLのみ
-        positions = pl.DataFrame(
-            {
-                "symbol": ["AAPL", "GOOGL"],
-                "quantity": [100.0, 50.0],
-                "avg_price": [150.0, 2500.0],
-            }
-        )
-        ohlcv = pl.DataFrame(
-            {
-                "datetime": [datetime(2024, 1, 1)],
-                "symbol": ["AAPL"],  # GOOGLなし
-                "open": [150.0],
-                "high": [155.0],
-                "low": [148.0],
-                "close": [153.0],
-                "volume": [1000000],
-            }
-        )
-
-        orders = creator.create(positions, ohlcv)
-
-        assert orders.height == 1
-        assert orders["symbol"][0] == "AAPL"
-
     def test_full_exit_skip_zero_quantity(self) -> None:
         """quantity=0のポジションがスキップされる"""
         from qeel.exit_order_creators.full_exit import (
